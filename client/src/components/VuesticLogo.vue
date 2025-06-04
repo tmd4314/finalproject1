@@ -1,5 +1,5 @@
 <template>
-  <svg :height="height" viewBox="0 0 550 100" xmlns="http://www.w3.org/2000/svg">
+  <svg :height="height" viewBox="0 0 555 100" xmlns="http://www.w3.org/2000/svg">
     <text x="250" y="95"
           :fill="colorsComputed.start"
           font-size="100"
