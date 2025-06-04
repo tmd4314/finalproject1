@@ -14,3 +14,13 @@ app.listen(3000, ()=>{
   console.log('Server Start');
   console.log('http://localhost:3000');
  })
+
+ // 라우팅 등록 영역
+// const bookRouter =require('./routers/book_router.js');
+ // 기본 라우팅
+app.get('/', (req, res)=>{
+  res.send('Welcome!!...');
+ })
+ // 라우터 모듈 등록
+// app.use('/', bookRouter);
+
