@@ -73,5 +73,12 @@
     "vite": "^5.4.9",
     "vue-eslint-parser": "^9.3.2",
     "vue-tsc": "^2.1.6"
-  }
+  },
+  "description": "<p align=\"center\">\r   <a href=\"https://vuestic.dev\" target=\"_blank\">\r     <img alt=\"Vuestic UI Logo\" width=\"220\" src=\"./.github/assets/vuestic-admin-logo.png\">\r   </a>\r </p>",
+  "main": ".eslintrc.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "author": "",
+  "license": "ISC"
 }
