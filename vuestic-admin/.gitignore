@@ -14,7 +14,7 @@ dist-ssr
 .env
 
 # ✅ yarn.lock 무시 (npm만 사용하므로)
-yarn.lock
+/yarn.lock
 
 # Editor directories and files
 .vscode/*
