@@ -29,7 +29,24 @@ const routes: Array<RouteRecordRaw> = [
       {
         name: 'Standard information',
         path: 'settings',
-        component: () => import('../pages/settings/Settings.vue'),
+        component: RouteViewComponent,
+        children: [
+          {
+            name: 'product management',
+            path: 'product management',
+            component: () => import('../pages/product/ProductPage.vue'),
+          },
+          {
+            name: 'billing',
+            path: 'billing',
+            component: () => import('../pages/billing/BillingPage.vue'),
+          },
+          {
+            name: 'pricing-plans',
+            path: 'pricing-plans',
+            component: () => import('../pages/pricing-plans/PricingPlans.vue'),
+          },
+        ],
       },
       {
         name: 'distribution',
