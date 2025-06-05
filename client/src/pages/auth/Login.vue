@@ -5,12 +5,13 @@
       New to Vuestic?
       <RouterLink :to="{ name: 'signup' }" class="font-semibold text-primary">Sign up</RouterLink>
     </p>
-    <VaInput
-      v-model="formData.email"
-      :rules="[validators.required, validators.email]"
-      class="mb-4"
-      label="Email"
-      type="email"
+    <VaInput 
+      v-model="formData.employee_no"       
+      :rules="[validators.required, validators.employeeNo]"       
+      class="mb-4"       
+      label="사원번호"       
+      type="text"
+      placeholder="Ex: EMP001"
     />
     <VaValue v-slot="isPasswordVisible" :default-value="false">
       <VaInput
