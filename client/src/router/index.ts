@@ -22,27 +22,49 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('../pages/admin/dashboard/Dashboard.vue'),
       },
       {
-        name: 'settings',
-        path: 'settings',
-        component: () => import('../pages/settings/Settings.vue'),
+        name: 'quality',
+        path: 'dashboard',
+        component: () => import('../pages/admin/dashboard/Dashboard.vue'),
       },
       {
-        name: 'preferences',
+        name: 'Standard information',
+        path: 'settings',
+        component: RouteViewComponent,
+        children: [
+          {
+            name: 'product management',
+            path: 'product management',
+            component: () => import('../pages/product/ProductPage.vue'),
+          },
+          {
+            name: 'billing',
+            path: 'billing',
+            component: () => import('../pages/billing/BillingPage.vue'),
+          },
+          {
+            name: 'pricing-plans',
+            path: 'pricing-plans',
+            component: () => import('../pages/pricing-plans/PricingPlans.vue'),
+          },
+        ],
+      },
+      {
+        name: 'distribution',
         path: 'preferences',
         component: () => import('../pages/preferences/Preferences.vue'),
       },
       {
-        name: 'users',
+        name: 'business',
         path: 'users',
         component: () => import('../pages/users/UsersPage.vue'),
       },
       {
-        name: 'projects',
+        name: 'facility',
         path: 'projects',
         component: () => import('../pages/projects/ProjectsPage.vue'),
       },
       {
-        name: 'payments',
+        name: 'material',
         path: '/payments',
         component: RouteViewComponent,
         children: [
@@ -71,7 +93,7 @@ const routes: Array<RouteRecordRaw> = [
     ],
   },
   {
-    path: '/auth',
+    path: '/production',
     component: AuthLayout,
     children: [
       {
@@ -101,7 +123,7 @@ const routes: Array<RouteRecordRaw> = [
     ],
   },
   {
-    name: '404',
+    name: 'packaging',
     path: '/404',
     component: () => import('../pages/404.vue'),
   },

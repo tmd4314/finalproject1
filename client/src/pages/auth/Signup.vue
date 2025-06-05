@@ -6,11 +6,11 @@
       <RouterLink :to="{ name: 'login' }" class="font-semibold text-primary">Login</RouterLink>
     </p>
     <VaInput
-      v-model="formData.email"
-      :rules="[(v) => !!v || 'Email field is required', (v) => /.+@.+\..+/.test(v) || 'Email should be valid']"
+      v-model="formData.employee_no"
+      :rules="[(v) => !!v || 'employee_no field is required', (v) => /.+@.+\..+/.test(v) || 'Employee_no should be valid']"
       class="mb-4"
-      label="Email"
-      type="email"
+      label="employee_no"
+      type="employee_no"
     />
     <VaValue v-slot="isPasswordVisible" :default-value="false">
       <VaInput

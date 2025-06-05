@@ -1,11 +1,11 @@
 <template>
   <div class="profile-dropdown-wrapper">
-    <VaDropdown v-model="isShown" :offset="[9, 0]" class="profile-dropdown" stick-to-edges>
+    <VaDropdown v-model="isShown"  class="profile-dropdown" stick-to-edges>
       <template #anchor>
         <VaButton preset="secondary" color="textPrimary">
           <span class="profile-dropdown__anchor min-w-max">
             <slot />
-            <VaAvatar :size="32" color="warning"> 😍 </VaAvatar>
+            <VaAvatar :size="32"> = </VaAvatar>
           </span>
         </VaButton>
       </template>
@@ -66,53 +66,18 @@ withDefaults(
         name: 'account',
         separator: true,
         list: [
-          {
-            name: 'profile',
-            to: 'preferences',
-            icon: 'mso-account_circle',
-          },
-          {
-            name: 'settings',
-            to: 'settings',
-            icon: 'mso-settings',
-          },
-          {
-            name: 'billing',
-            to: 'billing',
-            icon: 'mso-receipt_long',
-          },
-          {
-            name: 'projects',
-            to: 'projects',
-            icon: 'mso-favorite',
-          },
         ],
       },
       {
         name: 'explore',
         separator: true,
         list: [
-          {
-            name: 'faq',
-            to: 'faq',
-            icon: 'mso-quiz',
-          },
-          {
-            name: 'helpAndSupport',
-            href: 'https://discord.gg/u7fQdqQt8c',
-            icon: 'mso-error',
-          },
         ],
       },
       {
         name: '',
         separator: false,
         list: [
-          {
-            name: 'logout',
-            to: 'login',
-            icon: 'mso-logout',
-          },
         ],
       },
     ],
