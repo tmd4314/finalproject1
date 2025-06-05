@@ -1,15 +1,15 @@
 <template>
   <VaForm ref="form" @submit.prevent="submit">
-    <h1 class="font-semibold text-4xl mb-4">Sign up</h1>
+    <h1 class="font-semibold text-4xl mb-4">회원가입</h1>
     <p class="text-base mb-4 leading-5">
-      Have an account?
-      <RouterLink :to="{ name: 'login' }" class="font-semibold text-primary">Login</RouterLink>
+      계정이 이미 있나요?
+      <RouterLink :to="{ name: 'login' }" class="font-semibold text-primary">로그인</RouterLink>
     </p>
     <VaInput
       v-model="formData.employee_no"
-      :rules="[(v) => !!v || 'employee_no field is required', (v) => /.+@.+\..+/.test(v) || 'Employee_no should be valid']"
+      :rules="[(v) => !!v || '사원번호 입력이 요구됩니다.', (v) => /.+@.+\..+/.test(v) || 'Employee_no should be valid']"
       class="mb-4"
-      label="employee_no"
+      label="사원번호"
       type="employee_no"
     />
     <VaValue v-slot="isPasswordVisible" :default-value="false">
@@ -19,8 +19,8 @@
         :rules="passwordRules"
         :type="isPasswordVisible.value ? 'text' : 'password'"
         class="mb-4"
-        label="Password"
-        messages="Password should be 8+ characters: letters, numbers, and special characters."
+        label="비밀번호"
+        messages="비밀번호는 8글자 이상이어야 하며, 최소 1개의 문자, 숫자 및 특수 문자를 포함해야 합니다."
         @clickAppendInner.stop="isPasswordVisible.value = !isPasswordVisible.value"
       >
         <template #appendInner>
@@ -35,12 +35,12 @@
         ref="password2"
         v-model="formData.repeatPassword"
         :rules="[
-          (v) => !!v || 'Repeat Password field is required',
+          (v) => !!v || '비밀번호를 다시 입력해주세요',
           (v) => v === formData.password || 'Passwords don\'t match',
         ]"
         :type="isPasswordVisible.value ? 'text' : 'password'"
         class="mb-4"
-        label="Repeat Password"
+        label="비밀번호 확인"
         @clickAppendInner.stop="isPasswordVisible.value = !isPasswordVisible.value"
       >
         <template #appendInner>
@@ -54,7 +54,7 @@
     </VaValue>
 
     <div class="flex justify-center mt-4">
-      <VaButton class="w-full" @click="submit"> Create account</VaButton>
+      <VaButton class="w-full" @click="submit"> 계정 생성</VaButton>
     </div>
   </VaForm>
 </template>
@@ -69,7 +69,7 @@ const { push } = useRouter()
 const { init } = useToast()
 
 const formData = reactive({
-  email: '',
+  employee_no: '',
   password: '',
   repeatPassword: '',
 })
@@ -85,7 +85,7 @@ const submit = () => {
 }
 
 const passwordRules: ((v: string) => boolean | string)[] = [
-  (v) => !!v || 'Password field is required',
+  (v) => !!v || '비밀번호 입력이 요구됩니다.',
   (v) => (v && v.length >= 8) || 'Password must be at least 8 characters long',
   (v) => (v && /[A-Za-z]/.test(v)) || 'Password must contain at least one letter',
   (v) => (v && /\d/.test(v)) || 'Password must contain at least one number',

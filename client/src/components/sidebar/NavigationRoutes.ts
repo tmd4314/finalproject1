@@ -95,25 +95,24 @@ export default {
         },
       ],
     },
-
     {
-      name: 'packaging',
+      name: 'packaging',                  
       displayName: '포장',
       meta: {
-        icon: 'quiz',
+        icon: 'inventory_2',
       },
       children: [
         {
-          name: 'payment-methods',
-          displayName: 'menu.payment-methods',
+          name: 'package_line',     
+          displayName: '포장 라인 선택/조회',
         },
         {
-          name: 'pricing-plans',
-          displayName: 'menu.pricing-plans',
+          name: 'package_work',   
+          displayName: '포장 작업 수행',
         },
         {
-          name: 'billing',
-          displayName: 'menu.billing',
+          name: 'package_status',         
+          displayName: '포장 작업 현황',
         },
       ],
     },
