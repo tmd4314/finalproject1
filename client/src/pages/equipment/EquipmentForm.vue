@@ -13,10 +13,10 @@
       </VaFileUpload>
     </div>
 
-    <!-- 설비 코드 (회색 배경) -->
+    <!-- 설비 ID -->
     <VaInput
-      v-model="formData.code"
-      label="설비 코드"
+      v-model="formData.id"
+      label="설비 번호"
       readonly
       placeholder="등록 시 자동 생성됩니다"
       :inputClass="'bg-gray-100'"
@@ -29,8 +29,8 @@
     <!-- 설비 분류 / 설비 유형 / 도입 유형 -->
     <div class="grid grid-cols-3 gap-4 va-label-lg">
       <VaSelect v-model="formData.category" label="설비 분류" :options="['생산 설비', '품질관리 설비', '포장 설비']" :rules="[requiredRule]" />
-      <VaSelect v-model="formData.type" label="설비 유형" :options="['고속 혼합기', '습식 과립기']" :rules="[requiredRule]" />
-      <VaSelect v-model="formData.installType" label="도입 유형" :options="['신규', '이전 설치']" :rules="[requiredRule]" />
+      <VaSelect v-model="formData.type" label="설비 세부 유형" :options="['고속 혼합기', '습식 과립기']" :rules="[requiredRule]" />
+      <VaSelect v-model="formData.installType" label="도입 유형" :options="['신규', '교체']" :rules="[requiredRule]" />
     </div>
 
     <!-- 포장 설비 전용 라인 -->
@@ -127,7 +127,7 @@ const requiredRule = (v: any) => !!v || '필수 입력 항목입니다'
 
 const formData = ref({
   image: [],
-  code: '',
+  id: '',
   name: '',
   category: '',
   line: '',
