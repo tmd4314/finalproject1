@@ -10,6 +10,15 @@ export default defineConfig({
   build: {
     sourcemap: true,
   },
+  server: {
+    proxy: {
+      '/product': {
+        target: 'http://localhost:3000', // ✅ 백엔드 서버 주소
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/product/, '/product'), // 경로 그대로 유지
+      },
+    },
+  },
   plugins: [
     vuestic({
       devtools: true,

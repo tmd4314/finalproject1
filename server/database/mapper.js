@@ -1,4 +1,4 @@
-const mariadb = require('mariadb');
+const mariadb = require('mariadb/callback');
 const sqlList = require('./sqlList.js');
 
 
@@ -18,18 +18,19 @@ const connectionPool = mariadb.createPool({
   }
 });
 
-const query = async (alias, values)=>{  
-  let executeSql = sqlList[alias];
-  let conn;
-  try{
-    conn = await connectionPool.getConnection();    
-    let res = await conn.query(executeSql, values);
-    return res;
-  }catch(err){
-    throw err;
-  }finally{
-    if(conn) conn.release();
-  }
+const query = (alias, values)=>{ 
+  return new Promise((resolve, reject)=> {
+    let executeSql = sqlList[alias];
+    connectionPool.query(executeSql, values, (err, results)=>{
+       if(err) {
+        // error 발생시 
+        reject({err});
+      }else{
+        // SQL문을 정상적으로 실행한 경우
+        resolve(results);
+      }
+    });
+})
 };
 
 module.exports = {

@@ -125,16 +125,16 @@ export default {
       },
       children: [
         {
-          name: 'payment-methods',
-          displayName: 'menu.payment-methods',
+          name: 'quality management',
+          displayName: '품질관리',
         },
         {
-          name: 'pricing-plans',
-          displayName: 'menu.pricing-plans',
+          name: 'faulty management',
+          displayName: '불량품검사 등록',
         },
-        {
-          name: 'billing',
-          displayName: 'menu.billing',
+                {
+          name: 'faultyDisuse management',
+          displayName: '불량품폐기 등록',
         },
       ],
     },
@@ -181,6 +181,24 @@ export default {
         {
           name: 'billing',
           displayName: '공정흐름도 조회',
+        },
+        {
+
+          name: 'account-management',
+          displayName: '거래처 관리',
+        },
+        {
+          name: 'staff-management',
+          displayName: '사원 관리',
+        },
+        {
+          name: 'bom-manager',
+          displayName: 'BOM 관리',
+
+        },
+        {
+          name: 'bom-manager',
+          displayName: 'BOM 관리',
         },
         {
           name: 'account-management',
