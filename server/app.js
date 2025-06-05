@@ -16,6 +16,7 @@ app.listen(3000, ()=>{
 
 
  // 라우팅 등록 영역   
+
 const orderRouter = require('./routers/orderRouter');
 
 const productRouter =require('./routers/product_router.js');
@@ -27,8 +28,5 @@ app.get('/', (req, res)=>{
 
  // 라우터 모듈 등록
 app.use('/', orderRouter);
-
  //라우터 모듈 등록
 app.use('/', productRouter);
-
-
