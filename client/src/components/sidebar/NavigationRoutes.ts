@@ -20,11 +20,11 @@ export default {
       children: [
         {
           name: 'payment-methods',
-          displayName: 'menu.payment-methods',
+          displayName: '주문 조회',
         },
         {
           name: 'pricing-plans',
-          displayName: 'menu.pricing-plans',
+          displayName: '주문 관리',
         },
         {
           name: 'billing',
@@ -167,16 +167,20 @@ export default {
       },
       children: [
         {
-          name: 'payment-methods',
-          displayName: 'menu.payment-methods',
+          name: 'product management',
+          displayName: '제품 관리',
         },
         {
           name: 'pricing-plans',
-          displayName: 'menu.pricing-plans',
+          displayName: '자재 관리',
         },
         {
           name: 'billing',
-          displayName: 'menu.billing',
+          displayName: '공정흐름도 관리',
+        },
+        {
+          name: 'billing',
+          displayName: '공정흐름도 조회',
         },
       ],
     },
