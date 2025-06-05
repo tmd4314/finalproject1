@@ -5,7 +5,7 @@
       <div class="search-bar">
         <va-select
           v-model="selectedProduct"
-          :options="productOptions"
+          :options="productOptions" 
           label="제품명"
           class="bom-select"
           placeholder="제품명 선택"
