@@ -91,6 +91,26 @@ const routes: Array<RouteRecordRaw> = [
         component: RouteViewComponent,
         children: [
           {
+            name: 'account-management',
+            path: 'account-management',
+            component: () => import('../pages/admin/account/AccountManagePage.vue'),
+          },
+          {
+            name: 'staff-management',
+            path: 'staff-management',
+            component: () => import('../pages/admin/staff/StaffManagePage.vue'),
+          },
+          {
+            name: 'order-management',
+            path: 'order-management',
+            component: () => import('../pages/admin/order/OrderManagePage.vue'),
+          },
+          {
+            name: 'order-list',
+            path: 'order-list',
+            component: () => import('../pages/admin/order/OrderListPage.vue'),
+          },
+          {
             name: 'payment-methods',
             path: 'payment-methods',
             component: () => import('../pages/payments/PaymentsPage.vue'),

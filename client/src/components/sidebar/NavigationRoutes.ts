@@ -19,11 +19,11 @@ export default {
       },
       children: [
         {
-          name: 'payment-methods',
+          name: 'order-list',
           displayName: '주문 조회',
         },
         {
-          name: 'pricing-plans',
+          name: 'order-management',
           displayName: '주문 관리',
         },
         {
@@ -183,8 +183,30 @@ export default {
           displayName: '공정흐름도 조회',
         },
         {
+
+          name: 'account-management',
+          displayName: '거래처 관리',
+        },
+        {
+          name: 'staff-management',
+          displayName: '사원 관리',
+        },
+        {
           name: 'bom-manager',
           displayName: 'BOM 관리',
+
+        },
+        {
+          name: 'bom-manager',
+          displayName: 'BOM 관리',
+        },
+        {
+          name: 'account-management',
+          displayName: '거래처 관리',
+        },
+        {
+          name: 'staff-management',
+          displayName: '사원 관리',
         },
       ],
     },
