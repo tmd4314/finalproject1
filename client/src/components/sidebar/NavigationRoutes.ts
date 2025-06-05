@@ -182,6 +182,10 @@ export default {
           name: 'billing',
           displayName: '공정흐름도 조회',
         },
+        {
+          name: 'bom-manager',
+          displayName: 'BOM 관리',
+        },
       ],
     },
   ] as INavigationRoute[],
