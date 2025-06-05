@@ -20,11 +20,11 @@ export default {
       children: [
         {
           name: 'payment-methods',
-          displayName: 'menu.payment-methods',
+          displayName: '주문 조회',
         },
         {
           name: 'pricing-plans',
-          displayName: 'menu.pricing-plans',
+          displayName: '주문 관리',
         },
         {
           name: 'billing',
