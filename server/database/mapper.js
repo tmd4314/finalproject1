@@ -2,6 +2,7 @@ const mariadb = require('mariadb/callback');
 const sqlList = require('./sqlList.js');
 
 
+
 const connectionPool = mariadb.createPool({
   // DB에 접속하는 정보
   host : process.env.DB_HOST,
@@ -11,9 +12,6 @@ const connectionPool = mariadb.createPool({
   database : process.env.DB_DB,
   connectionLimit : process.env.DB_LIMIT,
 
-  permitSetMultiParamEntries:true,
-  insertIdAsNumber:true,
-  bigIntAsNumber:true,
   logger:{
     query : console.log,
     error : console.log,

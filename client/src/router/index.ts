@@ -74,6 +74,11 @@ const routes: Array<RouteRecordRaw> = [
             path: 'pricing-plans',
             component: () => import('../pages/pricing-plans/PricingPlans.vue'),
           },
+            {
+            name: 'equipment-register',
+            path: 'equipment-register',
+            component: () => import('../pages/equipment/EquipmentForm.vue'),
+            },
         ],
       },
       {
@@ -96,6 +101,26 @@ const routes: Array<RouteRecordRaw> = [
         path: 'material',
         component: RouteViewComponent,
         children: [
+          {
+            name: 'account-management',
+            path: 'account-management',
+            component: () => import('../pages/admin/account/AccountManagePage.vue'),
+          },
+          {
+            name: 'staff-management',
+            path: 'staff-management',
+            component: () => import('../pages/admin/staff/StaffManagePage.vue'),
+          },
+          {
+            name: 'order-management',
+            path: 'order-management',
+            component: () => import('../pages/admin/order/OrderManagePage.vue'),
+          },
+          {
+            name: 'order-list',
+            path: 'order-list',
+            component: () => import('../pages/admin/order/OrderListPage.vue'),
+          },
           {
             name: 'payment-methods',
             path: 'payment-methods',
@@ -155,6 +180,7 @@ const routes: Array<RouteRecordRaw> = [
     path: '/404',
     component: () => import('../pages/404.vue'),
   },
+
 ]
 
 const router = createRouter({
