@@ -16,7 +16,7 @@
 <script setup>
 import { computed } from 'vue'
 import navigation from '../data/navigationLinks.json'
-
+account
 const navSections = computed(() => {
   return Object.keys(navigation)
 })

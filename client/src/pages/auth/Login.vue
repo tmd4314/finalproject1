@@ -1,13 +1,9 @@
 <template>
   <VaForm ref="form" @submit.prevent="submit">
-    <h1 class="font-semibold text-4xl mb-4">Log in</h1>
-    <p class="text-base mb-4 leading-5">
-      New to Vuestic?
-      <RouterLink :to="{ name: 'signup' }" class="font-semibold text-primary">Sign up</RouterLink>
-    </p>
+    <h1 class="font-semibold text-4xl mb-4">로그인</h1>
     <VaInput 
       v-model="formData.employee_no"       
-      :rules="[validators.required, validators.employeeNo]"       
+      :rules="[validators.required, validators.employee_no]"       
       class="mb-4"       
       label="사원번호"       
       type="text"
@@ -19,7 +15,7 @@
         :rules="[validators.required]"
         :type="isPasswordVisible.value ? 'text' : 'password'"
         class="mb-4"
-        label="Password"
+        label="비밀번호"
         @clickAppendInner.stop="isPasswordVisible.value = !isPasswordVisible.value"
       >
         <template #appendInner>
@@ -31,12 +27,8 @@
         </template>
       </VaInput>
     </VaValue>
-
     <div class="auth-layout__options flex flex-col sm:flex-row items-start sm:items-center justify-between">
-      <VaCheckbox v-model="formData.keepLoggedIn" class="mb-2 sm:mb-0" label="Keep me signed in on this device" />
-      <RouterLink :to="{ name: 'recover-password' }" class="mt-2 sm:mt-0 sm:ml-1 font-semibold text-primary">
-        Forgot password?
-      </RouterLink>
+      <VaCheckbox v-model="formData.keepLoggedIn" class="mb-2 sm:mb-0" label="사원번호 자동저장" />
     </div>
 
     <div class="flex justify-center mt-4">
@@ -56,7 +48,7 @@ const { push } = useRouter()
 const { init } = useToast()
 
 const formData = reactive({
-  email: '',
+  employee_no: '',
   password: '',
   keepLoggedIn: false,
 })

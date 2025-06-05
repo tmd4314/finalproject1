@@ -23,23 +23,29 @@ const routes: Array<RouteRecordRaw> = [
       },
       {
         name: 'quality',
-        path: 'dashboard',
+        path: 'quality',
+        component: () => import('../pages/admin/dashboard/Dashboard.vue'),
+
+      },
+      {
+        name: 'packaging',
+        path: 'packaging',  
         component: RouteViewComponent,
         children: [
-          {
-            name: 'quality management',
-            path: 'quality management',
-            component: () => import('../pages/quality/QualityListPage.vue'),
+          { 
+            name: 'package_work',
+            path: 'work',
+            component: () => import('../pages/package/PackageWork.vue'),
           },
           {
-            name: 'faulty management',
-            path: 'faulty management',
-            component: () => import('../pages/quality/faultyInsertPage.vue'),
-          },          
+            name: 'package_line',
+            path: 'line',
+            component: () => import('../pages/package/PackageLine.vue'),
+          },
           {
-            name: 'faultyDisuse management',
-            path: 'faultyDisuse management',
-            component: () => import('../pages/quality/faultyDisuseInsertPage.vue'),
+            name: 'package_status',
+            path: 'status',
+            component: () => import('../pages/package/PackageStatus.vue'),
           },
         ],
       },
@@ -68,40 +74,65 @@ const routes: Array<RouteRecordRaw> = [
             path: 'pricing-plans',
             component: () => import('../pages/pricing-plans/PricingPlans.vue'),
           },
+            {
+            name: 'equipment-register',
+            path: 'equipment-register',
+            component: () => import('../pages/equipment/EquipmentForm.vue'),
+            },
         ],
       },
       {
         name: 'distribution',
-        path: 'preferences',
+        path: 'distribution',
         component: () => import('../pages/preferences/Preferences.vue'),
       },
       {
         name: 'business',
-        path: 'users',
+        path: 'business',
         component: () => import('../pages/users/UsersPage.vue'),
       },
       {
         name: 'facility',
-        path: 'projects',
+        path: 'facility',
         component: () => import('../pages/projects/ProjectsPage.vue'),
       },
       {
         name: 'material',
-        path: '/payments',
+        path: 'material',
         component: RouteViewComponent,
         children: [
+          {
+            name: 'account-management',
+            path: 'account-management',
+            component: () => import('../pages/admin/account/AccountManagePage.vue'),
+          },
+          {
+            name: 'staff-management',
+            path: 'staff-management',
+            component: () => import('../pages/admin/staff/StaffManagePage.vue'),
+          },
+          {
+            name: 'order-management',
+            path: 'order-management',
+            component: () => import('../pages/admin/order/OrderManagePage.vue'),
+          },
+          {
+            name: 'order-list',
+            path: 'order-list',
+            component: () => import('../pages/admin/order/OrderListPage.vue'),
+          },
           {
             name: 'payment-methods',
             path: 'payment-methods',
             component: () => import('../pages/payments/PaymentsPage.vue'),
           },
           {
-            name: 'billing',
+            name: 'material-billing',
             path: 'billing',
             component: () => import('../pages/billing/BillingPage.vue'),
           },
           {
-            name: 'pricing-plans',
+            name: 'material-pricing-plans',
             path: 'pricing-plans',
             component: () => import('../pages/pricing-plans/PricingPlans.vue'),
           },
@@ -109,7 +140,7 @@ const routes: Array<RouteRecordRaw> = [
       },
       {
         name: 'faq',
-        path: '/faq',
+        path: 'faq',
         component: () => import('../pages/faq/FaqPage.vue'),
       },
     ],
@@ -145,10 +176,11 @@ const routes: Array<RouteRecordRaw> = [
     ],
   },
   {
-    name: 'packaging',
+    name: '404',
     path: '/404',
     component: () => import('../pages/404.vue'),
   },
+
 ]
 
 const router = createRouter({
