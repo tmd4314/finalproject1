@@ -6,9 +6,9 @@
         <!-- 제품 검색 필터 및 테이블 -->
         <div class="product-table">
           <div class="product-filters">
-            <va-input v-model="filters.code" label="제품코드" class="filter-input" />
-            <va-input v-model="filters.name" label="제품명" class="filter-input" />
-            <va-input v-model="filters.spec" label="규격" class="filter-spec-input" />
+            <va-input v-model="filters.product_code" label="제품코드" class="filter-input" />
+            <va-input v-model="filters.product_name" label="제품명" class="filter-input" />
+            <va-input v-model="filters.product_stand" label="규격" class="filter-spec-input" />
           </div>
           <va-data-table :items="filteredProducts" :columns="columns" :per-page="10" :current-page.sync="page" />
         </div>
@@ -16,22 +16,20 @@
         <!-- 제품 등록 폼 -->
         <div class="product-form">
           <h3 class="form-title">제품 등록</h3>
-          <va-input v-model="form.code" label="제품코드" />
-          <va-input v-model="form.name" label="제품명" />
-          <va-input v-model="form.atc" label="ATC코드" />
-          <va-input v-model="form.mainIngredient" label="주요성분" />
-          <va-input v-model="form.spec" label="규격" />
-          <va-input v-model="form.approval" label="허가일" type="date" />
-          <va-input v-model="form.packType" label="포장 유형" />
-          <va-input v-model="form.unit" label="단위" />
-          <va-input v-model="form.safety" label="안전코드" />
+          <va-input v-model="form.product_code" label="제품코드" />
+          <va-input v-model="form.product_name" label="제품명" />
+          <va-input v-model="form.product_pay" label="판매가" />
+          <va-input v-model="form.product_atc" label="ATC코드" />
+          <va-input v-model="form.product_gred" label="주요성분" />
+          <va-input v-model="form.product_stand" label="규격" />
+          <va-input v-model="form.product_perdt" label="허가일" type="date" />
+          <va-input v-model="form.product_pt" label="포장 유형" />
+          <va-input v-model="form.product_unit" label="단위" />
+          <va-input v-model="form.product_safty" label="안전재고" />
 
           <div class="form-buttons">
             <va-button @click="registerProduct" color="primary">등록</va-button>
-            <va-button @click="resetForm">취소</va-button>
-          </div>
-
-          <div class="form-buttons">
+            <va-button @click="resetForm" color="secondary">초기화</va-button>
             <va-button @click="updateProduct" color="warning">수정</va-button>
             <va-button @click="deleteProduct" color="danger">삭제</va-button>
           </div>
@@ -42,81 +40,156 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, computed } from 'vue'
+import axios from 'axios';
+import { ref, computed, onMounted } from 'vue'
 
 interface Product {
-  code: string
-  name: string
-  spec: string
-  unit: string
+  product_code: string
+  product_name: string
+  product_pay: string
+  product_atc: string
+  product_gred: string
+  product_stand: string
+  product_perdt: string
+  product_pt: string
+  product_unit: string
+  product_safty: string
 }
 
-const products = ref<Product[]>([
-  { code: 'BJA-STD-10', name: '베아제정', spec: '10정/1판', unit: '박스' },
-  { code: 'BJA-STD-30', name: '베아제정', spec: '30정/1판', unit: '플라스틱병' },
-  { code: 'BJA-STD-60', name: '베아제정', spec: '60정/1판', unit: '플라스틱병' },
-  { code: 'FST-PLUS-10', name: '훼스탈플러스정', spec: '10정/1판', unit: '박스' },
-  { code: 'FST-PLUS-30', name: '훼스탈플러스정', spec: '30정/1판', unit: '플라스틱병' },
-  { code: 'FST-PLUS-60', name: '훼스탈플러스정', spec: '60정/1판', unit: '플라스틱병' },
-  { code: 'FST-GOLD-10', name: '훼스탈골드정', spec: '10정/1판', unit: '박스' },
-  { code: 'FST-GOLD-30', name: '훼스탈골드정', spec: '30정/1판', unit: '플라스틱병' },
-])
+const products = ref<Product[]>([])
+
+const fetchProducts = async () => {
+  try {
+    const res = await axios.get('/product')
+    products.value = res.data
+  } catch (err) {
+    console.log('❌ 제품 목록 조회 실패:', err);
+  }
+}
 
 const columns = [
-  { key: 'code', label: '제품코드' },
-  { key: 'name', label: '제품명' },
-  { key: 'unit', label: '단위' },
-  { key: 'spec', label: '규격' },
+  { key: 'product_code', label: '제품코드' },
+  { key: 'product_name', label: '제품명' },
+  { key: 'product_unit', label: '단위' },
+  { key: 'product_stand', label: '규격' },
 ]
 
 const filters = ref({
-  code: '',
-  name: '',
-  spec: '',
+  product_code: '',
+  product_name: '',
+  product_stand: '',
 })
 
 const page = ref(1)
 
 const filteredProducts = computed(() => {
   return products.value.filter((p) =>
-    (!filters.value.code || p.code.includes(filters.value.code)) &&
-    (!filters.value.name || p.name.includes(filters.value.name)) &&
-    (!filters.value.spec || p.spec.includes(filters.value.spec))
+    (!filters.value.product_code || p.product_code.includes(filters.value.product_code)) &&
+    (!filters.value.product_name || p.product_name.includes(filters.value.product_name)) &&
+    (!filters.value.product_stand || p.product_stand.includes(filters.value.product_stand))
   )
 })
 
 const form = ref({
-  code: '',
-  name: '',
-  atc: '',
-  mainIngredient: '',
-  spec: '',
-  approval: '',
-  packType: '',
-  unit: '',
-  safety: '',
+  product_code: '',
+  product_name: '',
+  product_pay: '',
+  product_atc: '',
+  product_gred: '',
+  product_stand: '',
+  product_perdt: '',
+  product_pt: '',
+  product_unit: '',
+  product_safty: '',
 })
+
 
 function resetForm() {
   form.value = {
-    code: '', name: '', atc: '', mainIngredient: '', spec: '',
-    approval: '', packType: '', unit: '', safety: ''
+    product_code: '', product_name: '', product_pay: '', product_atc: '', product_gred: '', product_stand: '',
+    product_perdt: '', product_pt: '', product_unit: '', product_safty: ''
   }
 }
 
-function registerProduct() {
-  if (!form.value.code || !form.value.name) return alert('필수값 누락')
-  products.value.push({ code: form.value.code, name: form.value.name, spec: form.value.spec, unit: form.value.unit })
-  resetForm()
+async function registerProduct() {
+  if (!form.value.product_code || !form.value.product_name) {
+    alert('필수값 누락')
+    return;
+  } 
+  try{
+    const res = await axios.post('/product', form.value);
+
+    if(res.data.isSuccessed == true) {
+      alert('등록완료!');
+      await fetchProducts();
+      resetForm();
+    }else{
+      alert('등록 실패!');
+    }
+  } catch(err){
+    console.log('오류 발생:', err);
+    alert('서버 오류!');
+  }
 }
 
-function updateProduct() {
-  alert('수정 기능은 아직 구현되지 않았습니다.')
+
+async function updateProduct() {
+  const code = form.value.product_code.trim()
+  if (!code) {
+    alert('제품코드가 없습니다. 수정할 수 없습니다.');
+    return;
+  }
+
+  try {
+    const res = await axios.put(`/product/${code}`, { ...form.value, product_code: code  }); // ✅ 제품코드로 URL 구성
+
+    console.log(res.data);
+    
+    if (res.data.isUpdated == true) {
+      alert('수정 완료!');
+      await fetchProducts();
+      resetForm();
+    } else {
+      alert('수정 실패!');
+    }
+  } catch (err) {
+    console.error('❌ 수정 중 오류 발생:', err);
+    alert('서버 오류!');
+  }
 }
 
-function deleteProduct() {
-  alert('삭제 기능은 아직 구현되지 않았습니다.')
+async function deleteProduct() {
+  const trimmedCode = form.value.product_code.trim();
+
+  if (!trimmedCode) {
+    alert('제품코드가 없습니다. 삭제할 수 없습니다.');
+    return;
+  }
+
+  if (!confirm(`정말로 ${trimmedCode} 제품을 삭제하시겠습니까?`)) {
+    return;
+  }
+  
+  try {
+  const res = await axios.delete(`/product/${trimmedCode}`);
+
+  if (res.data) {
+    alert('삭제 완료!');
+    await fetchProducts();
+    resetForm();
+  } else {
+    alert('삭제 실패! (해당 제품이 존재하지 않거나 이미 삭제됨)');
+  }
+} catch (err) {
+  console.error('❌ 삭제 중 오류 발생:', err);
+  alert('서버 오류!');
 }
+
+}
+
+onMounted(() =>{
+  fetchProducts()
+})
 </script>
 
 <style scoped>

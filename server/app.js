@@ -1,6 +1,5 @@
 // env 파일을 읽어들이는 코드 => 가능한 가장 첫번쨰 줄에 작성
 require('dotenv').config({path : './database/configs/dbConfig.env'});
-
 const express = require('express');
 const app =express();
  // 미들웨어 등록 영역
@@ -17,11 +16,11 @@ app.listen(3000, ()=>{
 
 
  // 라우팅 등록 영역   
-// const bookRouter =require('./routers/book_router.js');
+const productRouter =require('./routers/product_router.js');
  // 기본 라우팅
 app.get('/', (req, res)=>{
   res.send('Welcome!!...');
  })
- // 라우터 모듈 등록
-// app.use('/', bookRouter);
+ //라우터 모듈 등록
+app.use('/', productRouter);
 
