@@ -182,6 +182,10 @@ export default {
           name: 'billing',
           displayName: '공정흐름도 조회',
         },
+        {
+          name: 'equipment-register',
+          displayName: '설비 등록',
+        },
       ],
     },
   ] as INavigationRoute[],

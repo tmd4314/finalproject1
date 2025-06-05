@@ -46,6 +46,11 @@ const routes: Array<RouteRecordRaw> = [
             path: 'pricing-plans',
             component: () => import('../pages/pricing-plans/PricingPlans.vue'),
           },
+            {
+            name: 'equipment-register',
+            path: 'equipment-register',
+            component: () => import('../pages/equipment/EquipmentForm.vue'),
+            },
         ],
       },
       {
@@ -127,6 +132,7 @@ const routes: Array<RouteRecordRaw> = [
     path: '/404',
     component: () => import('../pages/404.vue'),
   },
+
 ]
 
 const router = createRouter({
