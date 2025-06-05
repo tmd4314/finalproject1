@@ -17,9 +17,7 @@
 **/yarn.lock
 
 
-**/.env
+*.env
 
 
 **/dist
-
-uploads/

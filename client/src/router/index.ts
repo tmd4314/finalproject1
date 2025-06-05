@@ -24,7 +24,24 @@ const routes: Array<RouteRecordRaw> = [
       {
         name: 'quality',
         path: 'dashboard',
-        component: () => import('../pages/admin/dashboard/Dashboard.vue'),
+        component: RouteViewComponent,
+        children: [
+          {
+            name: 'quality management',
+            path: 'quality management',
+            component: () => import('../pages/quality/QualityListPage.vue'),
+          },
+          {
+            name: 'faulty management',
+            path: 'faulty management',
+            component: () => import('../pages/quality/faultyInsertPage.vue'),
+          },          
+          {
+            name: 'faultyDisuse management',
+            path: 'faultyDisuse management',
+            component: () => import('../pages/quality/faultyDisuseInsertPage.vue'),
+          },
+        ],
       },
       {
         name: 'Standard information',
@@ -35,6 +52,11 @@ const routes: Array<RouteRecordRaw> = [
             name: 'product management',
             path: 'product management',
             component: () => import('../pages/product/ProductPage.vue'),
+          },
+          {
+            name: 'bom-manager',
+            path: 'bom-manager',
+            component: () => import('../pages/bom/BomManager.vue'),
           },
           {
             name: 'billing',

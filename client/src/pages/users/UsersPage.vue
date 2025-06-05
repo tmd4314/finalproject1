@@ -91,7 +91,7 @@ const beforeEditFormModalClose = async (hide: () => unknown) => {
 </script>
 
 <template>
-  <h1 class="page-title">Users</h1>
+  <h1 class="page-title">유저화면</h1>
 
   <VaCard>
     <VaCardContent>
