@@ -1,0 +1,49 @@
+ // Table : t_book_01
+ // 각 변수별로 SQL문을 등록할 떄 백틱(``)을 사용하는 이유는 줄바꿈 허용을 허용하기 떄문.
+ // ( 따옴표는 줄을 바꿀 경우 값이 깨지면서 에러발생 )
+ // 조건없이 전체조회
+const selectProductList =
+ `SELECT   product_code,
+           product_name,
+           product_pay,
+           product_atc,
+           product_gred,
+           product_stand,
+           product_perdt,
+           product_pt,
+           product_unit,
+           product_safty
+  FROM     product
+  ORDER BY product_code`
+  ;
+ // 등록
+const productInsert = 
+`INSERT INTO product (product_code,
+                      product_name,
+                      product_pay,
+                      product_atc,
+                      product_gred,
+                      product_unit,
+                      product_stand,
+                      product_pt,
+                      product_perdt,
+                      product_safty)
+VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+;
+ // 수정
+ const productUpdate = 
+ `UPDATE product 
+  SET ?
+  WHERE product_code = ?`
+ ;
+ const productDelete = 
+ `DELETE FROM product
+  WHERE product_code = ?`
+ ;
+
+ module.exports ={
+    selectProductList,
+    productInsert,
+    productUpdate,
+    productDelete
+ }

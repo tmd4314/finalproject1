@@ -1,15 +1,15 @@
 <template>
-  <VaCard class="flex flex-col">
+  <!-- <VaCard class="flex flex-col">
     <VaCardTitle class="flex items-center justify-between">
       <h1 class="card-title text-secondary font-bold uppercase">Revenue by location</h1>
-    </VaCardTitle>
-    <VaCardContent class="flex-1 flex overflow-hidden">
+    </VaCardTitle> -->
+    <!-- <VaCardContent class="flex-1 flex overflow-hidden">
       <VaAspectRatio class="w-full md:min-h-72 overflow-hidden relative flex items-center">
         <Map v-if="geoJson" :data="data" class="dashboard-map flex-1 h-full" />
         <VaProgressCircle v-else indeterminate class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
       </VaAspectRatio>
-    </VaCardContent>
-  </VaCard>
+    </VaCardContent> -->
+  <!-- </VaCard> -->
 </template>
 
 <script lang="ts" setup>
