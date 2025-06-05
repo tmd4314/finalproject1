@@ -22,6 +22,31 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('../pages/admin/dashboard/Dashboard.vue'),
       },
       {
+        name: 'order-list',
+        path: 'order-list',
+        component: () => import('../pages/admin/order/OrderListPage.vue'),
+      },
+      {
+        name: 'order-manage',
+        path: 'order-manage',
+        component: () => import('../pages/admin/order/OrderManagePage.vue'),
+      },
+      {
+        name: 'account-manage',
+        path: 'account-manage',
+        component: () => import('../pages/admin/account/AccountManagePage.vue'),
+      },
+      {
+        name: 'staff-manage',
+        path: 'staff-manage',
+        component: () => import('../pages/admin/staff/StaffManagePage.vue'),
+      },
+      {
+        name: 'dashboard',
+        path: 'dashboard',
+        component: () => import('../pages/admin/dashboard/Dashboard.vue'),
+      },
+      {
         name: 'settings',
         path: 'settings',
         component: () => import('../pages/settings/Settings.vue'),
