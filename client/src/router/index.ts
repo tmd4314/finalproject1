@@ -25,6 +25,7 @@ const routes: Array<RouteRecordRaw> = [
         name: 'quality',
         path: 'quality',
         component: () => import('../pages/admin/dashboard/Dashboard.vue'),
+
       },
       {
         name: 'packaging',
@@ -57,6 +58,11 @@ const routes: Array<RouteRecordRaw> = [
             name: 'product management',
             path: 'product management',
             component: () => import('../pages/product/ProductPage.vue'),
+          },
+          {
+            name: 'bom-manager',
+            path: 'bom-manager',
+            component: () => import('../pages/bom/BomManager.vue'),
           },
           {
             name: 'billing',
