@@ -1,36 +1,30 @@
-const express = require('express');
-const { query, orderSql } = require('../database/mapper');
+const express = require("express");
 const router = express.Router();
+const orderService = require("../services/order_service.js");
 
-// 주문 목록
-router.get('/api/orders', async (req, res) => {
-  try {
-    const rows = await query(orderSql.getOrderList);
-    res.json(rows);
-  } catch (err) {
-    res.status(500).json({ error: err.message || err });
-  }
+// [주문 목록 조회] GET /api/orders
+router.get("/", async (req, res) => {
+    let orderList = await orderService.findAllOrders().catch((err) => console.log(err));
+    res.send(orderList);
 });
 
-// 주문 상세
-router.get('/api/orders/:order_id/details', async (req, res) => {
-  try {
-    const [order] = await query(orderSql.getOrderDetail, [req.params.order_id]);
-    const items = await query(orderSql.getOrderItems, [req.params.order_id]);
-    res.json({ order: order || null, items: items || [] });
-  } catch (err) {
-    res.status(500).json({ error: err.message || err });
-  }
+// [주문 상세 조회] GET /api/orders/:order_id/details
+router.get("/:order_id/details", async (req, res) => {
+    const orderId = req.params.order_id;
+    let detail = await orderService.findOrderDetail(orderId).catch((err) => {
+        console.log(err);
+        return null;
+    });
+
+    console.log("주문 상세 결과:", detail);
+
+    res.send(detail);
 });
 
-// 주문 + 품목 목록
-router.get('/api/orders/with-items', async (req, res) => {
-  try {
-    const rows = await query(orderSql.getOrderListWithItems);
-    res.json(rows);
-  } catch (err) {
-    res.status(500).json({ error: err.message || err });
-  }
+// [주문+품목 목록] GET /api/orders/with-items
+router.get("/with-items", async (req, res) => {
+    let result = await orderService.findAllOrdersWithItems().catch((err) => console.log(err));
+    res.send(result);
 });
 
 module.exports = router;
