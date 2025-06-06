@@ -4,7 +4,7 @@
     <div class="order-list-panel">
       <h1 class="page-title">주문 조회</h1>
       <div class="order-search-bar">
-        <va-input v-model="search" placeholder="주문번호, 제품명, 거래처명 검색..." />
+        <va-input v-model="search" placeholder="주문번호, 거래처명 검색..." />
         <va-button @click="onSearch">조회</va-button>
       </div>
       <va-data-table
@@ -31,7 +31,9 @@
         <div class="order-detail-info">
           <div>
             <b>주문번호:</b> {{ selectedOrder.id }}
-            <va-chip size="small" :color="getStatusColor(selectedOrder.status)" class="ml-2">{{ selectedOrder.status }}</va-chip>
+            <va-chip size="small" :color="getStatusColor(selectedOrder.status)" class="ml-2">
+              {{ selectedOrder.status }}
+            </va-chip>
           </div>
           <div><b>거래처:</b> {{ selectedOrder.customer }}</div>
           <div><b>연락처:</b> {{ selectedOrder.phone }}</div>
@@ -42,6 +44,7 @@
           <div><b>작성자:</b> {{ selectedOrder.writer }}</div>
         </div>
       </div>
+
       <div class="order-detail-section">
         <h4>[주문 품목 정보]</h4>
         <va-data-table
@@ -59,34 +62,40 @@
 import { ref, computed, onMounted } from 'vue'
 import axios from 'axios'
 
+interface OrderItem {
+  name: string
+  spec: string
+  code: string
+  total: string
+  stock: string
+}
+
+interface Order {
+  id: number
+  customer: string
+  phone: string
+  manager: string
+  address: string
+  date: string
+  dueDate: string
+  status: string
+  writer: string
+  items: OrderItem[]
+}
 
 const search = ref('')
-const orders = ref([
-  {
-    id: 10001,
-    customer: '셀트리온',
-    date: '2025-01-01',
-    status: '진행중',
-    phone: '032-850-5000',
-    manager: '홍길동',
-    address: '인천광역시 연수구 아카데미로 23',
-    dueDate: '2025-06-07',
-    writer: '김홍인',
-    items: [
-      { name: '베아제정', spec: '10정', code: 'BJA-STD-10', total: '300 BOX', stock: '2000 BOX'},
-      { name: '타이레놀 500mg', spec: '10정', code: 'TN-500-10', total: '200 BOX', stock: '1000 BOX'},
-      { name: '이브정', spec: '30정', code: 'EG6-EVE-30', total: '100 BOX', stock: '800 BOX'},
-      { name: '훼스탈플러스정', spec: '10정', code: 'FST-PLUS-10', total: '500 BOX', stock: '300 BOX'}
-    ]
-  },
-  // ... (다른 더미 주문 데이터 추가)
-])
+const orders = ref<Order[]>([])
+const selectedOrder = ref<Order | null>(null)
+
+// 주문 목록 테이블 컬럼
 const columns = [
   { key: 'id', label: '주문번호' },
   { key: 'customer', label: '거래처명' },
   { key: 'date', label: '주문일' },
   { key: 'status', label: '상태' }
 ]
+
+// 주문 품목 테이블 컬럼
 const itemColumns = [
   { key: 'name', label: '제품명' },
   { key: 'spec', label: '규격' },
@@ -95,23 +104,70 @@ const itemColumns = [
   { key: 'stock', label: '현재 재고' }
 ]
 
-const selectedOrder = ref(orders.value[0] || null)
+// 페이지 진입 시 주문 목록 불러오기
+onMounted(async () => {
+  try {
+    const res = await axios.get('/api/orders')
+    console.log('res.data 내용 확인: ', res.data)
+    orders.value = res.data.map((o: any) => ({
+      id: o.order_id,
+      customer: o.account_name,
+      date: o.order_date,
+      status: o.status
+    }))
+    if (orders.value.length > 0) {
+      await selectOrder(orders.value[0])
+    }
+  } catch (err) {
+    console.error('주문 목록 불러오기 실패:', err);
+  }
+})
 
-function selectOrder(row: any) {
-  selectedOrder.value = row
+// 주문 선택 → 상세정보 및 품목 불러오기
+async function selectOrder(orderRow: any) {
+  try {
+    const res = await axios.get(`/api/orders/${orderRow.id}/details`)
+    const { order, items } = res.data
+    selectedOrder.value = {
+      id: order.order_id,
+      customer: order.account_name,
+      phone: order.phone,
+      manager: order.charger_name,
+      address: order.address,
+      date: order.order_date,
+      dueDate: order.delivery_date,
+      status: order.status,
+      writer: order.created_by,
+      items: items.map((item: any) => ({
+        name: item.product_name,
+        spec: item.spec,
+        code: item.product_code,
+        total: item.order_qty,
+        stock: item.stock
+      }))
+    }
+  } catch (err) {
+    console.error('상세 정보 불러오기 실패:', err)
+  }
 }
 
+// 검색 기능
 function onSearch() {
-  // 간단한 검색 기능
-  selectedOrder.value = filteredOrders.value[0] || null
+  if (filteredOrders.value.length > 0) {
+    selectOrder(filteredOrders.value[0])
+  } else {
+    selectedOrder.value = null
+  }
 }
+
 const filteredOrders = computed(() =>
   orders.value.filter(o =>
-    o.id.toString().includes(search.value)
-    || o.customer.includes(search.value)
+    o.id.toString().includes(search.value) ||
+    o.customer.includes(search.value)
   )
 )
 
+// 상태에 따라 칩 색상 지정
 function getStatusColor(status: string) {
   switch (status) {
     case '진행중': return 'info'
@@ -126,7 +182,6 @@ function getStatusColor(status: string) {
 </script>
 
 <style scoped>
-
 .order-page-container {
   display: flex;
   gap: 32px;
