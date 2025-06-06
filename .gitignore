@@ -21,3 +21,4 @@
 
 
 **/dist
+server/database/configs/dbConfig.env
