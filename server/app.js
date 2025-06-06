@@ -21,6 +21,10 @@ const orderRouter = require('./routers/orderRouter');
 
 const productRouter =require('./routers/product_router.js');
 
+const commonCodeRouter = require('./routers/commonCodeRouter');
+
+const equipmentRouter = require('./routers/equipmentRouter');
+
  // 기본 라우팅
 app.get('/', (req, res)=>{
   res.send('Welcome!!...');
@@ -32,3 +36,11 @@ app.use('/', orderRouter);
 app.use('/', productRouter);
 
 
+
+//열림
+app.use('/equipments', equipmentRouter);
+app.use('/common-codes', commonCodeRouter);
+
+
+
+console.log('DB_HOST:', process.env.DB_HOST);

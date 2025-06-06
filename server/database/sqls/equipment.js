@@ -13,7 +13,7 @@ module.exports = {
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `,
 
-  // 설비 리스트 조회 (SELECT * 대신 명시적 컬럼만)
+  // 설비 리스트 조회
   selectEquipmentList: `
     SELECT
       eq_id, eq_name, eq_group_code, eq_type_code, eq_import_code,
