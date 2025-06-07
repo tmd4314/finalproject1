@@ -1,3 +1,5 @@
+// server/database/commonCode.js
+
 module.exports = {
   selectCommonCodesByGroup: `
     SELECT code_group, code_value AS value, code_label AS label

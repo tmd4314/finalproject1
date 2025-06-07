@@ -10,7 +10,7 @@ router.get('/', async (req, res) => {
   }
 
   try {
-    const result = await getCommonCodes(groups);  // ✅ 서비스에만 위임
+    const result = await getCommonCodes(groups);
     res.json(result);
   } catch (err) {
     console.error('❌ 공통코드 불러오기 실패:', err);
