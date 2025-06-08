@@ -33,16 +33,17 @@
     "ionicons": "^4.6.3",
     "medium-editor": "^5.23.3",
     "multer": "^2.0.1",
-    "pinia": "^2.1.7",
+    "pinia": "^2.3.1",
     "register-service-worker": "^1.7.1",
     "sass": "^1.69.5",
     "serve": "^14.2.1",
     "uuid": "^11.0.3",
-    "vue": "3.5.8",
+    "vue": "^3.5.8",
     "vue-chartjs": "^5.3.0",
     "vue-i18n": "^9.6.2",
     "vue-router": "^4.2.5",
-    "vuestic-ui": "^1.10.2"
+    "vuestic-ui": "^1.10.2",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@intlify/unplugin-vue-i18n": "^1.5.0",
@@ -55,6 +56,7 @@
     "@storybook/vue3-vite": "^7.4.6",
     "@types/medium-editor": "^5.0.5",
     "@types/node": "^20.9.0",
+    "@types/xlsx": "^0.0.35",
     "@typescript-eslint/eslint-plugin": "^6.11.0",
     "@typescript-eslint/parser": "^6.11.0",
     "@vitejs/plugin-vue": "^5.2.1",
@@ -75,5 +77,9 @@
     "vite": "^5.4.9",
     "vue-eslint-parser": "^9.3.2",
     "vue-tsc": "^2.1.6"
-  }
+  },
+  "main": "postcss.config.js",
+  "author": "",
+  "license": "ISC",
+  "description": ""
 }
