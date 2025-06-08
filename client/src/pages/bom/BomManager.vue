@@ -7,10 +7,11 @@
           v-model="selectedProduct"
           :options="productOptions" 
           label="제품명"
-          class="bom-select"
+          class="bom-select"  
           placeholder="제품명 선택"
         />
       </div>
+      
       <div class="table-area">
         <va-data-table
           :items="bomList"
