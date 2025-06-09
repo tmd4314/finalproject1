@@ -1,5 +1,4 @@
 // server/services/equipmentService.js
-
 const mariadb = require('../database/mapper');
 const fs = require('fs').promises;
 const path = require('path');
@@ -93,11 +92,11 @@ const insertEquipment = async (formData, file) => {
     
     console.log('생성된 설비명:', finalName);
 
-    // 2. 이미지 URL 처리
-    let imageUrl = null;
+    // 2. 이미지 파일명 처리 (파일명만 저장)
+    let imageFileName = null;
     if (file && file.filename) {
-      imageUrl = `/uploads/equipment/${file.filename}`;
-      console.log('생성된 이미지 URL:', imageUrl);
+      imageFileName = file.filename;
+      console.log('저장될 이미지 파일명:', imageFileName);
     } else {
       console.log('업로드된 파일이 없습니다.');
     }
@@ -117,25 +116,25 @@ const insertEquipment = async (formData, file) => {
     console.log('제조일:', manufactureDate);
     console.log('등록일:', registerDate);
 
-    // 5. INSERT용 데이터 준비
+    // 5. INSERT용 데이터 준비 (SQL 컬럼 순서에 맞춤)
     const values = [
       finalName,                          // eq_name
       formData.category,                  // eq_group_code
       formData.type,                      // eq_type_code
       formData.installType,               // eq_import_code
-      formData.factory,                   // factory_code
-      formData.floor,                     // floor_code
-      formData.room,                      // room_code
+      formData.factory,                   // eq_factory_code
+      formData.floor,                     // eq_floor_code
+      formData.room,                      // eq_room_code
       manufactureDate,                    // eq_manufacture_date
       registerDate,                       // eq_registration_date
       formData.maker,                     // eq_manufacturer
       formData.model,                     // eq_model
-      formData.serial,                    // eq_serial_no
-      formData.power,                     // eq_rated_power
-      parseInt(formData.maxRuntime) || 0, // eq_max_runtime
-      parseInt(formData.maintenanceCycle) || 0, // eq_maintenance_cycle
-      formData.note || null,              // eq_note
-      imageUrl,                           // eq_image_url
+      formData.serial,                    // eq_serial_number
+      formData.power,                     // eq_power_spec
+      parseInt(formData.maxRuntime) || 0, // eq_max_operation_time
+      parseInt(formData.maintenanceCycle) || 0, // eq_inspection_cycle
+      formData.note || null,              // eq_remark
+      imageFileName,                      // eq_image (파일명만 저장)
       lineId,                             // line_id
       's2'                                // eq_run_code (기본: 정상)
     ];
@@ -150,7 +149,7 @@ const insertEquipment = async (formData, file) => {
     return convertData({ 
       insertId: result.insertId,
       name: finalName,
-      imageUrl: imageUrl
+      imageFileName: imageFileName
     });
 
   } catch (error) {
@@ -180,12 +179,8 @@ const getEquipmentList = async () => {
       console.log('첫 번째 항목의 날짜 필드들:');
       console.log('eq_manufacture_date:', list[0].eq_manufacture_date);
       console.log('eq_registration_date:', list[0].eq_registration_date);
-      console.log('날짜 필드 타입들:');
-      console.log('eq_manufacture_date type:', typeof list[0].eq_manufacture_date);
-      console.log('eq_registration_date type:', typeof list[0].eq_registration_date);
     }
     
-    // 전체 리스트의 변환
     return convertData(list);
   } catch (error) {
     console.error('getEquipmentList 에러:', error);
@@ -203,6 +198,7 @@ const getEquipmentDetail = async (equipmentId) => {
       console.log('=== 상세 조회 날짜 디버깅 ===');
       console.log('eq_manufacture_date:', equipment.eq_manufacture_date);
       console.log('eq_registration_date:', equipment.eq_registration_date);
+      console.log('eq_image:', equipment.eq_image);
     }
     
     return convertData(equipment);
@@ -227,11 +223,11 @@ const updateEquipment = async (equipmentId, formData, file) => {
     }
 
     // 이미지 처리
-    let imageUrl = existing.eq_image_url;
+    let imageFileName = existing.eq_image;
     if (file && file.filename) {
       // 기존 이미지 삭제
-      if (existing.eq_image_url) {
-        const oldImagePath = path.join(process.cwd(), existing.eq_image_url);
+      if (existing.eq_image) {
+        const oldImagePath = path.join(process.cwd(), 'uploads', 'equipment', existing.eq_image);
         try {
           await fs.unlink(oldImagePath);
           console.log('기존 이미지 삭제 완료:', oldImagePath);
@@ -239,8 +235,8 @@ const updateEquipment = async (equipmentId, formData, file) => {
           console.log('기존 이미지 삭제 실패 (파일이 없거나 권한 문제):', err.message);
         }
       }
-      imageUrl = `/uploads/equipment/${file.filename}`;
-      console.log('새 이미지 URL:', imageUrl);
+      imageFileName = file.filename;
+      console.log('새 이미지 파일명:', imageFileName);
     }
 
     // line_id 처리
@@ -257,19 +253,19 @@ const updateEquipment = async (equipmentId, formData, file) => {
       formData.category,                  // eq_group_code
       formData.type,                      // eq_type_code
       formData.installType,               // eq_import_code
-      formData.factory,                   // factory_code
-      formData.floor,                     // floor_code
-      formData.room,                      // room_code
+      formData.factory,                   // eq_factory_code
+      formData.floor,                     // eq_floor_code
+      formData.room,                      // eq_room_code
       lineId,                             // line_id
       manufactureDate,                    // eq_manufacture_date
       formData.maker,                     // eq_manufacturer
       formData.model,                     // eq_model
-      formData.serial,                    // eq_serial_no
-      formData.power,                     // eq_rated_power
-      parseInt(formData.maxRuntime) || 0, // eq_max_runtime
-      parseInt(formData.maintenanceCycle) || 0, // eq_maintenance_cycle
-      formData.note || null,              // eq_note
-      imageUrl,                           // eq_image_url
+      formData.serial,                    // eq_serial_number
+      formData.power,                     // eq_power_spec
+      parseInt(formData.maxRuntime) || 0, // eq_max_operation_time
+      parseInt(formData.maintenanceCycle) || 0, // eq_inspection_cycle
+      formData.note || null,              // eq_remark
+      imageFileName,                      // eq_image (파일명만 저장)
       equipmentId                         // WHERE 조건
     ];
 
@@ -281,7 +277,7 @@ const updateEquipment = async (equipmentId, formData, file) => {
     
     return convertData({
       ...result,
-      imageUrl: imageUrl
+      imageFileName: imageFileName
     });
 
   } catch (error) {
@@ -308,9 +304,9 @@ const deleteEquipment = async (equipmentId) => {
     // 설비 정보 조회 (이미지 삭제를 위해)
     const [equipment] = await mariadb.query('selectEquipmentDetail', [equipmentId]);
     
-    if (equipment && equipment.eq_image_url) {
+    if (equipment && equipment.eq_image) {
       // 이미지 파일 삭제
-      const imagePath = path.join(process.cwd(), equipment.eq_image_url);
+      const imagePath = path.join(process.cwd(), 'uploads', 'equipment', equipment.eq_image);
       try {
         await fs.unlink(imagePath);
         console.log('이미지 삭제 완료:', imagePath);

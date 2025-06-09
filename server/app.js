@@ -27,13 +27,15 @@ app.listen(3000, ()=>{
 
 const orderRouter = require('./routers/orderRouter.js');
 
-const productRouter =require('./routers/product_router.js');
+const productRouter =require('./routers/productRouter.js');
 
 const commonCodeRouter = require('./routers/commonCodeRouter');
 
 const equipmentRouter = require('./routers/equipmentRouter');
 
-const materialRouter =require('./routers/material_router.js');
+const materialRouter =require('./routers/materialRouter.js');
+
+const processRouter =require('./routers/processRouter.js');
 
 const bomRouter =require('./routers/bomRouter.js');
 
@@ -50,6 +52,7 @@ app.use('/api/orders', orderRouter);
 app.use('/', productRouter);
 
 app.use('/', materialRouter);
+app.use('/', processRouter);
 
 //열림
 app.use('/equipments', equipmentRouter);
