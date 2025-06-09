@@ -187,6 +187,23 @@ const routes: Array<RouteRecordRaw> = [
         ],
       },
       {
+        name: 'order',
+        path: 'order',
+        component: RouteViewComponent,
+        children: [
+          {
+            name: 'order-management',
+            path: 'order-management',
+            component: () => import('../pages/admin/order/OrderManagePage.vue'),
+          },
+          {
+            name: 'order-list',
+            path: 'order-list',
+            component: () => import('../pages/admin/order/OrderListPage.vue'),
+          },
+        ],
+      },
+      {
         name: 'faq',
         path: 'faq',
         component: () => import('../pages/faq/FaqPage.vue'),
