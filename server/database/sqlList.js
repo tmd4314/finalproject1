@@ -5,7 +5,9 @@ const commonCode = require('./sqls/commonCode.js');
 const order = require('./sqls/order.js');
 const inspection = require('./sqls/inspection.js');
 const processFlowChart = require('./sqls/processFlowChart.js');
+const line = require('./sqls/line.js');
 const bom = require('./sqls/bom.js');
+
 
 
  module.exports ={
@@ -16,6 +18,8 @@ const bom = require('./sqls/bom.js');
      ...commonCode,
      ...order,
      ...bom,
+     ...processFlowChart,
+     ...line,
      ...inspection,
     ...processFlowChart
  }

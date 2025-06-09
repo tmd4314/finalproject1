@@ -19,7 +19,7 @@ const connectionPool = mariadb.createPool({
 const query = (alias, values) => {
     return new Promise((resolve, reject) => {
         let executeSql = sqlList[alias];
-        
+
         connectionPool.query(executeSql, values, (err, results) =>{
             if(err) {
                 reject({err});
@@ -29,7 +29,6 @@ const query = (alias, values) => {
         });
     });
 };
-
 module.exports = {
     query
 };
