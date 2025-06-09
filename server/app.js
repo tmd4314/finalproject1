@@ -39,12 +39,17 @@ const bomRouter =require('./routers/bomRouter.js');
 
 const lineRouter = require('./routers/lineRouter.js')
 
+const inspectionRouter = require('./routers/inspectionRouter.js');
+
 
 
  // 기본 라우팅
 app.get('/', (req, res)=>{
   res.send('Welcome!!...');
  })
+
+
+
 
  // 라우터 모듈 등록
 app.use('/api/orders', orderRouter);
@@ -56,7 +61,6 @@ app.use('/', materialRouter);
 //열림
 app.use('/equipments', equipmentRouter);
 app.use('/common-codes', commonCodeRouter);
-
 app.use('/img', express.static('../client/public/img'));
 
 //다산
