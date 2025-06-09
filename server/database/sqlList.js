@@ -6,4 +6,3 @@ const material =require('./sqls/material.js');
      ...product,
      ...material
  }
-
