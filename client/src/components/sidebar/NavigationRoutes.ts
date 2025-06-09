@@ -13,7 +13,7 @@ export default {
   routes: [
     {
       name: 'business',
-      displayName: '영업',
+      displayName: 'menu.영업',
       meta: {
         icon: 'group',
       },
@@ -34,7 +34,7 @@ export default {
     },
     {
       name: 'facility',
-      displayName: '설비',
+      displayName: 'menu.설비',
       meta: {
         icon: 'folder_shared',
       },
@@ -55,7 +55,7 @@ export default {
     },
     {
       name: 'material',
-      displayName: '자재',
+      displayName: 'menu.자재',
       meta: {
         icon: 'credit_card',
       },
@@ -76,7 +76,7 @@ export default {
     },
     {
       name: 'production',
-      displayName: '생산',
+      displayName: 'menu.생산',
       meta: {
         icon: 'login',
       },
@@ -97,7 +97,7 @@ export default {
     },
     {
       name: 'packaging',                  
-      displayName: '포장',
+      displayName: 'menu.포장',
       meta: {
         icon: 'inventory_2',
       },
@@ -118,7 +118,7 @@ export default {
     },
     {
       name: 'quality',
-      displayName: '품질',
+      displayName: 'menu.품질',
       meta: {
         icon: 'vuestic-iconset-files',
       },
@@ -139,7 +139,7 @@ export default {
     },
     {
       name: 'distribution',
-      displayName: '물류',
+      displayName: 'menu.물류',
       meta: {
         icon: 'manage_accounts',
       },
@@ -160,54 +160,54 @@ export default {
     },
     {
       name: 'Standard information',
-      displayName: '기준정보',
+      displayName: 'menu.기준정보',
       meta: {
         icon: 'settings',
       },
       children: [
         {
           name: 'product management',
-          displayName: '제품 관리',
+          displayName: 'menu.제품 관리',
         },
         {
-          name: 'pricing-plans',
-          displayName: '자재 관리',
+          name: 'material management',
+          displayName: 'menu.자재 관리',
         },
         {
-          name: 'billing',
-          displayName: '공정흐름도 관리',
+          name: 'material management',
+          displayName: 'menu.공정흐름도 관리',
         },
         {
-          name: 'billing',
-          displayName: '공정흐름도 조회',
+          name: 'material management',
+          displayName: 'menu.공정흐름도 조회',
         },
         {
           name: 'equipment-register',
-          displayName: '설비 등록',
+          displayName: 'menu.설비 등록',
         },
         {
           name: 'account-management',
-          displayName: '거래처 관리',
+          displayName: 'menu.거래처 관리',
         },
         {
           name: 'staff-management',
-          displayName: '사원 관리',
+          displayName: 'menu.사원 관리',
         },
         {
           name: 'bom-manager',
-          displayName: 'BOM 관리',
+          displayName: 'menu.BOM 관리',
         },
         {
           name: 'bom-manager',
-          displayName: 'BOM 관리',
+          displayName: 'menu.BOM 관리',
         },
         {
           name: 'account-management',
-          displayName: '거래처 관리',
+          displayName: 'menu.거래처 관리',
         },
         {
           name: 'staff-management',
-          displayName: '사원 관리',
+          displayName: 'menu.사원 관리',
         },
       ],
     },

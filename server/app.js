@@ -21,6 +21,8 @@ const orderRouter = require('./routers/orderRouter.js');
 
 const productRouter =require('./routers/product_router.js');
 
+const materialRouter =require('./routers/material_router.js');
+
  // 기본 라우팅
 app.get('/', (req, res)=>{
   res.send('Welcome!!...');
@@ -31,4 +33,6 @@ app.use('/api/orders', orderRouter);
  //라우터 모듈 등록
 app.use('/', productRouter);
 
+app.use('/', materialRouter);
 
+app.use('/img', express.static('../client/public/img'));
