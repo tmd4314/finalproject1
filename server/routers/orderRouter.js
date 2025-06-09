@@ -1,51 +1,30 @@
-const express = require('express');
-const pool = require('../database/mapper');
+const express = require("express");
 const router = express.Router();
-const sqlList = require('../database/sqlList');
+const orderService = require("../services/order_service.js");
 
-// [주문 목록] GET /api/orders
-router.get('/', async (req, res) => {
-  let conn;
-  try {
-    conn = await pool.getConnection();
-    const rows = await conn.query(sqlList.getOrderList);
-    res.json(rows);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  } finally {
-    if (conn) conn.release();
-  }
+// [주문 목록 조회] GET /api/orders
+router.get("/", async (req, res) => {
+    let orderList = await orderService.findAllOrders().catch((err) => console.log(err));
+    res.send(orderList);
 });
 
-// [주문 상세] GET /api/orders/:order_id/details
-router.get('/:order_id/details', async (req, res) => {
-  let conn;
-  try {
-    conn = await pool.getConnection();
-    // 주문 기본정보 1건
-    const [orderInfo] = await conn.query(sqlList.getOrderDetail, [req.params.order_id]);
-    // 주문 품목 리스트
-    const items = await conn.query(sqlList.getOrderItems, [req.params.order_id]);
-    res.json({ order: orderInfo || null, items: items || [] });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  } finally {
-    if (conn) conn.release();
-  }
+// [주문 상세 조회] GET /api/orders/:order_id/details
+router.get("/:order_id/details", async (req, res) => {
+    const orderId = req.params.order_id;
+    let detail = await orderService.findOrderDetail(orderId).catch((err) => {
+        console.log(err);
+        return null;
+    });
+
+    console.log("주문 상세 결과:", detail);
+
+    res.send(detail);
 });
 
-// [주문+품목목록] GET /api/orders/with-items
-router.get('/with-items', async (req, res) => {
-  let conn;
-  try {
-    conn = await pool.getConnection();
-    const rows = await conn.query(sqlList.getOrderListWithItems);
-    res.json(rows);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  } finally {
-    if (conn) conn.release();
-  }
+// [주문+품목 목록] GET /api/orders/with-items
+router.get("/with-items", async (req, res) => {
+    let result = await orderService.findAllOrdersWithItems().catch((err) => console.log(err));
+    res.send(result);
 });
 
-module.exports = router; // 이 파일 전체를 다른 곳에서 쓸 수 있게 내보냄
+module.exports = router;

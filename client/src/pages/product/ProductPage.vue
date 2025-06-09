@@ -10,12 +10,37 @@
             <va-input v-model="filters.product_name" label="제품명" class="filter-input" />
             <va-input v-model="filters.product_stand" label="규격" class="filter-spec-input" />
           </div>
-          <va-data-table :items="filteredProducts" :columns="columns" :per-page="10" :current-page.sync="page" />
+          <va-data-table
+            :items="filteredProducts"
+            :columns="columns"
+            :per-page="10"
+            :current-page.sync="page"
+            track-by="product_code"
+          >
+            <template #cell(select)="{ row }">
+              <va-checkbox
+                :model-value="selectedProductCode === row.source.product_code"
+                @update:modelValue="(checked: boolean) => onCheckboxToggle(checked, row.source)"
+                :disabled="selectedProductCode !== null && selectedProductCode !== row.source.product_code"
+              />
+            </template>
+          </va-data-table>
         </div>
+
+         
 
         <!-- 제품 등록 폼 -->
         <div class="product-form">
-          <h3 class="form-title">제품 등록</h3>
+          <div class="form-header">
+            <h3 class="form-title">제품 등록</h3>
+            <input type="file" accept="image/*" @change="onImageChange" />
+          </div>
+
+          <!-- 미리보기 이미지 -->
+        <div v-if="previewImage" class="image-preview">
+          <img :src="previewImage" alt="첨부 이미지 미리보기" />
+        </div>
+
           <va-input v-model="form.product_code" label="제품코드" />
           <va-input v-model="form.product_name" label="제품명" />
           <va-input v-model="form.product_pay" label="판매가" />
@@ -54,6 +79,7 @@ interface Product {
   product_pt: string
   product_unit: string
   product_safty: string
+  product_img: string
 }
 
 const products = ref<Product[]>([])
@@ -62,12 +88,14 @@ const fetchProducts = async () => {
   try {
     const res = await axios.get('/product')
     products.value = res.data
+
   } catch (err) {
     console.log('❌ 제품 목록 조회 실패:', err);
   }
 }
 
 const columns = [
+  { key: 'select', label: '선택' },
   { key: 'product_code', label: '제품코드' },
   { key: 'product_name', label: '제품명' },
   { key: 'product_unit', label: '단위' },
@@ -101,23 +129,55 @@ const form = ref({
   product_pt: '',
   product_unit: '',
   product_safty: '',
+  product_img: '', // 이미지 이름 저장
 })
 
+const previewImage = ref<string | null>(null);
+const imageFile = ref<File | null>(null);
 
 function resetForm() {
   form.value = {
     product_code: '', product_name: '', product_pay: '', product_atc: '', product_gred: '', product_stand: '',
-    product_perdt: '', product_pt: '', product_unit: '', product_safty: ''
-  }
+    product_perdt: '', product_pt: '', product_unit: '', product_safty: '', product_img: ''
+  };
+  previewImage.value = null;
+  imageFile.value = null;
+}
+
+function onImageChange(event: Event) {
+  const file = (event.target as HTMLInputElement).files?.[0];
+  if (!file) return;
+
+  imageFile.value = file;
+  form.value.product_img = file.name; // ✅ 이름을 form에 저장 (중요)
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    previewImage.value = reader.result as string;
+  };
+  reader.readAsDataURL(file);
 }
 
 async function registerProduct() {
   if (!form.value.product_code || !form.value.product_name) {
     alert('필수값 누락')
     return;
+  }
+
+  const formData = new FormData();
+
+  for (const key in form.value) {
+    formData.append(key, (form.value as any)[key]);
   } 
+
+  if(imageFile.value){
+    formData.append('image',imageFile.value);
+  }
+
   try{
-    const res = await axios.post('/product', form.value);
+    const res = await axios.post('/product', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
 
     if(res.data.isSuccessed == true) {
       alert('등록완료!');
@@ -134,18 +194,28 @@ async function registerProduct() {
 
 
 async function updateProduct() {
-  const code = form.value.product_code.trim()
+  const code = form.value.product_code.trim();
   if (!code) {
     alert('제품코드가 없습니다. 수정할 수 없습니다.');
     return;
   }
 
-  try {
-    const res = await axios.put(`/product/${code}`, { ...form.value, product_code: code  }); // ✅ 제품코드로 URL 구성
+  const formData = new FormData();
+  
+  for (const key in form.value) {
+    formData.append(key, (form.value as any)[key]);
+  }
 
-    console.log(res.data);
-    
-    if (res.data.isUpdated == true) {
+  if (imageFile.value) {
+    formData.append('image', imageFile.value);
+  }
+
+  try {
+    const res = await axios.put(`/product/${code}`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+
+    if (res.data.isUpdated === true) {
       alert('수정 완료!');
       await fetchProducts();
       resetForm();
@@ -153,7 +223,7 @@ async function updateProduct() {
       alert('수정 실패!');
     }
   } catch (err) {
-    console.error('❌ 수정 중 오류 발생:', err);
+    console.error('❌ 수정 오류:', err);
     alert('서버 오류!');
   }
 }
@@ -173,19 +243,31 @@ async function deleteProduct() {
   try {
   const res = await axios.delete(`/product/${trimmedCode}`);
 
-  if (res.data) {
-    alert('삭제 완료!');
-    await fetchProducts();
-    resetForm();
-  } else {
-    alert('삭제 실패! (해당 제품이 존재하지 않거나 이미 삭제됨)');
+    if (res.data.isDeleted == true) {
+      alert('삭제 완료!');
+      await fetchProducts();
+      resetForm();
+    } else {
+      alert('삭제 실패! (해당 제품이 존재하지 않거나 이미 삭제됨)');
+    }
+  } catch (err) {
+    console.error('❌ 삭제 중 오류 발생:', err);
+    alert('서버 오류!');
   }
-} catch (err) {
-  console.error('❌ 삭제 중 오류 발생:', err);
-  alert('서버 오류!');
 }
 
+const selectedProductCode = ref<string | null>(null)
+
+function onCheckboxToggle(checked: boolean, row: Product) {
+  if (checked) {
+    selectedProductCode.value = row.product_code;
+    form.value = { ...row };
+  } else {
+    selectedProductCode.value = null;
+    resetForm();
+  }
 }
+
 
 onMounted(() =>{
   fetchProducts()
@@ -246,8 +328,9 @@ onMounted(() =>{
 
 .form-title {
   font-size: 1.125rem;
-  font-weight: 600;
-  margin-bottom: 0.5rem;
+  font-weight: 1000;
+  width: 100px;
+  margin-bottom: 1rem;
 }
 
 .va-input {
@@ -258,5 +341,28 @@ onMounted(() =>{
   display: flex;
   justify-content: space-between;
   margin-top: 0.5rem;
+}
+
+.form-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.image-preview {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.image-preview img {
+  max-width: 100%;
+  max-height: 150px;
+  object-fit: contain;
+  border: 1px solid #ccc;
+  padding: 4px;
+  border-radius: 4px;
 }
 </style>
