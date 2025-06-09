@@ -15,6 +15,7 @@ const app = createApp(App)
 app.use(stores)
 app.use(router)
 app.use(i18n)
+
 app.use(createVuestic({ config: vuesticGlobalConfig }))
 
 if (import.meta.env.VITE_APP_GTM_ENABLED) {

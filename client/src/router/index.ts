@@ -81,9 +81,9 @@ const routes: Array<RouteRecordRaw> = [
             component: () => import('../pages/bom/BomManager.vue'),
           },
           {
-            name: 'billing',
-            path: 'billing',
-            component: () => import('../pages/billing/BillingPage.vue'),
+            name: 'material management',
+            path: 'material management',
+            component: () => import('../pages/material/MaterialPage.vue'),
           },
           {
             name: 'pricing-plans',
