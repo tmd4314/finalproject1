@@ -12,7 +12,6 @@
           clearable
         />
       </div>
-      
       <div class="table-area">
         <va-data-table
           :items="bomList"
@@ -25,7 +24,6 @@
         />
       </div>
     </div>
-
     <!-- 우측: BOM 등록/수정 -->
     <div class="bom-register">
       <form @submit.prevent="saveBOM">
@@ -52,7 +50,6 @@
             class="input-short"
           />
         </fieldset>
-        
         <fieldset class="fieldset">
           <div class="material-header">
             <span>투입 자재</span>
@@ -83,7 +80,6 @@
             </template>
           </va-data-table>
         </fieldset>
-        
         <fieldset class="fieldset">
           <legend>자재 검색 및 추가</legend>
           <div class="material-search-row">
@@ -108,7 +104,6 @@
             :selected-color="'primary'"
           />
         </fieldset>
-        
         <div class="form-buttons">
           <va-button @click="saveBOM" color="primary" class="action-btn">
             {{ selectedBomCode ? '수정' : '저장' }}
@@ -121,7 +116,8 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, watch, computed, nextTick } from 'vue'
+import axios from 'axios'
+import { ref, watch, onMounted } from 'vue'
 
 interface BomItem {
   bomCode: string
@@ -146,48 +142,15 @@ interface ProductOption {
   bomCode: string
 }
 
-// 제품/자재 더미 데이터
-const productOptions: ProductOption[] = [
-  { text: '타이레놀', value: 'BJA-STD-10', spec: '100정', bomCode: 'MK-70' },
-  { text: '우먼스정', value: 'FST-PLUS-10', spec: '80정', bomCode: 'MK-71' },
-]
-
-const materialMaster: Material[] = [
-  { materialCode: 'PM1000', materialName: '아세트아미노펜', unit: 'mg', spec: '25kg/1포', usage: '' },
-  { materialCode: 'PM1001', materialName: '유당', unit: 'mg', spec: '25kg/1포', usage: '' },
-  { materialCode: 'PM1002', materialName: '말토덱스트린', unit: 'mg', spec: '25kg/1포', usage: '' },
-  { materialCode: 'PM1003', materialName: 'PVP(폴리비닐피롤리돈)', unit: 'mg', spec: '25kg/1포', usage: '' },
-]
-
-const allBomList = ref<BomItem[]>([
-  {
-    bomCode: 'MK-70',
-    productCode: 'BJA-STD-10',
-    productName: '타이레놀',
-    spec: '100정',
-    materials: [
-      { materialCode: 'PM1000', materialName: '아세트아미노펜', unit: 'mg', spec: '25kg/1포', usage: '100' },
-      { materialCode: 'PM1001', materialName: '유당', unit: 'mg', spec: '25kg/1포', usage: '50' },
-    ],
-  },
-  {
-    bomCode: 'MK-71',
-    productCode: 'FST-PLUS-10',
-    productName: '우먼스정',
-    spec: '80정',
-    materials: [
-      { materialCode: 'PM1002', materialName: '말토덱스트린', unit: 'mg', spec: '25kg/1포', usage: '80' },
-    ],
-  },
-])
-
+// 반응형 데이터
+const productOptions = ref<ProductOption[]>([])
+const allBomList = ref<BomItem[]>([])
 const bomColumns = [
   { key: 'bomCode', label: 'BOM코드' },
   { key: 'productCode', label: '제품코드' },
   { key: 'productName', label: '제품명' },
   { key: 'spec', label: '규격' },
 ]
-
 const materialColumns = [
   { key: 'materialCode', label: '자재코드' },  
   { key: 'materialName', label: '자재명' },
@@ -195,8 +158,6 @@ const materialColumns = [
   { key: 'spec', label: '규격' },
   { key: 'usage', label: '투입량' },
 ]
-
-// 검색용 테이블에는 투입량 컬럼 제외
 const materialSearchColumns = [
   { key: 'materialCode', label: '자재코드' },
   { key: 'materialName', label: '자재명' },
@@ -204,7 +165,7 @@ const materialSearchColumns = [
   { key: 'spec', label: '규격' },
 ]
 
-const bomList = ref<BomItem[]>([...allBomList.value])
+const bomList = ref<BomItem[]>([])
 const selectedProduct = ref<string>('')
 
 // 선택된 BOM 코드 (행 클릭으로만 선택)
@@ -218,63 +179,139 @@ const registerForm = ref<{
   materials: Material[]
 }>({ bomCode: '', productCode: '', spec: '', materials: [] })
 
-// 투입자재(체크박스) - 객체 배열로 변경
 const selectedMaterials = ref<Material[]>([])
-
-// 자재 검색(체크박스) - 객체 배열로 변경
 const searchMaterialCode = ref<string>('')
 const searchMaterialName = ref<string>('')
 const materialSearchResults = ref<Material[]>([])
 const selectedSearchMaterials = ref<Material[]>([])
 
-// 행 클릭 시 선택된 행에 하이라이트 클래스 적용
+// ========== [axios 요청 경로 실제 라우터에 맞게 수정] ==========
+
+// 제품 목록
+async function fetchProducts() {
+  try {
+    const response = await axios.get('/products')
+    productOptions.value = response.data.map((product: any) => ({
+      text: product.productName,
+      value: product.productCode,
+      spec: product.spec,
+      bomCode: product.bomCode
+    }))
+  } catch (error) {
+    console.error('제품 목록 조회 실패:', error)
+    alert('제품 목록을 불러오는데 실패했습니다.')
+  }
+}
+
+// BOM 목록
+async function fetchBomList() {
+  try {
+    const response = await axios.get('/bom')
+    allBomList.value = response.data
+    bomList.value = [...allBomList.value]
+  } catch (error) {
+    console.error('BOM 목록 조회 실패:', error)
+    alert('BOM 목록을 불러오는데 실패했습니다.')
+  }
+}
+
+// 자재 검색
+async function searchMaterials() {
+  try {
+    const params = {
+      materialCode: searchMaterialCode.value,
+      materialName: searchMaterialName.value
+    }
+    const response = await axios.get('/materials/search', { params })
+    materialSearchResults.value = response.data
+  } catch (error) {
+    console.error('자재 검색 실패:', error)
+    alert('자재 검색에 실패했습니다.')
+  }
+}
+
+// BOM 저장
+async function saveBOM() {
+  // 유효성 검사
+  if (!registerForm.value.bomCode.trim()) {
+    alert('BOM 코드를 입력해주세요.')
+    return
+  }
+  if (!registerForm.value.productCode) {
+    alert('제품을 선택해주세요.')
+    return
+  }
+  if (registerForm.value.materials.length === 0) {
+    alert('투입 자재를 추가해주세요.')
+    return
+  }
+  const invalidMaterials = registerForm.value.materials.filter(m => !m.usage || parseFloat(m.usage) <= 0)
+  if (invalidMaterials.length > 0) {
+    alert('모든 자재의 투입량을 올바르게 입력해주세요.')
+    return
+  }
+  try {
+    const prod = productOptions.value.find(p => p.value === registerForm.value.productCode)
+    const bomData = {
+      bomCode: registerForm.value.bomCode,
+      productCode: registerForm.value.productCode,
+      productName: prod ? prod.text : '',
+      spec: registerForm.value.spec,
+      materials: registerForm.value.materials
+    }
+    if (selectedBomCode.value) {
+      await axios.put(`/bom/${selectedBomCode.value}`, bomData)
+      alert('BOM이 수정되었습니다!')
+    } else {
+      await axios.post('/bom', bomData)
+      alert('새 BOM이 저장되었습니다!')
+    }
+    await fetchBomList()
+    resetForm()
+  } catch (error) {
+    console.error('BOM 저장 실패:', error)
+    alert('BOM 저장에 실패했습니다.')
+  }
+}
+
+// BOM 삭제
+async function deleteBOM(bomCode: string) {
+  if (!confirm('정말로 이 BOM을 삭제하시겠습니까?')) return
+  try {
+    await axios.delete(`/bom/${bomCode}`)
+    alert('BOM이 삭제되었습니다!')
+    await fetchBomList()
+    resetForm()
+  } catch (error) {
+    console.error('BOM 삭제 실패:', error)
+    alert('BOM 삭제에 실패했습니다.')
+  }
+}
+
+// 그 외 함수 동일 (기존 로직 그대로)
 function getRowClass(item: BomItem) {
   return selectedBomCode.value === item.bomCode ? 'selected-row' : ''
 }
-
 function removeSelectedMaterials() {
-  console.log('선택된 제거 자재들:', selectedMaterials.value)
-  
   if (!selectedMaterials.value || selectedMaterials.value.length === 0) {
     alert('제거할 자재를 선택해주세요.')
     return
   }
-  
   const removeCount = selectedMaterials.value.length
   const selectedCodes = selectedMaterials.value.map(m => m.materialCode)
-  
   registerForm.value.materials = registerForm.value.materials.filter(
     m => !selectedCodes.includes(m.materialCode)
   )
-  
-  // 제거 후 선택 상태 초기화
   selectedMaterials.value = []
-  
-  // 성공 메시지
   alert(`${removeCount}개의 자재가 투입자재에서 제거되었습니다.`)
 }
-
-function searchMaterials() {
-  const codeFilter = searchMaterialCode.value.toLowerCase()
-  const nameFilter = searchMaterialName.value.toLowerCase()
-  
-  materialSearchResults.value = materialMaster.filter(mat =>
-    (!codeFilter || mat.materialCode.toLowerCase().includes(codeFilter)) &&
-    (!nameFilter || mat.materialName.toLowerCase().includes(nameFilter))
-  )
-}
-
 function addSelectedMaterialsToBom() {
-  console.log('선택된 자재들:', selectedSearchMaterials.value)
-  
   if (!selectedSearchMaterials.value || selectedSearchMaterials.value.length === 0) {
     alert('추가할 자재를 선택해주세요.')
     return
   }
-  
   let addedCount = 0
   let duplicateCount = 0
-  
   selectedSearchMaterials.value.forEach(mat => {
     const existingMaterial = registerForm.value.materials.find(m => m.materialCode === mat.materialCode)
     if (!existingMaterial) {
@@ -284,11 +321,7 @@ function addSelectedMaterialsToBom() {
       duplicateCount++
     }
   })
-  
-  // 추가 후 선택 상태 초기화
   selectedSearchMaterials.value = []
-  
-  // 성공 메시지
   if (addedCount > 0 && duplicateCount > 0) {
     alert(`${addedCount}개의 자재가 추가되었습니다. ${duplicateCount}개는 이미 존재하여 제외되었습니다.`)
   } else if (addedCount > 0) {
@@ -297,105 +330,31 @@ function addSelectedMaterialsToBom() {
     alert('선택한 자재가 모두 이미 투입자재에 존재합니다.')
   }
 }
-
-// 좌측 BOM 리스트 행 클릭 시 우측 폼에 데이터 자동 입력
 function onProductRowClick(row: BomItem) {
-  console.log('클릭된 BOM 항목:', row)
-  
-  // 같은 행을 다시 클릭하면 선택 해제
   if (selectedBomCode.value === row.bomCode) {
     selectedBomCode.value = null
     resetForm()
     return
   }
-  
   selectedBomCode.value = row.bomCode
-  
   registerForm.value = {
     bomCode: row.bomCode,
     productCode: row.productCode,
     spec: row.spec,
-    materials: row.materials.map(m => ({ ...m })), // 깊은 복사로 투입자재도 포함
+    materials: row.materials.map(m => ({ ...m })),
   }
-  
-  // 선택 상태 초기화
   selectedMaterials.value = []
   selectedSearchMaterials.value = []
-  
-  console.log('폼에 설정된 데이터:', registerForm.value)
 }
-
-// 좌측 제품 드롭다운 필터링 (검색 전용)
 watch(selectedProduct, (prodCode) => {
   if (!prodCode) {
-    // 전체 목록 표시
     bomList.value = [...allBomList.value]
   } else {
-    // 선택된 제품에 해당하는 BOM만 필터링
     bomList.value = allBomList.value.filter(b => b.productCode === prodCode)
   }
-  
-  // 선택된 BOM 초기화 (필터링 시 이전 선택 해제)
   selectedBomCode.value = null
   resetForm()
 })
-
-function saveBOM() {
-  // 유효성 검사
-  if (!registerForm.value.bomCode.trim()) {
-    alert('BOM 코드를 입력해주세요.')
-    return
-  }
-  
-  if (!registerForm.value.productCode) {
-    alert('제품을 선택해주세요.')
-    return
-  }
-  
-  if (registerForm.value.materials.length === 0) {
-    alert('투입 자재를 추가해주세요.')
-    return
-  }
-  
-  // 투입량 검사
-  const invalidMaterials = registerForm.value.materials.filter(m => !m.usage || parseFloat(m.usage) <= 0)
-  if (invalidMaterials.length > 0) {
-    alert('모든 자재의 투입량을 올바르게 입력해주세요.')
-    return
-  }
-  
-  const idx = allBomList.value.findIndex(b => b.bomCode === registerForm.value.bomCode)
-  const prod = productOptions.find(p => p.value === registerForm.value.productCode)
-  
-  const bomItem: BomItem = {
-    bomCode: registerForm.value.bomCode,
-    productCode: registerForm.value.productCode,
-    productName: prod ? prod.text : '',
-    spec: registerForm.value.spec,
-    materials: registerForm.value.materials.map(m => ({ ...m })),
-  }
-  
-  if (idx !== -1) {
-    // 기존 BOM 수정
-    allBomList.value[idx] = bomItem
-    alert('BOM이 수정되었습니다!')
-  } else {
-    // 새 BOM 추가
-    allBomList.value.push(bomItem)
-    alert('새 BOM이 저장되었습니다!')
-  }
-  
-  // 목록 갱신 - 전체 목록을 다시 로드하여 새로 추가된 항목도 포함
-  bomList.value = [...allBomList.value]
-  
-  // 현재 필터가 적용되어 있다면 필터 재적용
-  if (selectedProduct.value) {
-    bomList.value = allBomList.value.filter(b => b.productCode === selectedProduct.value)
-  }
-  
-  resetForm()
-}
-
 function resetForm() {
   registerForm.value = {
     bomCode: '',
@@ -403,7 +362,6 @@ function resetForm() {
     spec: '',
     materials: []
   }
-  
   selectedMaterials.value = []
   selectedSearchMaterials.value = []
   selectedBomCode.value = null
@@ -411,9 +369,11 @@ function resetForm() {
   searchMaterialCode.value = ''
   searchMaterialName.value = ''
 }
-
-// 초기 자료 검색 실행
-searchMaterials()
+onMounted(async () => {
+  await fetchProducts()
+  await fetchBomList()
+  await searchMaterials()
+})
 </script>
 
 <style scoped>

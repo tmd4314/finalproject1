@@ -1,5 +1,7 @@
 <template>
   <VaForm ref="formRef" v-slot="{ isValid }" class="max-w-5xl mx-auto p-6 flex flex-col gap-6 bg-white shadow rounded">
+
+
     <!-- 이미지 미리보기 + 파일 선택 버튼 -->
     <div class="flex flex-col items-center gap-2">
       <div class="w-40 h-40 border rounded flex items-center justify-center bg-gray-100 overflow-hidden">
@@ -28,9 +30,30 @@
 
     <!-- 설비 분류 / 설비 유형 / 도입 유형 -->
     <div class="grid grid-cols-3 gap-4 va-label-lg">
-      <VaSelect v-model="formData.category" label="설비 분류" :options="codeOptions.eq_group" :rules="[requiredRule]" value-by="value" />
-      <VaSelect v-model="formData.type" label="설비 세부 유형" :options="codeOptions.eq_type" :rules="[requiredRule]" value-by="value" />
-      <VaSelect v-model="formData.installType" label="도입 유형" :options="codeOptions.eq_import" :rules="[requiredRule]" value-by="value" />
+      <VaSelect 
+        v-model="formData.category" 
+        label="설비 분류" 
+        :options="codeOptions.eq_group" 
+        :rules="[requiredRule]" 
+        value-by="value"
+        text-by="label"
+      />
+      <VaSelect 
+        v-model="formData.type" 
+        label="설비 세부 유형" 
+        :options="codeOptions.eq_type" 
+        :rules="[requiredRule]" 
+        value-by="value"
+        text-by="label"
+      />
+      <VaSelect 
+        v-model="formData.installType" 
+        label="도입 유형" 
+        :options="codeOptions.eq_import" 
+        :rules="[requiredRule]" 
+        value-by="value"
+        text-by="label"
+      />
     </div>
 
     <!-- 포장 설비 전용 라인 -->
@@ -41,14 +64,38 @@
       :options="codeOptions.line"
       :rules="[requiredRule]"
       value-by="value"
+      text-by="label"
       class="va-label-lg"
     />
 
     <!-- 공장 / 층 / 공정실 -->
     <div class="grid grid-cols-3 gap-4 va-label-lg">
-      <VaSelect v-model="formData.factory" label="공장" :options="codeOptions.factory" :rules="[requiredRule]" value-by="value" />
-      <VaSelect v-if="formData.factory" v-model="formData.floor" label="층" :options="codeOptions.floor" :rules="[requiredRule]" value-by="value" />
-      <VaSelect v-if="formData.floor" v-model="formData.room" label="공정실" :options="codeOptions.room" :rules="[requiredRule]" value-by="value" />
+      <VaSelect 
+        v-model="formData.factory" 
+        label="공장" 
+        :options="codeOptions.factory" 
+        :rules="[requiredRule]" 
+        value-by="value"
+        text-by="label"
+      />
+      <VaSelect 
+        v-if="formData.factory" 
+        v-model="formData.floor" 
+        label="층" 
+        :options="codeOptions.floor" 
+        :rules="[requiredRule]" 
+        value-by="value"
+        text-by="label"
+      />
+      <VaSelect 
+        v-if="formData.floor" 
+        v-model="formData.room" 
+        label="공정실" 
+        :options="codeOptions.room" 
+        :rules="[requiredRule]" 
+        value-by="value"
+        text-by="label"
+      />
     </div>
 
     <!-- 설비 제조일 / 등록일 -->
@@ -84,6 +131,8 @@
     <!-- 비고 -->
     <VaTextarea v-model="formData.note" label="비고" placeholder="특이사항이 있다면 입력해 주세요" class="va-label-lg" />
 
+
+
     <!-- 버튼 -->
     <div class="flex justify-center gap-4 mt-6">
       <VaButton :disabled="!isValid" @click="handleSubmit">
@@ -98,51 +147,115 @@
 import { ref, onMounted, watch, computed } from 'vue'
 import axios from 'axios'
 
-const props = defineProps<{ mode: 'register' | 'edit', initialData?: any }>()
-const emit = defineEmits(['save', 'cancel'])
+// 타입 정의
+interface CodeOption {
+  label: string
+  value: string
+}
 
-const formRef = ref()
-const previewUrl = ref('')
-const requiredRule = (v: any) => !!v || '필수 입력 항목입니다'
+interface FormData {
+  image: File[]
+  id: string
+  name: string
+  category: string
+  line: string
+  type: string
+  factory: string
+  floor: string
+  room: string
+  installType: string
+  manufactureDate: string | null
+  registerDate: string
+  maker: string
+  model: string
+  serial: string
+  power: string
+  maxRuntime: string
+  maintenanceCycle: string
+  note: string
+}
 
-const initialFormState = {
-  image: [], id: '', name: '', category: '', line: '',
-  type: '', factory: '', floor: '', room: '', installType: '',
+interface ApiResponse {
+  isSuccessed: boolean
+  data?: any
+  message?: string
+}
+
+interface CommonCodesResponse {
+  [key: string]: CodeOption[]
+}
+
+// Props 및 Emits 타입 정의
+interface Props {
+  mode: 'register' | 'edit'
+  initialData?: Partial<FormData>
+}
+
+const props = defineProps<Props>()
+const emit = defineEmits<{
+  save: [data: FormData]
+  cancel: []
+}>()
+
+// Refs
+const formRef = ref<any>()
+const previewUrl = ref<string>('')
+
+// 유효성 검사 규칙
+const requiredRule = (v: any): string | boolean => {
+  return !!v || '필수 입력 항목입니다'
+}
+
+// 초기 폼 상태
+const initialFormState: FormData = {
+  image: [],
+  id: '',
+  name: '',
+  category: '',
+  line: '',
+  type: '',
+  factory: '',
+  floor: '',
+  room: '',
+  installType: '',
   manufactureDate: null,
   registerDate: new Date().toISOString().slice(0, 10),
-  maker: '', model: '', serial: '', power: '',
-  maxRuntime: '', maintenanceCycle: '', note: '',
+  maker: '',
+  model: '',
+  serial: '',
+  power: '',
+  maxRuntime: '',
+  maintenanceCycle: '',
+  note: '',
 }
-const formData = ref({ ...initialFormState })
 
-const codeOptions = ref<Record<string, { label: string, value: string }[]>>({
-  factory: [], floor: [], room: [], eq_group: [], eq_type: [], eq_import: [], line: []
+const formData = ref<FormData>({ ...initialFormState })
+
+const codeOptions = ref<{
+  factory: CodeOption[]
+  floor: CodeOption[]
+  room: CodeOption[]
+  eq_group: CodeOption[]
+  eq_type: CodeOption[]
+  eq_import: CodeOption[]
+  line: CodeOption[]
+}>({
+  factory: [],
+  floor: [],
+  room: [],
+  eq_group: [],
+  eq_type: [],
+  eq_import: [],
+  line: []
 })
 
-// 포장설비인지 확인하는 computed 속성
-const isPackagingEquipment = computed(() => {
-  return formData.value.category === 'e3'
-})
-
-onMounted(async () => {
+// 공통코드 로드 함수
+const loadCommonCodes = async () => {
   try {
-    const { data: codes } = await axios.get('/common-codes?groups=0F,0L,0M,0E,0T,0I,line')
-    console.log('=== API 응답 전체 구조 ===')
-    console.log('codeOptions API 응답:', codes)
+    console.log('공통코드 로드 시작')
     
-    // 각 그룹별 데이터 구조 확인
-    Object.keys(codes).forEach(key => {
-      console.log(`${key}:`, codes[key])
-      // 설비 그룹(0E) 데이터 특별히 확인
-      if (key === '0E') {
-        console.log('=== 설비 그룹 상세 ===')
-        codes[key]?.forEach((item, index) => {
-          console.log(`${index}:`, item)
-          console.log(`  value: "${item.value}" (타입: ${typeof item.value})`)
-          console.log(`  label: "${item.label}"`)
-        })
-      }
-    })
+    const { data: codes }: { data: CommonCodesResponse } = await axios.get('/common-codes?groups=0F,0L,0M,0E,0T,0I,line')
+    console.log('공통코드 API 응답:', codes)
     
     codeOptions.value = {
       factory: codes['0F'] || [],
@@ -154,16 +267,28 @@ onMounted(async () => {
       line: codes.line || []
     }
     
-    console.log('=== 최종 codeOptions.eq_group ===')
-    console.log(codeOptions.value.eq_group)
-  } catch (err) {
-    console.error('공통코드 불러오기 실패: ', err)
-    console.error('에러 상세:', err.response?.data || err.message)
+    console.log('공통코드 로드 완료')
+    
+  } catch (error: any) {
+    console.error('공통코드 로드 실패:', error)
   }
+}
+
+
+
+// 포장설비인지 확인하는 computed 속성
+const isPackagingEquipment = computed(() => {
+  return formData.value.category === 'e3'
 })
 
-watch(() => props.initialData, (data) => {
-  console.log('initialData:', data)
+// 컴포넌트 마운트 시 공통코드 로드
+onMounted(async () => {
+  await loadCommonCodes()
+})
+
+// Props의 initialData 변경 감지
+watch(() => props.initialData, (data: Partial<FormData> | undefined) => {
+  console.log('initialData 감지:', data)
   if (props.mode === 'edit' && data) {
     formData.value = {
       ...formData.value,
@@ -179,28 +304,26 @@ watch(() => props.initialData, (data) => {
   }
 }, { immediate: true })
 
-watch(() => formData.value.image, (files) => {
+// 이미지 파일 변경 감지
+watch(() => formData.value.image, (files: File[]) => {
   const file = Array.isArray(files) ? files[0] : files
   previewUrl.value = file instanceof File ? URL.createObjectURL(file) : ''
 })
 
 // 설비 분류가 변경될 때 라인 값 초기화
-watch(() => formData.value.category, (newCategory) => {
-  console.log('=== 설비 분류 디버깅 ===')
-  console.log(`선택된 값: "${newCategory}"`)
+watch(() => formData.value.category, (newCategory: string) => {
+  console.log('=== 설비 분류 변경 감지 ===')
+  console.log(`새로운 값: "${newCategory}"`)
   console.log(`값의 타입: ${typeof newCategory}`)
-  console.log(`값의 길이: ${newCategory?.length}`)
   console.log(`'e3'와 비교: ${newCategory === 'e3'}`)
-  console.log(`포장설비 옵션들:`, codeOptions.value.eq_group)
-  console.log('=====================')
   
-  // 포장설비가 아닌 경우 라인 값을 초기화
   if (newCategory !== 'e3') {
     formData.value.line = ''
   }
 })
 
-const handleSubmit = async () => {
+// 폼 제출 처리
+const handleSubmit = async (): Promise<void> => {
   if (!confirm(`${props.mode === 'edit' ? '수정' : '등록'}하시겠습니까?`)) return
   if (!formRef.value?.validate()) return
 
@@ -208,23 +331,62 @@ const handleSubmit = async () => {
   const method = props.mode === 'edit' ? 'put' : 'post'
 
   try {
-    const res = await axios[method](url, formData.value)
+    // FormData 객체 생성
+    const formDataToSend = new FormData()
+    
+    // 일반 필드들 추가
+    Object.keys(formData.value).forEach(key => {
+      if (key !== 'image') {
+        const value = formData.value[key as keyof FormData]
+        if (value !== null && value !== undefined && value !== '') {
+          formDataToSend.append(key, String(value))
+        }
+      }
+    })
+    
+    // 이미지 파일 추가
+    if (formData.value.image && formData.value.image.length > 0) {
+      const imageFile = Array.isArray(formData.value.image) ? formData.value.image[0] : formData.value.image
+      if (imageFile instanceof File) {
+        formDataToSend.append('image', imageFile)
+      }
+    }
+
+    console.log('전송할 FormData 내용:')
+    for (let [key, value] of formDataToSend.entries()) {
+      console.log(`${key}:`, value)
+    }
+
+    const config = {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    }
+
+    const res: { data: ApiResponse } = await axios[method](url, formDataToSend, config)
+    
     if (res.data.isSuccessed) {
-      alert('성공!')
+      alert(`설비 ${props.mode === 'edit' ? '수정' : '등록'}에 성공했습니다!`)
+      emit('save', formData.value)
       if (props.mode === 'register') {
         formData.value = { ...initialFormState }
         previewUrl.value = ''
       }
     } else {
-      alert('실패했습니다.')
+      alert(`설비 ${props.mode === 'edit' ? '수정' : '등록'}에 실패했습니다: ${res.data.message}`)
     }
-  } catch (err) {
-    console.error(err)
-    alert('에러 발생!')
+  } catch (err: any) {
+    console.error('설비 저장 에러:', err)
+    if (err.response?.data?.message) {
+      alert(`에러 발생: ${err.response.data.message}`)
+    } else {
+      alert('에러 발생!')
+    }
   }
 }
 
-const handleReset = () => {
+// 폼 초기화
+const handleReset = (): void => {
   if (!confirm('정말 초기화하시겠습니까?')) return
   formRef.value?.reset()
   formData.value = { ...initialFormState }

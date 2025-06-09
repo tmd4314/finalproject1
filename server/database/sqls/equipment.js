@@ -6,7 +6,7 @@ module.exports = {
       eq_name, eq_group_code, eq_type_code, eq_import_code, eq_factory_code,
       eq_floor_code, eq_room_code, eq_manufacture_date, eq_registration_date,
       eq_manufacturer, eq_model, eq_serial_number, eq_power_spec,
-      eq_max_operation_time, eq_inspection_cycle, eq_remark, eq_image_url, line_id,
+      eq_max_operation_time, eq_inspection_cycle, eq_remark, eq_image, line_id,
       eq_run_code
     )
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -68,7 +68,7 @@ module.exports = {
       DATE_FORMAT(eq_manufacture_date, '%Y-%m-%d') as eq_manufacture_date,
       DATE_FORMAT(eq_registration_date, '%Y-%m-%d') as eq_registration_date,
       eq_manufacturer, eq_model, eq_serial_number, eq_power_spec,
-      eq_max_operation_time, eq_inspection_cycle, eq_remark, eq_image_url
+      eq_max_operation_time, eq_inspection_cycle, eq_remark, eq_image
     FROM equipment
     WHERE eq_id = ?
   `,
@@ -80,7 +80,7 @@ module.exports = {
       eq_factory_code = ?, eq_floor_code = ?, eq_room_code = ?, line_id = ?,
       eq_manufacture_date = ?, eq_manufacturer = ?, eq_model = ?,
       eq_serial_number = ?, eq_power_spec = ?, eq_max_operation_time = ?,
-      eq_inspection_cycle = ?, eq_remark = ?, eq_image_url = ?
+      eq_inspection_cycle = ?, eq_remark = ?, eq_image = ?
     WHERE eq_id = ?
   `,
 

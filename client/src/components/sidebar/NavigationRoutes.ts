@@ -32,24 +32,27 @@ export default {
         },
       ],
     },
-    {
-      name: 'facility',
-      displayName: 'menu.설비',
-      meta: {
-        icon: 'folder_shared',
+       {
+    name: 'facility',
+    displayName: '설비',
+    meta: {
+      icon: 'settings',
+    },
+    disabled: false,
+    children: [
+      {
+        name: 'equipment-inquiry',
+        displayName: '설비 조회',
+        meta: {
+          icon: 'search',
+        },
       },
-      children: [
-        {
-          name: 'payment-methods',
-          displayName: 'menu.payment-methods',
-        },
-        {
-          name: 'pricing-plans',
-          displayName: 'menu.pricing-plans',
-        },
-        {
-          name: 'billing',
-          displayName: 'menu.billing',
+      {
+        name: 'equipment-management', 
+        displayName: '설비 관리',
+        meta: {
+          icon: 'build',
+          },
         },
       ],
     },
@@ -125,15 +128,15 @@ export default {
       children: [
         {
           name: 'quality management',
-          displayName: '품질관리',
+          displayName: 'menu.품질관리',
         },
         {
           name: 'faulty management',
-          displayName: '불량품검사 등록',
+          displayName: 'menu.불량품검사 등록',
         },
                 {
           name: 'faultyDisuse management',
-          displayName: '불량품폐기 등록',
+          displayName: 'menu.불량품폐기 등록',
         },
       ],
     },
@@ -174,11 +177,11 @@ export default {
           displayName: 'menu.자재 관리',
         },
         {
-          name: 'material management',
+          name: 'process flow chart management',
           displayName: 'menu.공정흐름도 관리',
         },
         {
-          name: 'material management',
+          name: 'process flow chart check',
           displayName: 'menu.공정흐름도 조회',
         },
         {
@@ -208,6 +211,10 @@ export default {
         {
           name: 'staff-management',
           displayName: 'menu.사원 관리',
+        },
+                {
+          name: 'InspectionManagement',
+          displayName: 'menu.검사항목 관리',
         },
       ],
     },
