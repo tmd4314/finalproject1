@@ -31,7 +31,7 @@ export default defineConfig({
         target: 'http://localhost:3000', // ✅ 백엔드 서버 주소
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/material/, '/material'), // 경로 그대로 유지
-      }
+      },
       '/api': {
       target: 'http://localhost:3000',
       changeOrigin: true,
