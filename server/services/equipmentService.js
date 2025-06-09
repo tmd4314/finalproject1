@@ -1,5 +1,4 @@
 // server/services/equipmentService.js
-
 const mariadb = require('../database/mapper');
 const fs = require('fs').promises;
 const path = require('path');
