@@ -35,6 +35,8 @@ const equipmentRouter = require('./routers/equipmentRouter');
 
 const materialRouter =require('./routers/materialRouter.js');
 
+const processRouter =require('./routers/processRouter.js');
+
 const bomRouter =require('./routers/bomRouter.js');
 
 const lineRouter = require('./routers/lineRouter.js')
@@ -57,6 +59,7 @@ app.use('/api/orders', orderRouter);
 app.use('/', productRouter);
 
 app.use('/', materialRouter);
+app.use('/', processRouter);
 
 //열림
 app.use('/equipments', equipmentRouter);
