@@ -87,12 +87,22 @@
               <th>담당자</th>
             </tr>
           </thead>
+
           <tbody>
             <tr v-for="(row, index) in materialList" :key="index">
               <td><input type="checkbox" v-model="row.selected" /></td>
-              <td><select v-model="row.material_code"><option>PM1000</option><option>PM1001</option></select></td>
-              <td><select v-model="row.material_name"><option>판크레아틴</option><option>유당</option></select></td>
-              <td><select v-model="row.unit"><option>mg</option><option>g</option></select></td>
+
+              <td>
+                <select v-model="row.material_code" @change="onMaterialCodeChange(row)">
+                  <option disabled value="">자재 선택</option>
+                  <option v-for="item in materialOptions" :key="item.material_code" :value="item.material_code">
+                    {{ item.material_code }}
+                  </option>
+                </select>
+              </td>
+
+              <td>{{ row.material_name }}</td>
+              <td>{{ row.material_unit }}</td>
               <td><input type="number" v-model="row.input_qty" /></td>
               <td><input type="text" v-model="row.responsible" /></td>
             </tr>
@@ -100,7 +110,7 @@
         </table>
 
         <div class="popup-footer">
-          <button class="btn save">저장</button>
+          <button class="btn save" @click="saveMaterial">저장</button>
           <button class="btn" @click="popupVisible = false">취소</button>
         </div>
       </div>
@@ -142,10 +152,17 @@ interface EquipmentCode {
 interface MaterialRow {
   material_code: string
   material_name: string
-  unit: string
+  material_unit: string
+  BOM_code: string
   input_qty: number
   responsible: string
   selected?: boolean
+}
+
+interface MaterialOption {
+  material_code: string
+  material_name: string
+  material_unit: string
 }
 
 const selectedProductCode = ref<string>('')
@@ -155,6 +172,7 @@ const equipmentCodes = ref<EquipmentCode[]>([])
 const popupVisible = ref(false)
 const popupProcessCode = ref('')
 const materialList = ref<MaterialRow[]>([])
+const materialOptions = ref<MaterialOption[]>([])
 
 const fetchProducts = async () => {
   try {
@@ -171,6 +189,25 @@ const fetchEquipmentCodes = async () => {
     equipmentCodes.value = res.data['0T'] || []
   } catch(err) {
     console.error('❌ 설비유형 불러오기 실패:', err)
+  }
+}
+
+const fetchMaterials = async () => {
+  try {
+    const res = await axios.get('/material')
+    materialOptions.value = res.data
+    console.log("재료:", res.data);
+  } catch (err) {
+    console.log('❌ 제품 목록 조회 실패:', err)
+  }
+}
+
+
+const onMaterialCodeChange = (row: MaterialRow) => {
+  const selected = materialOptions.value.find(m => m.material_code === row.material_code)
+  if (selected) {
+    row.material_name = selected.material_name
+    row.material_unit = selected.material_unit
   }
 }
 
@@ -202,7 +239,8 @@ const addMaterial = () => {
   materialList.value.push({
     material_code: '',
     material_name: '',
-    unit: 'mg',
+    material_unit: '',
+    BOM_code: '',
     input_qty: 0,
     responsible: '',
     selected: false
@@ -211,6 +249,30 @@ const addMaterial = () => {
 
 const deleteSelectedMaterials = () => {
   materialList.value = materialList.value.filter(row => !row.selected)
+}
+
+const saveMaterial = async (): Promise<void> => {
+  const payload = materialList.value.map(p => ({
+    process_code: popupProcessCode.value, // 동일한 공정 코드
+    material_code: p.material_code,
+    BOM_code: p.BOM_code,
+    input_qty: p.input_qty,
+    name: p.responsible
+  }))
+
+  console.log('📦 저장할 재료 데이터:', payload)
+
+  try {
+    const res = await axios.post(`/process/${popupProcessCode.value}`, payload) // 한 번에 POST
+    if (res.data.isSuccessed === true) {
+      alert('모든 재료 등록 완료!')
+    } else {
+      alert('등록 실패!')
+    }
+  } catch (err) {
+    console.error('❌ 전송 실패:', err)
+    alert('서버 오류 발생!')
+  }
 }
 
 const saveProcesses = async (): Promise<void> => {
@@ -245,6 +307,7 @@ const openPopup = (processCode: string): void => {
 onMounted(() => {
   fetchProducts()
   fetchEquipmentCodes()
+  fetchMaterials()
 })
 </script>
 
