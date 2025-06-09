@@ -35,11 +35,9 @@ const equipmentRouter = require('./routers/equipmentRouter');
 
 const materialRouter =require('./routers/materialRouter.js');
 
-const processRouter =require('./routers/processRouter.js');
-
 const bomRouter =require('./routers/bomRouter.js');
 
-
+const inspectionRouter = require('./routers/inspectionRouter.js');
 
  // 기본 라우팅
 app.get('/', (req, res)=>{
@@ -52,7 +50,6 @@ app.use('/api/orders', orderRouter);
 app.use('/', productRouter);
 
 app.use('/', materialRouter);
-app.use('/', processRouter);
 
 //열림
 app.use('/equipments', equipmentRouter);
@@ -62,4 +59,7 @@ app.use('/img', express.static('../client/public/img'));
 
 //다산
 app.use('/', bomRouter);
+
+//현기
+app.use('/inspections', inspectionRouter);
 
