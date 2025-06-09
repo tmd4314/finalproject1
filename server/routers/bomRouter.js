@@ -1,49 +1,50 @@
 const express = require('express');
 const router = express.Router();
-const bomService = require('../services/bomService.js');
+const bomService = require('../services/bomService');
 
-// 전체 BOM 조회
-router.get('/bom', async (req, res) => {
-  let bomList = await bomService.findAll().catch(err => {
-    console.log(err);
-    return [];
-  });
-  res.send(bomList);
-});
-
-// 단일 BOM(상세, 자재목록 포함)
-router.get('/bom/:bom_code', async (req, res) => {
-  let bomDetail = await bomService.findBomDetail(req.params.bom_code)
-    .catch(err => {
-      console.log(err);
-      return null;
-    });
-  if (bomDetail) res.send(bomDetail);
-  else res.status(404).send({ message: 'BOM Not Found' });
-});
-
-// BOM 등록
-router.post('/bom', async (req, res) => {
-  // req.body = { bomInfo: {...}, materialList: [...] }
+// 전체 BOM 목록 조회
+router.get('/', async (req, res) => {
   try {
-    const { bomInfo, materialList } = req.body;
-    const result = await bomService.addBom(bomInfo, materialList);
-    res.send(result);
+    const list = await bomService.findAll();
+    res.json(list);
   } catch (err) {
-    console.error('❌ BOM 등록 실패:', err);
-    res.status(500).send({ isSuccessed: false, message: '서버 오류' });
+    res.status(500).json({ message: 'BOM 목록 조회 오류', error: err.message });
   }
 });
 
-// BOM 수정
-router.put('/bom/:bom_code', async (req, res) => {
+// 단일 BOM 상세
+router.get('/:bomCode', async (req, res) => {
   try {
-    const { bomInfo, materialList } = req.body;
-    const result = await bomService.updateBom(req.params.bom_code, bomInfo, materialList);
-    res.send(result);
+    const { bomCode } = req.params;
+    const data = await bomService.findBomDetail(bomCode);
+    if (!data) return res.status(404).json({ message: 'BOM 정보 없음' });
+    res.json(data);
   } catch (err) {
-    console.error('❌ BOM 수정 실패:', err);
-    res.status(500).send({ isUpdated: false, message: '서버 오류' });
+    res.status(500).json({ message: 'BOM 상세 조회 오류', error: err.message });
+  }
+});
+
+// BOM 신규 등록
+router.post('/', async (req, res) => {
+  try {
+    const bomData = req.body;
+    await bomService.saveBom(bomData);
+    res.status(201).json({ message: 'BOM이 저장되었습니다.' });
+  } catch (err) {
+    console.error('BOM 저장 실패:', err);
+    res.status(500).json({ message: 'BOM 저장 실패', error: err.message });
+  }
+});
+// BOM 수정
+router.put('/:bomCode', async (req, res) => {
+  try {
+    const { bomCode } = req.params;
+    const bomData = req.body;
+    await bomService.updateBom(bomCode, bomData);
+    res.json({ message: 'BOM이 수정되었습니다.' });
+  } catch (err) {
+    console.error('BOM 수정 실패:', err);
+    res.status(500).json({ message: 'BOM 수정 실패', error: err.message });
   }
 });
 
