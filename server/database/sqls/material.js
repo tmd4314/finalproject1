@@ -43,10 +43,26 @@ VALUES(?, ?, ?, ?, ?, ?, ?, ?)`
  `DELETE FROM material
   WHERE material_code = ?`
  ;
+ //bom 자재 선택 all
+ const selectAllMaterials = `
+  SELECT material_code,
+         material_name,
+         material_cls,
+         material_unit,
+         material_stand
+    FROM material
+   ORDER BY material_name
+`;
+//bom 자재선택
+const selectMaterialByCode = `
+  SELECT * FROM material WHERE material_code = ?
+`;
 
  module.exports ={
     selectMaterialList,
     materialInsert,
     materialUpdate,
-    materialDelete
+    materialDelete,
+    selectAllMaterials,
+    selectMaterialByCode
  }

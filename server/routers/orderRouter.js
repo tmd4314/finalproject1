@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const orderService = require("../services/order_service.js");
+const orderService = require("../services/orderService.js");
 
 // [주문 목록 조회] GET /api/orders
 router.get("/", async (req, res) => {
