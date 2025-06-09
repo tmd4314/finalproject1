@@ -3,6 +3,7 @@ const material =require('./sqls/material.js');
 const equipment = require('./sqls/equipment.js')
 const commonCode = require('./sqls/commonCode.js');
 const order = require('./sqls/order.js');
+const inspection = require('./sqls/inspection.js');
 const processFlowChart = require('./sqls/processFlowChart.js');
 const bom = require('./sqls/bom.js');
 
@@ -15,6 +16,7 @@ const bom = require('./sqls/bom.js');
      ...commonCode,
      ...order,
      ...bom,
+     ...inspection,
     ...processFlowChart
  }
 

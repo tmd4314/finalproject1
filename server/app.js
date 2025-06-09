@@ -35,9 +35,9 @@ const equipmentRouter = require('./routers/equipmentRouter');
 
 const materialRouter =require('./routers/materialRouter.js');
 
-const bomRouter =require('./routers/bomRouter.js');
-
 const bomRouter = require('./routers/bomRouter.js');
+
+const inspectionRouter = require('./routers/inspectionRouter.js');
 
 
  // 기본 라우팅
@@ -61,4 +61,5 @@ app.use('/common-codes', commonCodeRouter);
 app.use('/img', express.static('../client/public/img'));
 
 //다산
-app.use('/bom', bomRouter);    
+app.use('/', bomRouter);
+
