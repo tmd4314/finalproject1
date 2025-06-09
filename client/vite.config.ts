@@ -32,6 +32,10 @@ export default defineConfig({
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/material/, '/material'), // 경로 그대로 유지
         },
+        '/bom': {
+          target: 'http://localhost:3000',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/bom/, '/bom'),
         '/process': {
           target: 'http://localhost:3000', // ✅ 백엔드 서버 주소
           changeOrigin: true,

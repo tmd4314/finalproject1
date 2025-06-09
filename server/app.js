@@ -35,16 +35,8 @@ const equipmentRouter = require('./routers/equipmentRouter');
 
 const materialRouter =require('./routers/materialRouter.js');
 
-const processRouter =require('./routers/processRouter.js');
+const bomRouter = require('./routers/bomRouter.js');
 
-const bomRouter =require('./routers/bomRouter.js');
-
-
-
- // 기본 라우팅
-app.get('/', (req, res)=>{
-  res.send('Welcome!!...');
- })
 
  // 라우터 모듈 등록
 app.use('/api/orders', orderRouter);
@@ -52,7 +44,6 @@ app.use('/api/orders', orderRouter);
 app.use('/', productRouter);
 
 app.use('/', materialRouter);
-app.use('/', processRouter);
 
 //열림
 app.use('/equipments', equipmentRouter);
@@ -61,5 +52,4 @@ app.use('/common-codes', commonCodeRouter);
 app.use('/img', express.static('../client/public/img'));
 
 //다산
-app.use('/', bomRouter);
-
+app.use('/bom', bomRouter);    
