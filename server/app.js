@@ -2,6 +2,7 @@
 require("dotenv").config({ path: "./database/configs/dbConfig.env" });
 const express = require("express");
 const app = express();
+
 // 미들웨어 등록 영역
 // 1. body parser
 // 라우팅 등록 영역
@@ -26,13 +27,18 @@ app.listen(3000, ()=>{
 
 const orderRouter = require('./routers/orderRouter.js');
 
-const productRouter =require('./routers/product_router.js');
+const productRouter =require('./routers/productRouter.js');
 
 const commonCodeRouter = require('./routers/commonCodeRouter');
 
 const equipmentRouter = require('./routers/equipmentRouter');
 
-const materialRouter =require('./routers/material_router.js');
+const materialRouter =require('./routers/materialRouter.js');
+
+const processRouter =require('./routers/processRouter.js');
+
+const bomRouter =require('./routers/bomRouter.js');
+
 
 
  // 기본 라우팅
@@ -46,10 +52,14 @@ app.use('/api/orders', orderRouter);
 app.use('/', productRouter);
 
 app.use('/', materialRouter);
+app.use('/', processRouter);
 
 //열림
 app.use('/equipments', equipmentRouter);
 app.use('/common-codes', commonCodeRouter);
 
 app.use('/img', express.static('../client/public/img'));
+
+//다산
+app.use('/', bomRouter);
 

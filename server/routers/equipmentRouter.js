@@ -47,9 +47,26 @@ const upload = multer({
 });
 // ===== Multer 설정 끝 =====
 
+// GET /uploads/equipment/:filename - 이미지 파일 서빙 (라우터 방식 유지)
+router.get('/uploads/equipment/:filename', (req, res) => {
+  const filename = req.params.filename;
+  const imagePath = path.join(process.cwd(), 'uploads', 'equipment', filename);
+  
+  // 파일 존재 여부 확인
+  if (fs.existsSync(imagePath)) {
+    res.sendFile(imagePath);
+  } else {
+    res.status(404).json({ message: '이미지를 찾을 수 없습니다.' });
+  }
+});
+
 // POST /equipments - 설비 등록
 router.post('/', upload.single('image'), async (req, res) => {
   try {
+    console.log('=== 설비 등록 요청 ===');
+    console.log('req.body:', req.body);
+    console.log('req.file:', req.file);
+
     // 필수 필드 검증
     const requiredFields = ['name', 'category', 'type', 'installType', 
                           'factory', 'floor', 'room', 'manufactureDate',
@@ -109,6 +126,11 @@ router.get('/:id', async (req, res) => {
 // PUT /equipments/:id - 설비 수정
 router.put('/:id', upload.single('image'), async (req, res) => {
   try {
+    console.log('=== 설비 수정 요청 ===');
+    console.log('req.params.id:', req.params.id);
+    console.log('req.body:', req.body);
+    console.log('req.file:', req.file);
+
     // 필수 필드 검증
     const requiredFields = ['name', 'category', 'type', 'installType', 
                           'factory', 'floor', 'room', 'manufactureDate',

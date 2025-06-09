@@ -86,6 +86,21 @@ const routes: Array<RouteRecordRaw> = [
             component: () => import('../pages/material/MaterialPage.vue'),
           },
           {
+            name: 'process flow chart management',
+            path: 'process flow chart management',
+            component: () => import('../pages/process/processPage.vue'),
+          },
+          {
+            name: 'process flow chart check',
+            path: 'process flow chart check',
+            component: () => import('../pages/process/processCheckPage.vue'),
+          },
+          {
+            name: 'material management',
+            path: 'material management',
+            component: () => import('../pages/material/MaterialPage.vue'),
+          },
+          {
             name: 'pricing-plans',
             path: 'pricing-plans',
             component: () => import('../pages/pricing-plans/PricingPlans.vue'),
@@ -108,10 +123,27 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('../pages/users/UsersPage.vue'),
       },
       {
-        name: 'facility',
-        path: 'facility',
-        component: () => import('../pages/projects/ProjectsPage.vue'),
-      },
+      name: 'facility',
+      path: 'facility',
+      component: RouteViewComponent,
+      children: [
+        {
+          name: 'equipment-inquiry',
+          path: 'inquiry',
+          component: () => import('../pages/equipment/EquipmentInquiry.vue'),
+        },
+        {
+          name: 'equipment-management',
+          path: 'management',
+          component: () => import('../pages/equipment/EquipmentManagement.vue'),
+        },
+        {
+          name: 'equipment-edit',
+          path: 'edit/:id',
+          component: () => import('../pages/equipment/EquipmentForm.vue'),
+        },
+      ],
+    },
       {
         name: 'material',
         path: 'material',

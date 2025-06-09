@@ -50,10 +50,22 @@ const productUpdate = `
  `DELETE FROM product
   WHERE product_code = ?`
  ;
+ //bom 제품선택 all
+ const selectAllProducts = `
+  SELECT product_code, product_name, product_unit, product_stand
+    FROM product
+   ORDER BY product_name
+`;
+//bom 제품선택
+const selectProductByCode = `
+  SELECT * FROM product WHERE product_code = ?
+`;
 
  module.exports ={
     selectProductList,
     productInsert,
     productUpdate,
-    productDelete
+    productDelete,
+    selectAllProducts,
+    selectProductByCode
  }
