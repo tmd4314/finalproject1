@@ -6,14 +6,14 @@
         <!-- 제품 검색 필터 및 테이블 -->
         <div class="quality-table">
           <div class="quality-filters">
-            <va-input v-model="filters.code" label="제품명" class="filter-input" />
-            <va-input v-model="filters.name" label="작업지시번호" class="filter-input" />
-            <va-input v-model="filters.spec" label="검사자" class="filter-spec-input" />
+            <va-input v-model="filters.name" label="제품명" class="filter-input" />
+            <va-input v-model="filters.code" label="작업지시번호" class="filter-input" />
+            <va-input v-model="filters.examiner" label="검사자" class="filter-input" />
           </div>
           <div style="margin-top: 0.5rem" class="quality-filters">
             <va-date-input v-model="filters.date" label="검사일자" class="filter-input" />
             <va-select v-model="filters.step" label="공정단계" class="filter-input" />
-            <va-input v-model="filters.spec" label="수량" class="filter-spec-input" />
+            <va-input v-model="filters.examiner" label="수량" class="filter-spec-input" />
           </div>
           <va-data-table :items="filteredQualitys" :columns="columns" :per-page="10" :current-page.sync="page" />
         </div>
@@ -29,48 +29,35 @@ import { ref, computed } from 'vue'
 interface Quality {
   code: string
   name: string
-  spec: string
+  examiner: string
   unit: string
 }
 
 const qualitys = ref<Quality[]>([
-  { code: 'BJA-STD-10', name: '베아제정', spec: '10정/1판', unit: '박스' },
-  { code: 'BJA-STD-30', name: '베아제정', spec: '30정/1판', unit: '플라스틱병' },
-  { code: 'BJA-STD-60', name: '베아제정', spec: '60정/1판', unit: '플라스틱병' },
-  { code: 'FST-PLUS-10', name: '훼스탈플러스정', spec: '10정/1판', unit: '박스' },
-  { code: 'FST-PLUS-30', name: '훼스탈플러스정', spec: '30정/1판', unit: '플라스틱병' },
-  { code: 'FST-PLUS-60', name: '훼스탈플러스정', spec: '60정/1판', unit: '플라스틱병' },
-  { code: 'FST-GOLD-10', name: '훼스탈골드정', spec: '10정/1판', unit: '박스' },
-  { code: 'FST-GOLD-30', name: '훼스탈골드정', spec: '30정/1판', unit: '플라스틱병' },
+  { code: 'BJA-STD-10', name: '베아제정', examiner: '김길동', unit: '박스' },
+  { code: 'BJA-STD-30', name: '타이레놀', examiner: '박길동', unit: '플라스틱병' },
 ])
 
 const columns = [
-  { key: 'code', label: '제품코드' },
-  { key: 'name', label: '제품명' },
-  { key: 'unit', label: '단위' },
+  { key: 'name', label: '제품명' }, 
+  { key: 'code', label: '작업지시번호' },
+  { key: 'examiner', label: '검사자' },
   { key: 'spec', label: '규격' },
 ]
 
 const filters = ref({
   code: '',
   name: '',
-  spec: '',
+  examiner: '',
   date: '',
   step: '',
 })
-
-const processSteps = [
-  '칭량', '혼합', '과립', '건조', '타정', '코팅'
-]
-
-
 const page = ref(1)
 
 const filteredQualitys = computed(() => {
   return qualitys.value.filter((q) =>
     (!filters.value.code || q.code.includes(filters.value.code)) &&
-    (!filters.value.name || q.name.includes(filters.value.name)) &&
-    (!filters.value.spec || q.spec.includes(filters.value.spec))
+    (!filters.value.name || q.name.includes(filters.value.name))
   )
 })
 
@@ -93,19 +80,6 @@ function resetForm() {
   }
 }
 
-function registerQuality() {
-  if (!form.value.code || !form.value.name) return alert('필수값 누락')
-  qualitys.value.push({ code: form.value.code, name: form.value.name, spec: form.value.spec, unit: form.value.unit })
-  resetForm()
-}
-
-function updateQuality() {
-  alert('수정 기능은 아직 구현되지 않았습니다.')
-}
-
-function deleteQuality() {
-  alert('삭제 기능은 아직 구현되지 않았습니다.')
-}
 </script>
 
 <style scoped>
