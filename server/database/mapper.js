@@ -1,7 +1,6 @@
 const mariadb = require('mariadb/callback');
-const sqlList = require('./sqlList.js');
 
-
+const orderSql = require('./sqls/order');
 
 const connectionPool = mariadb.createPool({
   // DB에 접속하는 정보
@@ -20,8 +19,7 @@ const connectionPool = mariadb.createPool({
 
 const query = (alias, values)=>{ 
   return new Promise((resolve, reject)=> {
-    let executeSql = sqlList[alias];
-    connectionPool.query(executeSql, values, (err, results)=>{
+    connectionPool.query(alias, values, (err, results)=>{
        if(err) {
         // error 발생시 
         reject({err});
@@ -35,4 +33,5 @@ const query = (alias, values)=>{
 
 module.exports = {
   query,
+  orderSql,
 }
