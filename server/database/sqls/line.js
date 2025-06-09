@@ -64,7 +64,7 @@ module.exports = {
       l.curr_work_no AS work_no,
       l.employee_name,
       l.target_qty,
-      DATE_FORMAT(l.reg_date, '%Y-%m-%d') as reg_date
+      DATE_FORMAT(l.reg_date, '%Y-%m-%d') AS reg_date
     FROM package_line l
     JOIN package_master m ON l.line_masterid = m.line_masterid
     ORDER BY l.line_id DESC
