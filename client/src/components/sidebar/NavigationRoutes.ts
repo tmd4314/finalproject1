@@ -26,10 +26,6 @@ export default {
           name: 'order-management',
           displayName: '주문 관리',
         },
-        {
-          name: 'billing',
-          displayName: 'menu.billing',
-        },
       ],
     },
        {
