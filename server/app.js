@@ -21,7 +21,12 @@ const orderRouter = require('./routers/orderRouter.js');
 
 const productRouter =require('./routers/product_router.js');
 
+const commonCodeRouter = require('./routers/commonCodeRouter');
+
+const equipmentRouter = require('./routers/equipmentRouter');
+
 const materialRouter =require('./routers/material_router.js');
+
 
  // 기본 라우팅
 app.get('/', (req, res)=>{
@@ -35,4 +40,10 @@ app.use('/', productRouter);
 
 app.use('/', materialRouter);
 
+
+//열림
+app.use('/equipments', equipmentRouter);
+app.use('/common-codes', commonCodeRouter);
+
 app.use('/img', express.static('../client/public/img'));
+
