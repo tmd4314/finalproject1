@@ -514,19 +514,19 @@ async function fetchOrders() {
     const response = await axios.get('/api/orders/with-items')
     allOrders.value = response.data
   } catch (error) {
-    console.error('주문 목록 로드 실패:', error)
+    console.error('주문 목록 로드 실패!!!!:', error)
     // Mock 데이터
     allOrders.value = [
       {
-        order_id: 'ORD001',
-        account_name: '셀트리온',
-        order_date: '2024-01-15',
-        delivery_date: '2024-01-20',
-        product_name: '타이레놀 500mg',
-        spec: '500mg x 10정',
+        order_id: 'ORD001(Mock 데이터입니다.)',
+        account_name: '셀트리온(Mock 데이터입니다.)',
+        order_date: '2024-01-15(Mock 데이터입니다.)',
+        delivery_date: '2024-01-20(Mock 데이터입니다.)',
+        product_name: '타이레놀 500mg(Mock 데이터입니다.)',
+        spec: '500mg x 10정(Mock 데이터입니다.)',
         order_qty: 100,
-        product_code: 'TYL-500',
-        status: '진행중'
+        product_code: 'TYL-500(Mock 데이터입니다.)',
+        status: '진행중(Mock 데이터입니다.)'
       },
       {
         order_id: 'ORD001',
@@ -556,7 +556,7 @@ async function fetchOrders() {
 
 async function fetchProducts() {
   try {
-    const response = await axios.get('/api/products')
+    const response = await axios.get('/product')
     products.value = response.data
   } catch (error) {
     console.error('제품 목록 로드 실패:', error)
