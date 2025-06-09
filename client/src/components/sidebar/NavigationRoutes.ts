@@ -34,7 +34,7 @@ export default {
     },
        {
     name: 'facility',
-    displayName: '설비',
+    displayName: 'menu.설비',
     meta: {
       icon: 'settings',
     },
@@ -42,14 +42,14 @@ export default {
     children: [
       {
         name: 'equipment-inquiry',
-        displayName: '설비 조회',
+        displayName: 'menu.설비 조회',
         meta: {
           icon: 'search',
         },
       },
       {
         name: 'equipment-management', 
-        displayName: '설비 관리',
+        displayName: 'menu.설비 관리',
         meta: {
           icon: 'build',
           },

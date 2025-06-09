@@ -1,11 +1,11 @@
-const bom = require('./sqls/bom.js');
 const product =require('./sqls/product.js');
 const material =require('./sqls/material.js');
 const equipment = require('./sqls/equipment.js')
 const commonCode = require('./sqls/commonCode.js');
 const order = require('./sqls/order.js');
 const inspection = require('./sqls/inspection.js');
-//const processFlowChart = require('./sqls/processFlowChart.js');
+const processFlowChart = require('./sqls/processFlowChart.js');
+const bom = require('./sqls/bom.js');
 
 
  module.exports ={
@@ -17,6 +17,6 @@ const inspection = require('./sqls/inspection.js');
      ...order,
      ...bom,
      ...inspection,
-     //...processFlowChart
+    ...processFlowChart
  }
 
