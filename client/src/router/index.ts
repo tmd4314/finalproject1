@@ -123,10 +123,27 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('../pages/users/UsersPage.vue'),
       },
       {
-        name: 'facility',
-        path: 'facility',
-        component: () => import('../pages/projects/ProjectsPage.vue'),
-      },
+      name: 'facility',
+      path: 'facility',
+      component: RouteViewComponent,
+      children: [
+        {
+          name: 'equipment-inquiry',
+          path: 'inquiry',
+          component: () => import('../pages/equipment/EquipmentInquiry.vue'),
+        },
+        {
+          name: 'equipment-management',
+          path: 'management',
+          component: () => import('../pages/equipment/EquipmentManagement.vue'),
+        },
+        {
+          name: 'equipment-edit',
+          path: 'edit/:id',
+          component: () => import('../pages/equipment/EquipmentForm.vue'),
+        },
+      ],
+    },
       {
         name: 'material',
         path: 'material',
