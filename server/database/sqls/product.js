@@ -27,15 +27,25 @@ const productInsert =
                       product_stand,
                       product_pt,
                       product_perdt,
-                      product_safty)
-VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+                      product_safty,
+                      product_img)
+VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 ;
- // 수정
- const productUpdate = 
- `UPDATE product 
-  SET ?
-  WHERE product_code = ?`
- ;
+const productUpdate = `
+  UPDATE product 
+  SET 
+    product_name = ?,
+    product_pay = ?,
+    product_atc = ?,
+    product_gred = ?,
+    product_unit = ?,
+    product_stand = ?,
+    product_pt = ?,
+    product_perdt = ?,
+    product_safty = ?,
+    product_img = ?
+  WHERE product_code = ?
+`;
  const productDelete = 
  `DELETE FROM product
   WHERE product_code = ?`

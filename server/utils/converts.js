@@ -4,7 +4,7 @@ const convertObjToAry =(target, selected) =>{
     let aray =[];
     for(let fieldName of selected){
         // Object['필드명'] or Object[변수]: 대괄호표기법을 활용해 변수로 필드명을 전달
-        let fieldVal =target[fieldName];
+        let fieldVal = target[fieldName];
         aray.push(fieldVal);
     }
     return aray;

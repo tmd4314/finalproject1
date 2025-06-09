@@ -8,7 +8,7 @@ const findAll = async() => {
 }
 
 const addProduct = async(ProductInfo) => {
-  let insertColums = ['product_code', 'product_name', 'product_pay', 'product_atc', 'product_gred', 'product_unit', 'product_stand', 'product_pt', 'product_perdt', 'product_safty'];
+  let insertColums = ['product_code', 'product_name', 'product_pay', 'product_atc', 'product_gred', 'product_unit', 'product_stand', 'product_pt', 'product_perdt', 'product_safty','product_img'];
   let data = convertObjToAry(ProductInfo, insertColums);
 
   let resInfo = await mariadb.query("productInsert", data)
@@ -40,18 +40,29 @@ if (!resInfo) {
 }
 
 const updateProductInfo = async(productCode, ProductInfo) => {
-  let data = [ProductInfo, productCode];
+  const updateColumns = [
+    'product_name', 'product_pay', 'product_atc', 'product_gred',
+    'product_unit', 'product_stand', 'product_pt',
+    'product_perdt', 'product_safty', 'product_img'
+  ];
+
+  const values = convertObjToAry(ProductInfo, updateColumns);
+  const data = [...values, productCode]; // WHERE 조건 맨 뒤에
 
   let resInfo = await mariadb.query("productUpdate", data)
-                             .catch(err => console.log(err));
+  .catch(err => {
+    console.error(err);
+    return null; // 또는 throw err;
+  });
+
   let result = null;
-  if(resInfo.affectedRows > 0) {
+  if (resInfo?.affectedRows > 0) {
     ProductInfo.product_code = productCode;
     result = {
       isUpdated: true,
       ProductInfo,
     };
-  } else{
+  } else {
     result = {
       isUpdated: false,
     };
@@ -62,7 +73,9 @@ const updateProductInfo = async(productCode, ProductInfo) => {
 const removeProductInfo = async(productCode) => {
   let result = await mariadb.query("productDelete", productCode)
                             .catch(err => console.log(err));
-  return result;
+  return {
+    isDeleted: Number(result?.affectedRows) > 0 // BigInt → Number
+  };
 }
 
 

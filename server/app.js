@@ -4,28 +4,52 @@ const express = require("express");
 const app = express();
 // 미들웨어 등록 영역
 // 1. body parser
-// content-type : application/x-www-form-urlencoded
-app.use(express.urlencoded({ extended: false }));
-// content-type : application/json
-app.use(express.json());
-// Server 실행
-app.listen(3000, () => {
-    console.log("Server Start");
-    console.log("http://localhost:3000");
-});
-
 // 라우팅 등록 영역
-
-const orderRouter = require("./routers/orderRouter.js");
-
-const productRouter = require("./routers/product_router.js");
 
 // 기본 라우팅
 app.get("/", (req, res) => {
     res.send("Welcome!!...");
 });
 
-// 라우터 모듈 등록
-app.use("/api/orders", orderRouter);
-//라우터 모듈 등록
-app.use("/", productRouter);
+ // content-type : application/x-www-form-urlencoded
+app.use(express.urlencoded({ extended:false}));
+ // content-type : application/json
+app.use(express.json()); 
+// Server 실행 
+app.listen(3000, ()=>{
+  console.log('Server Start');
+  console.log('http://localhost:3000');
+})
+
+
+ // 라우팅 등록 영역   
+
+const orderRouter = require('./routers/orderRouter.js');
+
+const productRouter =require('./routers/product_router.js');
+
+const commonCodeRouter = require('./routers/commonCodeRouter');
+
+const equipmentRouter = require('./routers/equipmentRouter');
+
+const materialRouter =require('./routers/material_router.js');
+
+
+ // 기본 라우팅
+app.get('/', (req, res)=>{
+  res.send('Welcome!!...');
+ })
+
+ // 라우터 모듈 등록
+app.use('/api/orders', orderRouter);
+ //라우터 모듈 등록
+app.use('/', productRouter);
+
+app.use('/', materialRouter);
+
+//열림
+app.use('/equipments', equipmentRouter);
+app.use('/common-codes', commonCodeRouter);
+
+app.use('/img', express.static('../client/public/img'));
+
