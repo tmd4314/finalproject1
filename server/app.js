@@ -34,6 +34,8 @@ const equipmentRouter = require('./routers/equipmentRouter');
 
 const materialRouter =require('./routers/material_router.js');
 
+const lineRouter = require('./routers/line_router.js');
+
 
  // 기본 라우팅
 app.get('/', (req, res)=>{
@@ -53,3 +55,4 @@ app.use('/common-codes', commonCodeRouter);
 
 app.use('/img', express.static('../client/public/img'));
 
+app.use('/api/lines', lineRouter);

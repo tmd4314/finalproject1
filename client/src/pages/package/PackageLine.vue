@@ -210,8 +210,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import axios from 'axios'
 
 const router = useRouter()
 
@@ -230,6 +231,9 @@ const searchText = ref('')
 const selectedLine = ref<PackageLine | null>(null)
 const selectedLineForWork = ref<PackageLine | null>(null)
 const showConfirmModal = ref(false)
+const packageLines = ref<PackageLine[]>([])
+const loading = ref(false)
+const error = ref<string | null>(null)
 
 // 필터 옵션
 const lineTypeOptions = [
@@ -246,15 +250,20 @@ const lineStatusOptions = [
   { value: 'STOPPED', label: '정지' }
 ]
 
-// 더미 데이터
-const packageLines = ref<PackageLine[]>([
-  { line_id: 'L001', line_name: '내포장 1호기', line_type: 'INNER', line_status: 'AVAILABLE', work_no: 'W001' },
-  { line_id: 'L002', line_name: '외포장 A라인', line_type: 'OUTER', line_status: 'WORKING', work_no: 'W002' },
-  { line_id: 'L003', line_name: '내포장 2호기', line_type: 'INNER', line_status: 'MAINTENANCE', work_no: '' },
-  { line_id: 'L004', line_name: '외포장 B라인', line_type: 'OUTER', line_status: 'STOPPED', work_no: '' },
-  { line_id: 'L005', line_name: '내포장 3호기 (PTP)', line_type: 'INNER', line_status: 'AVAILABLE', work_no: '' },
-  { line_id: 'L006', line_name: '외포장 C라인 (박스)', line_type: 'OUTER', line_status: 'AVAILABLE', work_no: '' }
-])
+// 실제 데이터 불러오기
+async function fetchLines() {
+  loading.value = true
+  error.value = null
+  try {
+    const response = await axios.get('/api/lines/list')
+    packageLines.value = response.data
+  } catch (err) {
+    error.value = '라인 데이터를 불러오지 못했습니다.'
+  } finally {
+    loading.value = false
+  }
+}
+onMounted(fetchLines)
 
 // 필터링된 라인 계산
 const filteredLines = computed(() => {
