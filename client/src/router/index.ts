@@ -105,16 +105,16 @@ const routes: Array<RouteRecordRaw> = [
             path: 'pricing-plans',
             component: () => import('../pages/pricing-plans/PricingPlans.vue'),
           },
-          {
-          name: 'equipment-register',
-          path: 'equipment-register',
-          component: () => import('../pages/equipment/EquipmentForm.vue'),
-          },
-          {
-          name: 'InspectionManagement',
-          path: 'InspectionManagement',
-          component: () => import('../pages/quality/Page.vue'),
-          },
+            {
+            name: 'equipment-register',
+            path: 'equipment-register',
+            component: () => import('../pages/equipment/EquipmentForm.vue'),
+            },
+            {
+            name: 'InspectionManagement',
+            path: 'InspectionManagement',
+            component: () => import('../pages/quality/Page.vue'),
+            },
         ],
       },
       {

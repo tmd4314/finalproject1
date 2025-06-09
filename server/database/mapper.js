@@ -20,8 +20,6 @@ const query = (alias, values) => {
     return new Promise((resolve, reject) => {
         let executeSql = sqlList[alias];
 
-        console.log('🚀 실행할 SQL:', executeSql);
-        console.log('📦 파라미터:', values);
 
         connectionPool.query(executeSql, values, (err, results) =>{
             if(err) {

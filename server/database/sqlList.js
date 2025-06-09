@@ -15,6 +15,6 @@ const bom = require('./sqls/bom.js');
      ...commonCode,
      ...order,
      ...bom,
-     ...processFlowChart
+    ...processFlowChart
  }
 
