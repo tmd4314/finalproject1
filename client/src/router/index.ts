@@ -110,6 +110,11 @@ const routes: Array<RouteRecordRaw> = [
             path: 'equipment-register',
             component: () => import('../pages/equipment/EquipmentForm.vue'),
             },
+            {
+            name: 'InspectionManagement',
+            path: 'InspectionManagement',
+            component: () => import('../pages/quality/Page.vue'),
+            },
         ],
       },
       {
