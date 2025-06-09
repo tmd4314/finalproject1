@@ -36,6 +36,7 @@ export default defineConfig({
           target: 'http://localhost:3000',
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/bom/, '/bom'),
+        },
         '/process': {
           target: 'http://localhost:3000', // ✅ 백엔드 서버 주소
           changeOrigin: true,
