@@ -17,21 +17,19 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/product/, '/product'), // 경로 그대로 유지
       },
-      '/common-codes': {
-      target: 'http://localhost:3000',
-      changeOrigin: true,
-      rewrite: (path) => path.replace(/^\/common-codes/, '/common-codes'),
+        '/equipments': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
       },
-      '/equipments': {
-      target: 'http://localhost:3000',
-      changeOrigin: true,
-      rewrite: (path) => path.replace(/^\/equipments/, '/equipments'),
+      '/common-codes': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
       },
       '/material': {
         target: 'http://localhost:3000', // ✅ 백엔드 서버 주소
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/material/, '/material'), // 경로 그대로 유지
-      }
+      },
       '/api': {
       target: 'http://localhost:3000',
       changeOrigin: true,

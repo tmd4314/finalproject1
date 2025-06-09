@@ -32,24 +32,27 @@ export default {
         },
       ],
     },
-    {
-      name: 'facility',
-      displayName: 'menu.설비',
-      meta: {
-        icon: 'folder_shared',
+       {
+    name: 'facility',
+    displayName: '설비',
+    meta: {
+      icon: 'settings',
+    },
+    disabled: false,
+    children: [
+      {
+        name: 'equipment-inquiry',
+        displayName: '설비 조회',
+        meta: {
+          icon: 'search',
+        },
       },
-      children: [
-        {
-          name: 'payment-methods',
-          displayName: 'menu.payment-methods',
-        },
-        {
-          name: 'pricing-plans',
-          displayName: 'menu.pricing-plans',
-        },
-        {
-          name: 'billing',
-          displayName: 'menu.billing',
+      {
+        name: 'equipment-management', 
+        displayName: '설비 관리',
+        meta: {
+          icon: 'build',
+          },
         },
       ],
     },
