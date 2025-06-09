@@ -1,87 +1,44 @@
-const mariadb = require("../database/mapper.js");
-const { convertObjToAry } = require('../utils/converts.js') 
+const express =require('express');
+ // Express의 Router 모듈을 사용해서 라우팅 등록, 라우팅을 별도 파일로 관리
+const router =express.Router();
+ // 해당 라우터를 통해 제공할 서비스를 가져옴
+const processService =require('../services/processService.js');
+ // 라우팅  = 사용자의 요청(URL+METHOD) + Service + 응답형태(View or Data)
 
-const findAll = async() => {
-  let list = await mariadb.query("selectMaterialList")
-                          .catch(err => console.log(err));
-  return list;
-}
+//  router.get('/process', async(req, res)=>{
+//   let materialList = await materialService.findAll()
+//                                         .catch(err => console.log(err));
+//   res.send(materialList);
+//  });
 
-const addMaterial = async(MaterialInfo) => {
-  let insertColums = ['material_code', 'material_name', 'material_pay', 'material_cls', 'material_stand', 'material_unit', 'material_safty', 'material_img'];
-  let data = convertObjToAry(MaterialInfo, insertColums);
+router.post('/process', async (req, res) => {
+  try {
+    const processList = req.body;
+    console.log(processList);
+    const result = await processService.addProcess(processList);
+    res.send(result);
+  } catch (err) {
+    console.error('❌ 과정 등록 실패:', err);
+    res.status(500).send({ isSuccessed: false, message: '서버 오류' });
+  }
+});
 
-  let resInfo = await mariadb.query("materialInsert", data)
-  .catch(err => {
-    console.error(err);
-    return null; // 또는 throw err;
-  });
+router.post('/process/:process_code', async (req, res) => {
+  try {
+    const processCode = req.params.process_code;
+    const detailList = req.body;
+    console.log(detailList);
+    const result = await processService.addDetailProcess(processCode, detailList);
+    res.send(result);
+  } catch (err) {
+    console.error('❌ 과정 등록 실패:', err);
+    res.status(500).send({ isSuccessed: false, message: '서버 오류' });
+  }
+});
 
-if (!resInfo) {
-  return {
-    isSuccessed: false,
-    message: 'DB insert 실패',
-  };
-}
   
-
-  let result = null;
-  if(resInfo.affectedRows > 0){
-    result = {
-      isSuccessed:true,
-      materialCode:resInfo.affectedRows,
-    }
-  }else{
-    result = {
-      isSuccessed:false,
-    }
-  }
-  return result;
-}
-
-const updateMaterialInfo = async(materialCode, MaterialInfo) => {
-  const updateColumns = [
-    'material_name', 'material_pay', 'material_cls', 'material_stand',
-    'material_unit', 'material_safty', 'material_img'
-  ];
-
-  const values = convertObjToAry(MaterialInfo, updateColumns);
-  const data = [...values, materialCode]; // WHERE 조건 맨 뒤에
-
-  let resInfo = await mariadb.query("materialUpdate", data)
-  .catch(err => {
-    console.error(err);
-    return null; // 또는 throw err;
-  });
-
-  let result = null;
-  if (resInfo?.affectedRows > 0) {
-    MaterialInfo.material_code = materialCode;
-    result = {
-      isUpdated: true,
-      MaterialInfo,
-    };
-  } else {
-    result = {
-      isUpdated: false,
-    };
-  }
-  return result;
-}
-
-const removeMaterialInfo = async(materialCode) => {
-  let result = await mariadb.query("materialDelete", materialCode)
-                            .catch(err => console.log(err));
-  return {
-    isDeleted: Number(result?.affectedRows) > 0 //  BigInt → Number
-  };
-}
-
-
-
-module.exports = {
-  findAll,
-  addMaterial,
-  updateMaterialInfo,
-  removeMaterialInfo
-};
+// 실제 라우팅 등록 영역
+// 해당 javascript 파일의 마지막 코드, 모듈화
+// 위에 선언한 기능(변수, 함수 등)들 중 외부로 노출할 대상을 설정 
+// => 다른 파일에서 require()을 통해 가져옴
+module.exports =router

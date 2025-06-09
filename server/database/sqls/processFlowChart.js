@@ -1,10 +1,10 @@
-
 const processInsert = 
   `INSERT INTO process(
                       process_code,
                       process_name,
                       process_seq,
                       process_time,
+                      code_value,
                       process_remark,
                       process_dt,
                       product_code)
@@ -12,8 +12,15 @@ const processInsert =
   ;
 
 const processDetail =
-  ``
+  `INSERT INTO process_detail(
+                              process_code,
+                              material_code,
+                              BOM_code,
+                              name,
+                              insert_date)
+   VALUES (?, ?, ?, ?, NOW())`
 
 module.exports ={
   processInsert,
+  processDetail
 }
