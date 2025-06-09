@@ -5,9 +5,9 @@
       <div class="search-bar">
         <va-select
           v-model="selectedProduct"
-          :options="productOptions" 
+          :options="productOptions"
           label="제품명"
-          class="bom-select"  
+          class="bom-select"
           placeholder="제품명 선택"
           clearable
         />
@@ -19,9 +19,27 @@
           :per-page="7"
           dense
           class="bom-table"
-          @row-click="onProductRowClick"
           :row-class="getRowClass"
-        />
+        >
+          <template #body="slotProps">
+            <tbody>
+              <tr
+                v-for="(row, rowIndex) in slotProps.rows"
+                :key="rowIndex"
+                :class="getRowClass(row.item)"
+              >
+                <td 
+                  v-for="col in bomColumns" 
+                  :key="col.key"
+                  @click="onProductRowClick(row.item, rowIndex, $event)"
+                  class="clickable-cell"
+                >
+                  {{ row.item[col.key] }}
+                </td>
+              </tr>
+            </tbody>
+          </template>
+        </va-data-table>
       </div>
     </div>
     <!-- 우측: BOM 등록/수정 -->
@@ -29,24 +47,24 @@
       <form @submit.prevent="saveBOM">
         <fieldset class="fieldset">
           <legend>제품 기본 정보</legend>
-          <va-select 
-            v-model="registerForm.productCode" 
-            :options="productOptions" 
-            label="제품명" 
-            class="input-short" 
+          <va-select
+            v-model="registerForm.product_code"
+            :options="productOptions"
+            label="제품명"
+            class="input-short"
             style="width: 165px; margin-right:10px;"
             :disabled="!!selectedBomCode"
           />
-          <va-input 
-            v-model="registerForm.bomCode" 
-            label="BOM 코드" 
+          <va-input
+            v-model="registerForm.bom_code"
+            label="BOM 코드"
             class="input-short"
             :rules="[value => !!value || 'BOM 코드는 필수입니다']"
             :disabled="!!selectedBomCode"
           />
-          <va-input 
-            v-model="registerForm.spec" 
-            label="규격" 
+          <va-input
+            v-model="registerForm.spec"
+            label="규격"
             class="input-short"
           />
         </fieldset>
@@ -66,7 +84,7 @@
             dense
             selectable
             v-model="selectedMaterials"
-            class="material-table"
+            class="material-table material-table-limit"
             select-mode="multiple"
           >
             <template #cell-usage="{ row, rowIndex }">
@@ -99,16 +117,16 @@
             dense
             selectable
             v-model="selectedSearchMaterials"
-            class="material-table"
+            class="material-table add-material"
             select-mode="multiple"
             :selected-color="'primary'"
           />
         </fieldset>
         <div class="form-buttons">
-          <va-button @click="saveBOM" color="primary" class="action-btn">
+          <va-button @click="saveBOM" color="primary" class="action-btn" size="small">
             {{ selectedBomCode ? '수정' : '저장' }}
           </va-button>
-          <va-button @click="resetForm" color="secondary" class="action-btn">초기화</va-button>
+          <va-button @click="resetForm" color="secondary" class="action-btn" size="small">초기화</va-button>
         </div>
       </form>
     </div>
@@ -120,64 +138,65 @@ import axios from 'axios'
 import { ref, watch, onMounted } from 'vue'
 
 interface BomItem {
-  bomCode: string
-  productCode: string
-  productName: string
+  bom_code: string
+  product_code: string
+  product_name: string
   spec: string
   materials: Material[]
 }
 
 interface Material {
-  materialCode: string
-  materialName: string
-  unit: string
-  spec: string
-  usage: string
+  material_code: string
+  material_name: string
+  material_pay?: string
+  material_cls?: string
+  material_stand?: string
+  material_unit?: string
+  material_safty?: string
+  usage?: string
 }
 
 interface ProductOption {
   text: string
   value: string
   spec: string
-  bomCode: string
+  bom_code?: string
 }
 
-// 반응형 데이터
 const productOptions = ref<ProductOption[]>([])
 const allBomList = ref<BomItem[]>([])
 const bomColumns = [
-  { key: 'bomCode', label: 'BOM코드' },
-  { key: 'productCode', label: '제품코드' },
-  { key: 'productName', label: '제품명' },
+  { key: 'bom_code', label: 'BOM코드' },
+  { key: 'product_code', label: '제품코드' },
+  { key: 'product_name', label: '제품명' },
   { key: 'spec', label: '규격' },
 ]
 const materialColumns = [
-  { key: 'materialCode', label: '자재코드' },  
-  { key: 'materialName', label: '자재명' },
-  { key: 'unit', label: '단위' },
-  { key: 'spec', label: '규격' },
+  { key: 'material_code', label: '자재코드' },
+  { key: 'material_name', label: '자재명' },
+  { key: 'material_cls', label: '분류' },
+  { key: 'material_unit', label: '단위' },
+  { key: 'material_stand', label: '규격' },
   { key: 'usage', label: '투입량' },
 ]
 const materialSearchColumns = [
-  { key: 'materialCode', label: '자재코드' },
-  { key: 'materialName', label: '자재명' },
-  { key: 'unit', label: '단위' },
-  { key: 'spec', label: '규격' },
+  { key: 'material_code', label: '자재코드' },
+  { key: 'material_name', label: '자재명' },
+  { key: 'material_cls', label: '분류' },
+  { key: 'material_unit', label: '단위' },
+  { key: 'material_stand', label: '규격' }
 ]
 
 const bomList = ref<BomItem[]>([])
 const selectedProduct = ref<string>('')
 
-// 선택된 BOM 코드 (행 클릭으로만 선택)
 const selectedBomCode = ref<string | null>(null)
-
-// 우측 등록폼 - 초기값을 빈 값으로 설정
-const registerForm = ref<{
-  bomCode: string
-  productCode: string
-  spec: string
-  materials: Material[]
-}>({ bomCode: '', productCode: '', spec: '', materials: [] })
+const registerForm = ref({
+  bom_code: '',
+  product_code: '',
+  spec: '',
+  materials: [] as Material[],
+})
 
 const selectedMaterials = ref<Material[]>([])
 const searchMaterialCode = ref<string>('')
@@ -185,25 +204,28 @@ const searchMaterialName = ref<string>('')
 const materialSearchResults = ref<Material[]>([])
 const selectedSearchMaterials = ref<Material[]>([])
 
-// ========== [axios 요청 경로 실제 라우터에 맞게 수정] ==========
-
-// 제품 목록
-async function fetchProducts() {
+async function fetchProduct() {
   try {
-    const response = await axios.get('/products')
-    productOptions.value = response.data.map((product: any) => ({
-      text: product.productName,
-      value: product.productCode,
-      spec: product.spec,
-      bomCode: product.bomCode
-    }))
+    const response = await axios.get('/product');
+    const seen = new Set();
+    productOptions.value = response.data
+      .filter((product: any) => {
+        if (seen.has(product.product_name)) return false;
+        seen.add(product.product_name);
+        return true;
+      })
+      .map((product: any) => ({
+        text: product.product_name,
+        value: product.product_name,
+        spec: product.product_stand ?? '',
+        bom_code: product.bom_code ?? '',
+      }));
   } catch (error) {
-    console.error('제품 목록 조회 실패:', error)
-    alert('제품 목록을 불러오는데 실패했습니다.')
+    console.error('제품 목록 조회 실패:', error);
+    alert('제품 목록을 불러오는데 실패했습니다.');
   }
 }
 
-// BOM 목록
 async function fetchBomList() {
   try {
     const response = await axios.get('/bom')
@@ -215,14 +237,13 @@ async function fetchBomList() {
   }
 }
 
-// 자재 검색
 async function searchMaterials() {
   try {
     const params = {
-      materialCode: searchMaterialCode.value,
-      materialName: searchMaterialName.value
+      material_code: searchMaterialCode.value,
+      material_name: searchMaterialName.value,
     }
-    const response = await axios.get('/materials/search', { params })
+    const response = await axios.get('/material', { params })
     materialSearchResults.value = response.data
   } catch (error) {
     console.error('자재 검색 실패:', error)
@@ -230,81 +251,100 @@ async function searchMaterials() {
   }
 }
 
-// BOM 저장
-async function saveBOM() {
-  // 유효성 검사
-  if (!registerForm.value.bomCode.trim()) {
-    alert('BOM 코드를 입력해주세요.')
-    return
+async function fetchAllMaterials() {
+  try {
+    const response = await axios.get('/material')
+    materialSearchResults.value = response.data
+  } catch (error) {
+    console.error('자재 전체 조회 실패:', error)
+    alert('자재 전체 목록을 불러오는데 실패했습니다.')
   }
-  if (!registerForm.value.productCode) {
-    alert('제품을 선택해주세요.')
-    return
+}
+
+async function saveBOM() {
+  // 1. 필수값 검증
+  if (!registerForm.value.bom_code.trim()) {
+    alert('BOM 코드를 입력해주세요.');
+    return;
+  }
+  if (!registerForm.value.product_code) {
+    alert('제품을 선택해주세요.');
+    return;
   }
   if (registerForm.value.materials.length === 0) {
-    alert('투입 자재를 추가해주세요.')
-    return
+    alert('투입 자재를 추가해주세요.');
+    return;
   }
-  const invalidMaterials = registerForm.value.materials.filter(m => !m.usage || parseFloat(m.usage) <= 0)
+  const invalidMaterials = registerForm.value.materials.filter(
+    m => !m.usage || parseFloat(m.usage) <= 0
+  );
   if (invalidMaterials.length > 0) {
-    alert('모든 자재의 투입량을 올바르게 입력해주세요.')
-    return
+    alert('모든 자재의 투입량을 올바르게 입력해주세요.');
+    return;
   }
+
+  // 2. 전송할 데이터 구조화
   try {
-    const prod = productOptions.value.find(p => p.value === registerForm.value.productCode)
+    const prod = productOptions.value.find(
+      p => p.value === registerForm.value.product_code
+    );
     const bomData = {
-      bomCode: registerForm.value.bomCode,
-      productCode: registerForm.value.productCode,
-      productName: prod ? prod.text : '',
+      bom_code: registerForm.value.bom_code,
+      product_code: registerForm.value.product_code,
+      product_name: prod ? prod.text : '',
       spec: registerForm.value.spec,
-      materials: registerForm.value.materials
-    }
+      materials: registerForm.value.materials.map(m => ({
+        material_code: m.material_code,
+        usage: m.usage
+      }))
+    };
+
+    // 3. 저장 또는 수정
     if (selectedBomCode.value) {
-      await axios.put(`/bom/${selectedBomCode.value}`, bomData)
-      alert('BOM이 수정되었습니다!')
+      await axios.put(`/bom/${selectedBomCode.value}`, bomData);
+      alert('BOM이 수정되었습니다!');
     } else {
-      await axios.post('/bom', bomData)
-      alert('새 BOM이 저장되었습니다!')
+      await axios.post('/bom', bomData); // ← 여기가 저장 핵심입니다.
+      alert('새 BOM이 저장되었습니다!');
     }
-    await fetchBomList()
-    resetForm()
+
+    // 4. 저장 성공 시 목록 갱신 및 폼 리셋
+    await fetchBomList();
+    resetForm();
   } catch (error) {
-    console.error('BOM 저장 실패:', error)
-    alert('BOM 저장에 실패했습니다.')
+    console.error('BOM 저장 실패:', error);
+    alert('BOM 저장에 실패했습니다.');
   }
 }
 
-// BOM 삭제
-async function deleteBOM(bomCode: string) {
-  if (!confirm('정말로 이 BOM을 삭제하시겠습니까?')) return
-  try {
-    await axios.delete(`/bom/${bomCode}`)
-    alert('BOM이 삭제되었습니다!')
-    await fetchBomList()
-    resetForm()
-  } catch (error) {
-    console.error('BOM 삭제 실패:', error)
-    alert('BOM 삭제에 실패했습니다.')
-  }
+const bomData = {
+  bom_code: 'BOM001',
+  product_code: 'P001',
+  spec: '500mg',
+  materials: [
+    { material_code: 'M001', usage: '3' },
+    { material_code: 'M002', usage: '5' },
+  ]
 }
 
-// 그 외 함수 동일 (기존 로직 그대로)
+
 function getRowClass(item: BomItem) {
-  return selectedBomCode.value === item.bomCode ? 'selected-row' : ''
+  return selectedBomCode.value === item.bom_code ? 'selected-row' : ''
 }
+
 function removeSelectedMaterials() {
   if (!selectedMaterials.value || selectedMaterials.value.length === 0) {
     alert('제거할 자재를 선택해주세요.')
     return
   }
   const removeCount = selectedMaterials.value.length
-  const selectedCodes = selectedMaterials.value.map(m => m.materialCode)
+  const selectedCodes = selectedMaterials.value.map(m => m.material_code)
   registerForm.value.materials = registerForm.value.materials.filter(
-    m => !selectedCodes.includes(m.materialCode)
+    m => !selectedCodes.includes(m.material_code)
   )
   selectedMaterials.value = []
-  alert(`${removeCount}개의 자재가 투입자재에서 제거되었습니다.`)
 }
+
 function addSelectedMaterialsToBom() {
   if (!selectedSearchMaterials.value || selectedSearchMaterials.value.length === 0) {
     alert('추가할 자재를 선택해주세요.')
@@ -313,7 +353,7 @@ function addSelectedMaterialsToBom() {
   let addedCount = 0
   let duplicateCount = 0
   selectedSearchMaterials.value.forEach(mat => {
-    const existingMaterial = registerForm.value.materials.find(m => m.materialCode === mat.materialCode)
+    const existingMaterial = registerForm.value.materials.find(m => m.material_code === mat.material_code)
     if (!existingMaterial) {
       registerForm.value.materials.push({ ...mat, usage: '1' })
       addedCount++
@@ -322,45 +362,61 @@ function addSelectedMaterialsToBom() {
     }
   })
   selectedSearchMaterials.value = []
-  if (addedCount > 0 && duplicateCount > 0) {
-    alert(`${addedCount}개의 자재가 추가되었습니다. ${duplicateCount}개는 이미 존재하여 제외되었습니다.`)
-  } else if (addedCount > 0) {
-    alert(`${addedCount}개의 자재가 투입자재에 추가되었습니다.`)
-  } else {
-    alert('선택한 자재가 모두 이미 투입자재에 존재합니다.')
-  }
 }
-function onProductRowClick(row: BomItem) {
-  if (selectedBomCode.value === row.bomCode) {
+
+function onProductRowClick(row: BomItem, rowIndex: number, event: MouseEvent) {
+  console.log('클릭됨', row, rowIndex)
+  if (selectedBomCode.value === row.bom_code) {
     selectedBomCode.value = null
     resetForm()
     return
   }
-  selectedBomCode.value = row.bomCode
-  registerForm.value = {
-    bomCode: row.bomCode,
-    productCode: row.productCode,
-    spec: row.spec,
-    materials: row.materials.map(m => ({ ...m })),
-  }
+  selectedBomCode.value = row.bom_code
+
+  // 필드별 대입으로 변경
+  registerForm.value.bom_code = row.bom_code
+  registerForm.value.product_code = row.product_code
+  registerForm.value.spec = row.spec
+  registerForm.value.materials = row.materials.map(m => ({ ...m }))
+
   selectedMaterials.value = []
   selectedSearchMaterials.value = []
 }
-watch(selectedProduct, (prodCode) => {
-  if (!prodCode) {
-    bomList.value = [...allBomList.value]
-  } else {
-    bomList.value = allBomList.value.filter(b => b.productCode === prodCode)
+
+watch(selectedProduct, (selectedValue) => {
+  let productName = '';
+  if (typeof selectedValue === 'object' && selectedValue !== null) {
+    productName = selectedValue['text'] || selectedValue['value'] || selectedValue['label'] || selectedValue['name'] || '';
+    
+    if (!productName) {
+      const keys = Object.keys(selectedValue);
+      if (keys.length > 0) {
+        const textKey = keys.find(key => key === 'text') || keys[0];
+        productName = selectedValue[textKey];
+      }
+    }
+  } else if (typeof selectedValue === 'string') {
+    productName = selectedValue;
   }
-  selectedBomCode.value = null
-  resetForm()
-})
+  
+  if (!productName) {
+    bomList.value = [...allBomList.value];
+  } else {
+    bomList.value = allBomList.value.filter(bom => {
+      return bom.product_name === productName;
+    });
+  }
+  
+  selectedBomCode.value = null;
+  resetForm();
+});
+
 function resetForm() {
   registerForm.value = {
-    bomCode: '',
-    productCode: '',
+    bom_code: '',
+    product_code: '',
     spec: '',
-    materials: []
+    materials: [],
   }
   selectedMaterials.value = []
   selectedSearchMaterials.value = []
@@ -369,10 +425,11 @@ function resetForm() {
   searchMaterialCode.value = ''
   searchMaterialName.value = ''
 }
-onMounted(async () => {
-  await fetchProducts()
-  await fetchBomList()
-  await searchMaterials()
+
+onMounted(() => {
+  fetchProduct()
+  fetchBomList()
+  fetchAllMaterials()
 })
 </script>
 
@@ -391,7 +448,6 @@ onMounted(async () => {
   margin: 0;
   padding: 0;
 }
-
 .bom-list {
   background: #fff;
   border-radius: 10px;
@@ -402,7 +458,6 @@ onMounted(async () => {
   flex-direction: column;
   justify-content: flex-start;
 }
-
 .bom-register {
   background: #fff;
   border-radius: 10px;
@@ -413,39 +468,41 @@ onMounted(async () => {
   flex-direction: column;
   justify-content: flex-start;
 }
-
 .search-bar {
   display: flex;
   gap: 10px;
   margin-bottom: 12px;
 }
-
 .bom-select {
   width: 175px;
 }
-
 .search-btn {
   min-width: 56px;
   height: 32px;
 }
-
-.table-area, .material-table {
+.table-area,
+.material-table {
   flex: 1;
   min-height: 0;
 }
-
+.material-table-limit {
+  max-height: 140px;
+  overflow-y: auto;
+}
+.add-material {
+  max-height: 240px;   
+  overflow-y: auto;
+}
 .fieldset {
   border: 1px solid #c2c2c2;
   border-radius: 8px;
   margin-bottom: 10px;
   padding: 12px 10px 8px 10px;
 }
-
 .input-short {
   width: 165px;
   margin-right: 10px;
 }
-
 .material-header {
   display: flex;
   justify-content: space-between;
@@ -454,44 +511,44 @@ onMounted(async () => {
   font-size: 14px;
   margin-bottom: 8px;
 }
-
 .remove-btn {
   min-width: 56px;
   height: 28px;
   font-size: 12px;
 }
-
 .material-search-row {
   display: flex;
   align-items: center;
   gap: 10px;
   margin: 10px 0 5px 0;
 }
-
-.search-btn, .add-btn {
+.search-btn,
+.add-btn {
   min-width: 56px;
   height: 32px;
   font-size: 14px;
   padding: 0 12px;
 }
-
 .form-buttons {
   margin-top: 10px;
   display: flex;
   justify-content: flex-end;
   gap: 12px;
 }
-
 .action-btn {
   min-width: 62px;
   height: 32px;
   font-size: 15px;
 }
-
 .bom-table,
 .material-table {
   font-size: 14px;
   margin-bottom: 0;
+}
+
+/* 클릭 가능한 셀 스타일 */
+.clickable-cell {
+  cursor: pointer;
 }
 
 /* 선택된 행 하이라이트 스타일 */
@@ -499,14 +556,15 @@ onMounted(async () => {
   background-color: #e3f2fd !important;
   border-left: 4px solid #2196f3 !important;
 }
-
 :deep(.selected-row:hover) {
   background-color: #e3f2fd !important;
 }
-
 /* 행 호버 효과 */
 :deep(.va-data-table tbody tr:hover) {
   background-color: #f5f5f5;
-  cursor: pointer;
+}
+/* 셀 호버 효과 */
+.clickable-cell:hover {
+  background-color: #f0f0f0;
 }
 </style>
