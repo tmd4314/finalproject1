@@ -68,3 +68,5 @@ app.use('/', bomRouter);
 
 //현석
 app.use('/api/lines', lineRouter);
+
+app.use('/inspections', inspectionRouter);
