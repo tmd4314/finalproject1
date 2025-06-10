@@ -42,13 +42,14 @@
             <div class="control-section">
               <div class="control-row">
                 <div class="control-group">
-                  <label class="control-label">작업번호 선택</label>
-                  <select v-model="selectedWorkOrder" @change="onWorkOrderChange" class="control-select">
-                    <option value="">작업을 선택하세요</option>
-                    <option v-for="order in availableWorkOrders" :key="order.work_no" :value="order.work_no">
-                      {{ order.work_no }} - {{ order.product_name }}
-                    </option>
-                  </select>
+                  <label class="control-label">작업번호</label>
+                  <input 
+                    v-model="selectedWorkOrder" 
+                    type="text" 
+                    class="control-input" 
+                    placeholder="작업번호를 입력하세요"
+                    :disabled="isWorking"
+                  >
                 </div>
                 <div class="control-group">
                   <label class="control-label">투입수량</label>
@@ -281,9 +282,13 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import axios from 'axios'
+
+// axios 기본 설정
+axios.defaults.timeout = 10000
+axios.defaults.headers.common['Content-Type'] = 'application/json'
 
 // 라인 정보 (URL 파라미터에서 가져옴)
 const router = useRouter()
@@ -297,7 +302,8 @@ const workInfo = ref({
 })
 
 // API 기본 설정
-const API_BASE_URL = 'http://localhost:3000/packages'
+const PACKAGES_API_URL = 'http://localhost:3000/packages'
+const LINES_API_URL = 'http://localhost:3000/lines'
 
 // 로딩 상태
 const loading = ref(false)
@@ -309,10 +315,9 @@ const isWorking = ref(false)
 const workStartTime = ref(null)
 const workElapsedTime = ref('00:00:00')
 
-// 작업 선택
+// 작업 선택 (단순화)
 const selectedWorkOrder = ref('')
 const inputQuantity = ref(500)
-const availableWorkOrders = ref([])
 
 // 현재 작업 정보
 const currentWork = ref({
@@ -344,54 +349,209 @@ const canStartWork = computed(() => {
   return selectedWorkOrder.value && inputQuantity.value > 0 && !isWorking.value
 })
 
-// 컴포넌트 마운트
-onMounted(async () => {
-  await loadAvailableWorkOrders()
-  if (route.query.work_no) {
-    selectedWorkOrder.value = route.query.work_no
-    await onWorkOrderChange()
-  }
-  addLog(`${workInfo.value.lineName}에서 작업을 시작합니다.`, 'info')
+// 컴포넌트 마운트 (안전한 방식)
+onMounted(() => {
+  // nextTick을 사용하여 컴포넌트가 완전히 마운트된 후 실행
+  nextTick(async () => {
+    try {
+      await initializeWorkPage()
+    } catch (error) {
+      console.error('페이지 초기화 오류:', error)
+      addLog('페이지 초기화에 실패했습니다.', 'error')
+    }
+  })
 })
 
 onUnmounted(() => {
-  if (workTimer) clearInterval(workTimer)
+  if (workTimer) {
+    clearInterval(workTimer)
+    workTimer = null
+  }
 })
 
-// 1. 작업 목록 조회
-async function loadAvailableWorkOrders() {
+// 페이지 초기화 (작업 수행 전용)
+async function initializeWorkPage() {
   try {
     loading.value = true
-    loadingMessage.value = '작업 목록을 불러오는 중...'
-    const res = await axios.get(API_BASE_URL)
-    availableWorkOrders.value = res.data
-    addLog(`${availableWorkOrders.value.length}개의 작업을 불러왔습니다.`, 'info')
+    loadingMessage.value = '작업 정보를 초기화하는 중...'
+    
+    // 기본 정보 설정
+    addLog(`${workInfo.value.lineName || '선택된 라인'}에서 작업을 시작합니다.`, 'info')
+    
+    // 서버 연결 상태 확인
+    let serverConnected = false
+    try {
+      await axios.get(`${LINES_API_URL}/health`).catch(() => {
+        return axios.get(LINES_API_URL).catch(() => null)
+      })
+      serverConnected = true
+    } catch (error) {
+      addLog('서버 연결 확인 중... (연결 실패 시 오프라인 모드로 동작)', 'warning')
+    }
+    
+    // 1. 라인 정보 확인 및 현재 작업번호 가져오기 (서버 연결된 경우에만)
+    if (serverConnected) {
+      await loadLineInfo()
+    } else {
+      addLog('오프라인 모드: 기본 라인 정보로 동작합니다.', 'warning')
+    }
+    
+    // 2. URL에서 전달된 작업번호가 있으면 설정
+    if (route.query.work_no) {
+      selectedWorkOrder.value = route.query.work_no
+      await onWorkOrderChange()
+      addLog(`작업번호 ${route.query.work_no}가 선택되었습니다.`, 'info')
+    } else if (workInfo.value.currWorkNo) {
+      selectedWorkOrder.value = workInfo.value.currWorkNo
+      await onWorkOrderChange()
+      addLog(`현재 라인의 작업번호 ${workInfo.value.currWorkNo}가 자동으로 선택되었습니다.`, 'info')
+    }
+    
+    addLog('페이지 초기화가 완료되었습니다.', 'success')
+    
   } catch (error) {
-    addLog('작업 목록 로드에 실패했습니다.', 'error')
+    console.error('페이지 초기화 실패:', error)
+    addLog('페이지 초기화에 실패했지만 기본 모드로 동작합니다.', 'warning')
   } finally {
     loading.value = false
   }
 }
 
+// 라인 정보 및 현재 작업번호 조회
+async function loadLineInfo() {
+  try {
+    if (!workInfo.value.lineId) {
+      addLog('라인 ID가 없습니다. 라인 선택 페이지로 돌아가주세요.', 'error')
+      return
+    }
+    
+    // 서버 연결 확인
+    const response = await axios.get(`${LINES_API_URL}/${workInfo.value.lineId}`)
+    const lineData = response.data
+    
+    // 라인 정보 업데이트
+    workInfo.value = {
+      ...workInfo.value,
+      lineName: lineData.line_name || workInfo.value.lineName,
+      lineType: lineData.line_type || workInfo.value.lineType,
+      currWorkNo: lineData.curr_work_no || null,  // 현재 작업번호
+      lineStatus: lineData.line_status || 'READY'
+    }
+    
+    addLog(`라인 정보를 불러왔습니다: ${workInfo.value.lineName}`, 'info')
+    
+    if (workInfo.value.currWorkNo) {
+      addLog(`현재 진행 중인 작업: ${workInfo.value.currWorkNo}`, 'info')
+    } else {
+      addLog('현재 진행 중인 작업이 없습니다.', 'info')
+    }
+    
+  } catch (error) {
+    console.error('라인 정보 조회 실패:', error)
+    
+    // 네트워크 연결 오류인 경우
+    if (error.code === 'ERR_NETWORK' || error.code === 'ECONNREFUSED') {
+      addLog('서버에 연결할 수 없습니다. 서버가 실행 중인지 확인해주세요.', 'error')
+      addLog('서버 주소: http://localhost:3000', 'info')
+    } else if (error.response) {
+      // 서버에서 응답은 왔지만 오류인 경우
+      addLog(`서버 오류: ${error.response.status} - ${error.response.statusText}`, 'error')
+    } else {
+      addLog('라인 정보를 불러오는데 실패했습니다.', 'error')
+    }
+    
+    // 기본값으로 설정하여 계속 진행할 수 있도록 함
+    workInfo.value = {
+      ...workInfo.value,
+      currWorkNo: null,
+      lineStatus: 'READY'
+    }
+  }
+}
+
+// 1. 작업 목록 조회
+async function loadAvailableWorkOrders() {
+  try {
+    loadingMessage.value = '작업 목록을 불러오는 중...'
+    const res = await axios.get(PACKAGES_API_URL)
+    
+    // 라인 타입에 맞는 작업만 필터링
+    const filteredOrders = res.data.filter(order => {
+      // 여기서 작업의 포장 타입과 라인 타입을 매칭
+      // 예: 내포장 라인이면 내포장 작업만, 외포장 라인이면 외포장 작업만
+      return true // 일단 모든 작업을 표시 (필요시 필터링 로직 추가)
+    })
+    
+    availableWorkOrders.value = filteredOrders
+    addLog(`${availableWorkOrders.value.length}개의 작업을 불러왔습니다.`, 'info')
+    
+  } catch (error) {
+    console.error('작업 목록 조회 실패:', error)
+    
+    if (error.code === 'ERR_NETWORK' || error.code === 'ECONNREFUSED') {
+      addLog('서버에 연결할 수 없습니다. 패키지 API 서버 확인이 필요합니다.', 'error')
+      addLog('API 주소: http://localhost:3000/packages', 'info')
+    } else if (error.response) {
+      addLog(`API 오류: ${error.response.status} - ${error.response.statusText}`, 'error')
+    } else {
+      addLog('작업 목록 로드에 실패했습니다.', 'error')
+    }
+    
+    // 빈 배열로 설정하여 오류가 있어도 계속 진행
+    availableWorkOrders.value = []
+  }
+}
+
 // 2. 작업 선택시 상세 조회
 async function onWorkOrderChange() {
-  if (!selectedWorkOrder.value) return
-  try {
-    loading.value = true
-    loadingMessage.value = '작업 상세 정보를 불러오는 중...'
-    const res = await axios.get(`${API_BASE_URL}/${selectedWorkOrder.value}`)
+  if (!selectedWorkOrder.value) {
+    // 작업 선택이 해제된 경우 현재 작업 정보 초기화
     currentWork.value = {
-      ...res.data,
-      progressRate: 0,
-      passRate: 0,
-      defectRate: 0,
+      work_no: '',
+      product_name: '',
+      package_type: '',
+      order_quantity: 0,
       input_qty: 0,
       output_qty: 0,
       defect_qty: 0,
+      progressRate: 0,
+      passRate: 0,
+      defectRate: 0,
+      employee_name: '김포장',
       start_time: null
     }
+    return
+  }
+  
+  try {
+    loading.value = true
+    loadingMessage.value = '작업 상세 정보를 불러오는 중...'
+    
+    const res = await axios.get(`${PACKAGES_API_URL}/${selectedWorkOrder.value}`)
+    const workData = res.data
+    
+    currentWork.value = {
+      work_no: workData.work_no,
+      product_name: workData.product_name,
+      package_type: workData.package_type,
+      order_quantity: workData.order_quantity || workData.target_qty,
+      input_qty: 0,
+      output_qty: 0,
+      defect_qty: 0,
+      progressRate: 0,
+      passRate: 0,
+      defectRate: 0,
+      employee_name: workData.employee_name || '김포장',
+      start_time: null
+    }
+    
+    // 투입수량을 지시수량의 일부로 설정 (기본값)
+    inputQuantity.value = Math.min(500, currentWork.value.order_quantity)
+    
     addLog(`작업번호 ${selectedWorkOrder.value} 상세정보를 불러왔습니다.`, 'info')
+    
   } catch (err) {
+    console.error('작업 상세 정보 조회 실패:', err)
     addLog('작업 상세 정보 불러오기에 실패했습니다.', 'error')
   } finally {
     loading.value = false
@@ -404,6 +564,7 @@ async function startWork() {
     try {
       loading.value = true
       loadingMessage.value = '작업을 시작하는 중...'
+      
       const workData = {
         work_no: selectedWorkOrder.value,
         line_id: workInfo.value.lineId,
@@ -415,28 +576,42 @@ async function startWork() {
         employee_no: 'EMP001',
         employee_name: currentWork.value.employee_name
       }
-      // 등록
-      const response = await axios.post(`${API_BASE_URL}/work`, workData)
+      
+      // 작업 시작 API 호출
+      const response = await axios.post(`${PACKAGES_API_URL}/work`, workData)
+      
+      // 라인의 curr_work_no 업데이트
+      await axios.put(`${LINES_API_URL}/${workInfo.value.lineId}`, {
+        curr_work_no: selectedWorkOrder.value,
+        line_status: 'WORKING'
+      })
+      
       // 서버에서 계산된 결과 반영
       currentWork.value.input_qty = inputQuantity.value
-      currentWork.value.output_qty = response.data.output_qty
-      currentWork.value.defect_qty = response.data.defect_qty
-      currentWork.value.passRate = Math.round((response.data.output_qty / inputQuantity.value) * 100)
+      currentWork.value.output_qty = response.data.output_qty || Math.floor(inputQuantity.value * 0.95)
+      currentWork.value.defect_qty = response.data.defect_qty || (inputQuantity.value - currentWork.value.output_qty)
+      currentWork.value.passRate = Math.round((currentWork.value.output_qty / inputQuantity.value) * 100)
       currentWork.value.defectRate = 100 - currentWork.value.passRate
+      
       workStatus.value = 'WORKING'
       isWorking.value = true
       workStartTime.value = new Date()
       currentWork.value.start_time = workStartTime.value
+      
       updateWorkProgress()
       startWorkTimer()
+      
       addLog(`작업을 시작했습니다. (투입수량: ${inputQuantity.value}개)`, 'success')
       addLog(`예상 합격수량: ${currentWork.value.output_qty}개, 불량수량: ${currentWork.value.defect_qty}개`, 'info')
+      
     } catch (error) {
+      console.error('작업 시작 실패:', error)
       addLog('작업 시작에 실패했습니다.', 'error')
     } finally {
       loading.value = false
     }
   } else {
+    // 일시정지
     isWorking.value = false
     workStatus.value = 'PAUSED'
     if (workTimer) clearInterval(workTimer)
@@ -454,21 +629,41 @@ async function confirmCompleteWork() {
   try {
     loading.value = true
     loadingMessage.value = '작업을 완료하는 중...'
-    const res = await axios.put(`${API_BASE_URL}/work/${currentWork.value.work_no}/complete`, {
-      input_qty: currentWork.value.input_qty
+    
+    // 작업 완료 API 호출
+    const res = await axios.put(`${PACKAGES_API_URL}/work/${currentWork.value.work_no}/complete`, {
+      input_qty: currentWork.value.input_qty,
+      output_qty: currentWork.value.output_qty,
+      defect_qty: currentWork.value.defect_qty
     })
-    currentWork.value.output_qty = res.data.output_qty
-    currentWork.value.defect_qty = res.data.defect_qty
-    currentWork.value.passRate = Math.round((res.data.output_qty / currentWork.value.input_qty) * 100)
+    
+    // 라인 상태 업데이트 (curr_work_no 초기화)
+    await axios.put(`${LINES_API_URL}/${workInfo.value.lineId}`, {
+      curr_work_no: null,
+      line_status: 'READY'
+    })
+    
+    // 최종 결과 반영
+    currentWork.value.output_qty = res.data.output_qty || currentWork.value.output_qty
+    currentWork.value.defect_qty = res.data.defect_qty || currentWork.value.defect_qty
+    currentWork.value.passRate = Math.round((currentWork.value.output_qty / currentWork.value.input_qty) * 100)
     currentWork.value.defectRate = 100 - currentWork.value.passRate
+    
     isWorking.value = false
     workStatus.value = 'COMPLETED'
     if (workTimer) clearInterval(workTimer)
+    
     updateWorkProgress()
     addLog('작업이 완료되었습니다.', 'success')
     closeCompleteModal()
-    setTimeout(() => { goBackToLineSelectionWithCompletion() }, 2000)
+    
+    // 2초 후 라인 선택 페이지로 이동
+    setTimeout(() => { 
+      goBackToLineSelectionWithCompletion() 
+    }, 2000)
+    
   } catch (error) {
+    console.error('작업 완료 처리 실패:', error)
     addLog('작업 완료 처리에 실패했습니다.', 'error')
   } finally {
     loading.value = false
@@ -476,11 +671,23 @@ async function confirmCompleteWork() {
 }
 
 // 작업 종료 (강제)
-function stopWork() {
-  isWorking.value = false
-  workStatus.value = 'COMPLETED'
-  if (workTimer) clearInterval(workTimer)
-  addLog('작업을 종료했습니다.', 'info')
+async function stopWork() {
+  try {
+    isWorking.value = false
+    workStatus.value = 'COMPLETED'
+    if (workTimer) clearInterval(workTimer)
+    
+    // 라인 상태 업데이트
+    await axios.put(`${LINES_API_URL}/${workInfo.value.lineId}`, {
+      curr_work_no: null,
+      line_status: 'READY'
+    })
+    
+    addLog('작업을 종료했습니다.', 'info')
+  } catch (error) {
+    console.error('작업 종료 실패:', error)
+    addLog('작업 종료 처리에 실패했습니다.', 'error')
+  }
 }
 
 // 진행률/품질 업데이트
@@ -508,7 +715,9 @@ function addLog(message, type = 'info') {
 }
 
 // 모달 제어
-function closeCompleteModal() { showCompleteModal.value = false }
+function closeCompleteModal() { 
+  showCompleteModal.value = false 
+}
 
 // 라인 선택으로 돌아가기 (작업 완료시)
 function goBackToLineSelectionWithCompletion() {
@@ -543,13 +752,17 @@ function goBackToLineSelection() {
 }
 
 // 헬퍼 함수들
-function formatNumber(num) { return num ? num.toLocaleString() : '0' }
+function formatNumber(num) { 
+  return num ? num.toLocaleString() : '0' 
+}
+
 function formatTime(date) {
   if (!date) return '-'
   return date instanceof Date
     ? date.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
     : new Date(date).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
 }
+
 function formatDateTime(date) {
   if (!date) return '-'
   return date instanceof Date
@@ -568,18 +781,24 @@ function formatDateTime(date) {
         second: '2-digit'
       })
 }
+
 function formatElapsedTime(ms) {
   const hours = Math.floor(ms / (1000 * 60 * 60))
   const minutes = Math.floor((ms % (1000 * 60 * 60)) / (1000 * 60))
   const seconds = Math.floor((ms % (1000 * 60)) / 1000)
   return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
 }
+
 function getWorkStatusText(status) {
   const map = {
-    'READY': '준비', 'WORKING': '작업중', 'PAUSED': '일시정지', 'COMPLETED': '완료'
+    'READY': '준비', 
+    'WORKING': '작업중', 
+    'PAUSED': '일시정지', 
+    'COMPLETED': '완료'
   }
   return map[status] || status
 }
+
 function getQualityRateClass(rate) {
   if (rate >= 98) return 'excellent'
   if (rate >= 95) return 'good'
@@ -601,7 +820,6 @@ defineOptions({
   name: 'PackageWork'
 })
 </script>
-
 
 <style scoped>
 .package-work-container {

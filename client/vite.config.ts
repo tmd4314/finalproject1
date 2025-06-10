@@ -15,7 +15,9 @@ const proxyPaths = [
   'process',
   'processDetail',
   'inspections',
-  'api'
+  'api',
+  'lines',
+  'packages',
 ]
 
 // ✅ 공통 proxy 설정 생성 함수

@@ -1,19 +1,19 @@
 // server/services/packageService.js
-const mariadb = require('../database/mapper');
-const sqls = require('../database/sqls/package');
+const db = require('../database/mapper'); // 기존 방식 사용
+const packageSQL = require('../database/sqls/package');
 
-// BigInt를 안전하게 Number로 변환하는 헬퍼 함수
+// BigInt를 Number로 안전하게 변환
 function convertBigIntToNumber(obj) {
   if (obj === null || obj === undefined) return obj;
-  
+
   if (typeof obj === 'bigint') {
     return Number(obj);
   }
-  
+
   if (Array.isArray(obj)) {
     return obj.map(convertBigIntToNumber);
   }
-  
+
   if (typeof obj === 'object') {
     const newObj = {};
     for (const [key, value] of Object.entries(obj)) {
@@ -21,126 +21,151 @@ function convertBigIntToNumber(obj) {
     }
     return newObj;
   }
-  
+
   return obj;
 }
 
-// 랜덤 합격률 함수 (95~99%)
-function getRandomPassRate() {
-  return (Math.floor(Math.random() * 5) + 95) / 100;
-}
-
-// 작업 상태 결정 함수
-function determineWorkStatus(progressRate) {
-  if (progressRate >= 100) return '완료';
-  if (progressRate >= 90) return '진행중';
-  return '지연';
-}
-
-// 작업 등록
-const insertWork = async (data) => {
+// 🔥 작업 등록
+const createWork = async (workData) => {
   try {
-    // 입력 데이터 검증
-    if (!data.work_no || !data.input_qty || !data.employee_no) {
+    const {
+      work_no,
+      line_id,
+      work_line,
+      work_step,
+      step_name,
+      input_qty,
+      eq_code,
+      employee_no,
+      employee_name
+    } = workData;
+
+    // 필수 데이터 검증
+    if (!work_no || !input_qty || !employee_no) {
       throw new Error('필수 데이터가 누락되었습니다.');
     }
 
+    if (input_qty <= 0) {
+      throw new Error('투입수량은 0보다 커야 합니다.');
+    }
+
     // 중복 작업번호 확인
-    const existingWork = await mariadb.query('selectWorkDetail', [data.work_no]);
-    if (existingWork && existingWork.length > 0) {
+    const existCheck = await db.query(packageSQL.checkWorkExists, [work_no]);
+    if (existCheck[0].count > 0) {
       throw new Error('이미 존재하는 작업번호입니다.');
     }
 
-    const input_qty = parseInt(data.input_qty);
+    // 작업 등록
+    const result = await db.query(packageSQL.insertWork, [
+      work_no,
+      line_id || 'LINE001',
+      work_line || '포장라인',
+      work_step || '포장',
+      step_name || work_no,
+      parseInt(input_qty),
+      eq_code || 'PKG001',
+      employee_no,
+      employee_name || '작업자'
+    ]);
 
-    const values = [
-      data.work_no,
-      data.line_id || 1,
-      data.work_line || 'A라인 냉포장',
-      data.work_step || '냉포장',
-      data.step_name || '1차포장',
-      '진행중',          // 초기 상태
-      input_qty,
-      0,               // 초기 생산수량은 0
-      data.eq_code || 'e3',
-      data.employee_no,
-      data.employee_name
-    ];
+    // 예상 결과 계산 (95% 수율 가정)
+    const expectedOutput = Math.floor(input_qty * 0.95);
+    const expectedDefect = input_qty - expectedOutput;
 
-    const result = await mariadb.query('insertWork', values);
-    
-    return { 
-      insertId: result.insertId, 
-      work_no: data.work_no,
-      input_qty,
-      message: '작업이 성공적으로 등록되었습니다.'
+    return {
+      work_no,
+      input_qty: parseInt(input_qty),
+      output_qty: expectedOutput,
+      defect_qty: expectedDefect,
+      insertId: result.insertId
     };
+
   } catch (error) {
     console.error('작업 등록 서비스 오류:', error);
     throw error;
   }
 };
 
-// 작업 목록 조회 (필터링, 검색, 페이징 포함)
-const getWorkList = async (options = {}) => {
-  try {
-    const {
-      page = 1,
-      limit = 10,
-      search = '',
-      status = 'all',
-      sortBy = 'date_desc'
-    } = options;
-
-    const offset = (page - 1) * limit;
-
-    // 총 개수 조회
-    const countResult = await mariadb.query('selectWorkListCount', [
-      search, search, search, search, search,
-      status, status
-    ]);
-    const totalCount = convertBigIntToNumber(countResult[0]?.total_count || 0);
-
-    // 데이터 조회
-    const works = await mariadb.query('selectWorkListWithFilter', [
-      search, search, search, search, search,  // 검색어 (5개 필드)
-      status, status,  // 상태 필터
-      sortBy, sortBy, sortBy,  // 정렬 (3번 반복은 CASE문 때문)
-      limit, offset  // 페이징
-    ]);
-
-    return {
-      works: convertBigIntToNumber(works),
-      totalCount,
-      totalPages: Math.ceil(totalCount / limit),
-      currentPage: page
-    };
-  } catch (error) {
-    console.error('작업 목록 조회 서비스 오류:', error);
-    throw error;
-  }
-};
-
-// 작업 상세 조회
+// 🔥 작업 상세 조회
 const getWorkDetail = async (work_no) => {
   try {
-    if (!work_no) throw new Error('작업번호가 필요합니다.');
-    const result = await mariadb.query('selectWorkDetail', [work_no]);
-    return convertBigIntToNumber(result[0]) || null;
+    if (!work_no) {
+      throw new Error('작업번호가 필요합니다.');
+    }
+
+    console.log(`=== 작업 상세 조회: ${work_no} ===`);
+    console.log('SQL 실행:', packageSQL.selectWorkDetail);
+    console.log('매개변수:', [work_no]);
+
+    const result = await db.query(packageSQL.selectWorkDetail, [work_no]);
+
+    console.log(`조회 결과: ${result.length}건`);
+
+    if (result.length === 0) {
+      return null;
+    }
+
+    const workData = convertBigIntToNumber(result[0]);
+    console.log('작업 상세 조회 성공:', workData);
+
+    return workData;
+
   } catch (error) {
     console.error('작업 상세 조회 서비스 오류:', error);
     throw error;
   }
 };
 
-// 작업 진행 상황 업데이트
-const updateWorkProgress = async (work_no, data) => {
+// 🔥 작업 시작
+const startWork = async (work_no) => {
   try {
     if (!work_no) {
       throw new Error('작업번호가 필요합니다.');
     }
 
-    const { output_qty } = data;
+    // 현재 작업 상태 확인
+    const currentWork = await getWorkDetail(work_no);
+    if (!currentWork) {
+      throw new Error('해당 작업을 찾을 수 없습니다.');
+    }
+
+    if (currentWork.step_status !== 'READY') {
+      throw new Error(`작업 상태가 '준비'가 아닙니다. 현재 상태: ${currentWork.step_status}`);
+    }
+
+    const result = await db.query(packageSQL.startWork, [work_no]);
+
+    if (result.affectedRows === 0) {
+      throw new Error('작업 시작에 실패했습니다.');
+    }
+
+    return {
+      work_no,
+      status: 'IN_PROGRESS',
+      started_at: new Date()
+    };
+
+  } catch (error) {
+    console.error('작업 시작 서비스 오류:', error);
+    throw error;
+  }
+};
+
+// 🔥 작업 진행률 업데이트
+const updateWorkProgress = async (work_no, progressData) => {
+  try {
+    const {
+      output_qty,
+      step_status
+    } = progressData;
+
+    if (!work_no) {
+      throw new Error('작업번호가 필요합니다.');
+    }
+
+    if (output_qty === undefined || output_qty < 0) {
+      throw new Error('유효한 생산수량이 필요합니다.');
+    }
 
     // 현재 작업 정보 조회
     const currentWork = await getWorkDetail(work_no);
@@ -148,40 +173,51 @@ const updateWorkProgress = async (work_no, data) => {
       throw new Error('해당 작업을 찾을 수 없습니다.');
     }
 
-    if (currentWork.step_status.includes('완료')) {
+    if (currentWork.step_status === 'COMPLETED') {
       throw new Error('이미 완료된 작업입니다.');
     }
 
-    // 진행률 계산 및 상태 결정
-    const progressRate = currentWork.input_qty > 0 
-      ? (output_qty / currentWork.input_qty * 100) 
-      : 0;
-    
-    const newStatus = determineWorkStatus(progressRate);
+    // 진행률 및 품질 계산
+    const input_qty = currentWork.input_qty;
+    const progress_rate = input_qty > 0 ? Math.round((output_qty / input_qty) * 100 * 10) / 10 : 0;
+    const defect_qty = Math.max(0, input_qty - output_qty);
+    const pass_rate = input_qty > 0 ? Math.round((output_qty / input_qty) * 100 * 10) / 10 : 0;
 
-    await mariadb.query('updateWorkProgress', [
-      output_qty, 
-      newStatus,
+    // 상태 결정
+    let finalStatus = step_status || 'IN_PROGRESS';
+    if (progress_rate >= 100) {
+      finalStatus = 'NEAR_COMPLETION';
+    } else if (progress_rate < 50) {
+      finalStatus = 'DELAYED';
+    }
+
+    const result = await db.query(packageSQL.updateWorkProgress, [
+      parseInt(output_qty),
+      finalStatus,
       work_no
     ]);
 
-    const defect_qty = currentWork.input_qty - output_qty;
+    if (result.affectedRows === 0) {
+      throw new Error('작업 진행률 업데이트에 실패했습니다.');
+    }
 
-    return { 
-      work_no, 
-      output_qty, 
-      defect_qty, // 계산된 값
-      progress_rate: Math.round(progressRate * 10) / 10,
-      status: newStatus
+    return {
+      work_no,
+      output_qty: parseInt(output_qty),
+      defect_qty,
+      progress_rate,
+      pass_rate,
+      step_status: finalStatus
     };
+
   } catch (error) {
-    console.error('작업 진행 상황 업데이트 서비스 오류:', error);
+    console.error('작업 진행률 업데이트 서비스 오류:', error);
     throw error;
   }
 };
 
-// 작업 완료 처리
-const completeWork = async (work_no, data = {}) => {
+// 🔥 작업 완료
+const completeWork = async (work_no, completionData = {}) => {
   try {
     if (!work_no) {
       throw new Error('작업번호가 필요합니다.');
@@ -193,132 +229,121 @@ const completeWork = async (work_no, data = {}) => {
       throw new Error('해당 작업을 찾을 수 없습니다.');
     }
 
-    if (currentWork.step_status === '완료') {
+    if (currentWork.step_status === 'COMPLETED') {
       throw new Error('이미 완료된 작업입니다.');
     }
 
-    // 완료 데이터 결정 (파라미터가 있으면 사용, 없으면 랜덤 생성)
-    let output_qty, defect_qty;
-    
-    if (data.output_qty !== undefined && data.defect_qty !== undefined) {
-      output_qty = data.output_qty;
-      defect_qty = data.defect_qty;
-    } else {
-      // 자동 완료 시 랜덤 생성
-      const passRate = getRandomPassRate();
-      output_qty = Math.floor(currentWork.input_qty * passRate);
-      defect_qty = currentWork.input_qty - output_qty;
+    // 최종 생산수량 결정
+    let finalOutputQty = completionData.output_qty;
+
+    // output_qty가 없으면 현재 진행률 기준 또는 95% 수율로 계산
+    if (finalOutputQty === undefined) {
+      if (currentWork.output_qty > 0) {
+        finalOutputQty = currentWork.output_qty; // 현재 진행된 수량 사용
+      } else {
+        finalOutputQty = Math.floor(currentWork.input_qty * 0.95); // 95% 수율 가정
+      }
     }
 
-    const result = await mariadb.query('completeWork', [
-      '완료', 
-      output_qty, 
-      defect_qty, 
+    // 최종 품질 계산
+    const defect_qty = Math.max(0, currentWork.input_qty - finalOutputQty);
+    const pass_rate = currentWork.input_qty > 0 ?
+      Math.round((finalOutputQty / currentWork.input_qty) * 100 * 10) / 10 :
+      0;
+
+    const result = await db.query(packageSQL.completeWork, [
+      parseInt(finalOutputQty),
       work_no
     ]);
 
-    const passRate = currentWork.input_qty > 0 
-      ? (output_qty / currentWork.input_qty) 
-      : 0;
+    if (result.affectedRows === 0) {
+      throw new Error('작업 완료 처리에 실패했습니다.');
+    }
 
-    return { 
-      work_no, 
-      output_qty, 
-      defect_qty, 
-      pass_rate: Math.round(passRate * 10000) / 100,
-      affected_rows: result.affectedRows
+    return {
+      work_no,
+      input_qty: currentWork.input_qty,
+      output_qty: parseInt(finalOutputQty),
+      defect_qty,
+      pass_rate,
+      defect_rate: Math.round((defect_qty / currentWork.input_qty) * 100 * 10) / 10,
+      completed_at: new Date()
     };
+
   } catch (error) {
-    console.error('작업 완료 처리 서비스 오류:', error);
+    console.error('작업 완료 서비스 오류:', error);
     throw error;
   }
 };
 
-// 대시보드 통계
-const getDashboardStats = async () => {
+// 🔥 작업 일시정지
+const pauseWork = async (work_no) => {
   try {
-    const result = await mariadb.query('selectDashboardStats');
-    return convertBigIntToNumber(result[0]) || {
-      total_works: 0,
-      completed_works: 0,
-      in_progress_works: 0,
-      delayed_works: 0,
-      total_input_qty: 0,
-      total_output_qty: 0,
-      total_defect_qty: 0,
-      avg_progress_rate: 0
+    if (!work_no) {
+      throw new Error('작업번호가 필요합니다.');
+    }
+
+    const result = await db.query(packageSQL.pauseWork, [work_no]);
+
+    if (result.affectedRows === 0) {
+      throw new Error('진행 중인 작업을 찾을 수 없습니다.');
+    }
+
+    return {
+      work_no,
+      status: 'PAUSED',
+      paused_at: new Date()
     };
+
   } catch (error) {
-    console.error('대시보드 통계 조회 서비스 오류:', error);
+    console.error('작업 일시정지 서비스 오류:', error);
     throw error;
   }
 };
 
-// 작업자별 현황
-const getWorkerStats = async (days = 7) => {
+// 🔥 작업 재시작
+const resumeWork = async (work_no) => {
   try {
-    const result = await mariadb.query('selectWorkerStats', [days]);
-    return convertBigIntToNumber(result);
+    if (!work_no) {
+      throw new Error('작업번호가 필요합니다.');
+    }
+
+    const result = await db.query(packageSQL.resumeWork, [work_no]);
+
+    if (result.affectedRows === 0) {
+      throw new Error('일시정지된 작업을 찾을 수 없습니다.');
+    }
+
+    return {
+      work_no,
+      status: 'IN_PROGRESS',
+      resumed_at: new Date()
+    };
+
   } catch (error) {
-    console.error('작업자별 현황 조회 서비스 오류:', error);
+    console.error('작업 재시작 서비스 오류:', error);
     throw error;
   }
 };
 
-// 제품별 현황
-const getProductStats = async (days = 7) => {
+// 🔥 작업 존재 확인
+const checkWorkExists = async (work_no) => {
   try {
-    const result = await mariadb.query('selectProductStats', [days]);
-    return convertBigIntToNumber(result);
+    const result = await db.query(packageSQL.checkWorkExists, [work_no]);
+    return result[0].count > 0;
   } catch (error) {
-    console.error('제품별 현황 조회 서비스 오류:', error);
-    throw error;
-  }
-};
-
-// 시간대별 현황
-const getHourlyStats = async () => {
-  try {
-    const result = await mariadb.query('selectHourlyStats');
-    return convertBigIntToNumber(result);
-  } catch (error) {
-    console.error('시간대별 현황 조회 서비스 오류:', error);
-    throw error;
-  }
-};
-
-// 일별 생산 추이
-const getDailyTrend = async (days = 5) => {
-  try {
-    const result = await mariadb.query('selectDailyTrend', [days]);
-    return convertBigIntToNumber(result);
-  } catch (error) {
-    console.error('일별 생산 추이 조회 서비스 오류:', error);
-    throw error;
-  }
-};
-
-// 진행 중인 작업 목록
-const getActiveWorks = async () => {
-  try {
-    const result = await mariadb.query('selectActiveWorks');
-    return convertBigIntToNumber(result);
-  } catch (error) {
-    console.error('진행 중인 작업 조회 서비스 오류:', error);
+    console.error('작업 존재 확인 서비스 오류:', error);
     throw error;
   }
 };
 
 module.exports = {
-  insertWork,
-  getWorkList,
+  createWork,
   getWorkDetail,
+  startWork,
   updateWorkProgress,
   completeWork,
-  getDashboardStats,
-  getWorkerStats,
-  getProductStats,
-  getHourlyStats,
-  getDailyTrend,
-  getActiveWorks
+  pauseWork,
+  resumeWork,
+  checkWorkExists
 };
