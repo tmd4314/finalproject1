@@ -7,8 +7,8 @@
     <!-- 상단 폼 -->
     <div class="form-section">
       <div class="input-row">
-        <va-input v-model="form.type" label="유형" class="quarter-width" />
-        <va-input v-model="form.itemCode" label="항목코드" class="quarter-width" />
+        <va-input v-model="form.type" label="유형" class="quarter-width"  />
+        <va-input v-model="form.itemCode" label="항목코드" class="quarter-width" :readonly="isEditMode" />
         <va-input v-model="form.itemName" label="항목명" class="quarter-width" />
         <va-input v-model="form.basicFigure" label="기본수치" class="quarter-width" />
       </div>
@@ -19,7 +19,7 @@
       </div>
       <div class="form-buttons">
         <va-button @click="registerProduct" color="primary">등록</va-button>
-        <va-button @click="resetForm" color="warning">초기화</va-button>
+        <va-button @click="resetForm" color="secondary">초기화</va-button>
         <va-button @click="deleteProduct" color="danger">삭제</va-button>
       </div>
     </div>
@@ -90,6 +90,8 @@ const fetchInspectionList = async () => {
   }
 }
 
+const isEditMode = ref(false)
+
 function selectItem(item: any) {
   form.value = {
     type: item.item_type,
@@ -99,7 +101,8 @@ function selectItem(item: any) {
     unit: item.insp_unit,
     judgment: item.insp_judt_type,
     supplementary: item.insp_remark
-  }
+  };
+  isEditMode.value =true;
 }
 
 
@@ -107,12 +110,25 @@ function resetForm() {
   form.value = {
     type: '', itemCode: '', itemName: '', basicFigure: '', unit: '',
     judgment: '', supplementary: ''
-  }
+  };
+  isEditMode.value = false;
 }
 
-const registerProduct = async() => {
-  try {
-    const newInspection = {
+const registerProduct = async () => {
+    
+  if (
+    !form.value.type.trim() ||
+    !form.value.itemCode.trim() ||
+    !form.value.itemName.trim() ||
+    !form.value.basicFigure.trim() ||
+    !form.value.unit.trim() ||
+    !form.value.judgment.trim()
+  ) {
+    alert('모든 필수 항목을 입력해주세요.');
+    return;
+  }
+
+  const newInspection = {
       item_type: form.value.type,
       insp_code: form.value.itemCode,
       insp_name: form.value.itemName,
@@ -120,21 +136,37 @@ const registerProduct = async() => {
       insp_unit: form.value.unit,
       insp_judt_type: form.value.judgment,
       insp_remark: form.value.supplementary
-    };
-    const response = await axios.post('/inspections/insert', newInspection);
-    alert('검사항목 등록 성공!');
+    }
+    
+    try {
+      if (isEditMode.value) {
+        const res = await axios.post('/inspections/update', newInspection);
+        if (res.data.success) {
+          alert('수정성공');
+          await fetchInspectionList();
+          resetForm();
+        } else {
+          alert(res.data.message || '수정 실패');
+        }
+      } else {
+        const res = await axios.post('/inspections/insert', newInspection);
+        if(res.data.success) {
+          alert('등록 성공');
+          inspectionList.value.push({ ...newInspection });
+          resetForm();
+        }
+      }
+    } catch (err: any) {
 
-    await fetchInspectionList();
-    resetForm();
-  } catch (err) {
-    console.err('검사항목 등록 실패:', err);
-    alert('검사항목 등록 실패');
+      if(err.response?.status === 400 && err.response.data?.message) {
+        alert(err.response.data.message);
+        resetForm();
+      } else {
+        console.log('서버 에러 : ', err);
+        alert('중복된 코드를 입력하였습니다');
+      }
   }
-}
-
-function updateProduct() {
-  alert('수정 기능은 아직 구현되지 않았습니다.')
-}
+};
 
 function deleteProduct() {
   alert('삭제 기능은 아직 구현되지 않았습니다.')
