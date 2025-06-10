@@ -17,8 +17,9 @@ const processDetail =
                               material_code,
                               BOM_code,
                               name,
-                              insert_date)
-   VALUES (?, ?, ?, ?, NOW())`
+                              insert_date,
+                              input_qty)
+   VALUES (?, ?, ?, ?, NOW(), ?)`
 
 module.exports ={
   processInsert,

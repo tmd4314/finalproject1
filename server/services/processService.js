@@ -53,7 +53,8 @@ const addDetailProcess = async (processCode, detailList) => {
   const insertColums = [
     'material_code',
     'BOM_code',
-    'name'
+    'name',
+    'input_qty'
   ];
 
   let successCount = 0;
