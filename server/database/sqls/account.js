@@ -15,7 +15,7 @@ const getAccountList =
     ;
 
 // 등록
-const productInsert =
+const accountInsert =
     `INSERT INTO account (account_name,
                           account_type,
                           business_no,
