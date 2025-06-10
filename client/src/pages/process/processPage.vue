@@ -4,7 +4,7 @@
 
     <!-- 제품 선택 -->
     <div class="product-select">
-      <label for="productCode">제품코드</label>
+      <label for="productCode">제품코드:</label>
       <select id="productCode" v-model="selectedProductCode">
         <option disabled value="">제품 선택</option>
         <option v-for="product in products" :key="product.product_code" :value="product.product_code">
@@ -57,7 +57,7 @@
 
             </td>
             <td>
-              <button class="btn detail" @click="openPopup(`${selectedProductCode}Process${index + 1}`)">
+              <button class="btn save" @click="openPopup(`${selectedProductCode}Process${index + 1}`)">
                 상세추가
               </button>
             </td>
@@ -72,7 +72,7 @@
         <div class="popup-header">
           <div>
             <button class="btn add" @click="addMaterial">재료추가</button>
-            <button class="btn delete"@click="deleteSelectedMaterials">재료삭제</button>
+            <button class="btn delete" @click="deleteSelectedMaterials">재료삭제</button>
           </div>
         </div>
 
@@ -120,7 +120,7 @@
 
 <script lang="ts" setup>
 import axios from 'axios'
-import { onMounted ,computed, ref } from 'vue'
+import { onMounted ,computed, ref, watch } from 'vue'
 
 interface Product {
   product_code: string
@@ -129,6 +129,7 @@ interface Product {
 }
 
 interface Process {
+  process_code: string
   process_time: string
   process_name: string
   code_value: string
@@ -150,6 +151,7 @@ interface EquipmentCode {
 }
 
 interface MaterialRow {
+  process_code: string
   material_code: string
   material_name: string
   material_unit: string
@@ -196,11 +198,60 @@ const fetchMaterials = async () => {
   try {
     const res = await axios.get('/material')
     materialOptions.value = res.data
-    console.log("재료:", res.data);
+    console.log("자재:",res.data);
   } catch (err) {
     console.log('❌ 제품 목록 조회 실패:', err)
   }
 }
+
+const fetchProcess = async () => {
+
+  try {
+    const res = await axios.get(`/process/${selectedProductCode.value}`)
+    processes.value = res.data
+  } catch (err) {
+    console.log('❌ 공정정보 조회 실패:', err)
+  }
+}
+
+const fetchProcessDetail = async () => {
+  try {
+    const res = await axios.get(`/processDetail/${popupProcessCode.value}`)
+    const fetchedDetails = res.data
+
+    // material_code 기준으로 name, unit 채워 넣기
+    materialList.value = fetchedDetails.map((item: any) => {
+      const matched = materialOptions.value.find(opt => opt.material_code === item.material_code)
+
+      return {
+        process_code: item.process_code || popupProcessCode.value,
+        material_code: item.material_code,
+        BOM_code: item.BOM_code || '', // 필요 시
+        input_qty: item.input_qty,
+        responsible: item.name,
+        material_name: matched?.material_name || '',
+        material_unit: matched?.material_unit || '',
+        selected: false
+      }
+    })
+  } catch (err) {
+    console.log('❌ 상세정보 조회 실패:', err)
+  }
+}
+
+watch(popupProcessCode, (newCode) => {
+  if (newCode) {
+    fetchProcessDetail()
+  }
+})
+
+
+watch(selectedProductCode, (newCode) => {
+  if (newCode) {
+    fetchProcess()
+  }
+})
+
 
 
 const onMaterialCodeChange = (row: MaterialRow) => {
@@ -224,6 +275,7 @@ const totalProcessTime = computed(() => {
 
 const addProcess = () => {
   processes.value.push({
+    process_code:'',
     process_time: '',
     process_name: '',
     code_value: '',
@@ -231,12 +283,25 @@ const addProcess = () => {
   })
 }
 
-const deleteSelectedProcesses = () => {
+const deleteSelectedProcesses = async () => {
+  for (const p of processes.value) {
+    if (p.selected && p.process_code) {
+      try {
+        await axios.delete(`/process/${p.process_code}`)
+        console.log(`🗑️ 서버에서 공정 삭제 완료: ${p.process_code}`)
+      } catch (err) {
+        console.error(`❌ 공정 삭제 실패: ${p.process_code}`, err)
+        alert(`공정 ${p.process_code} 삭제 실패!`)
+      }
+    }
+  }
+  // ✅ 선택된 항목은 모두 제거 (등록 전/후 상관없이)
   processes.value = processes.value.filter(p => !p.selected)
 }
 
 const addMaterial = () => {
   materialList.value.push({
+    process_code: '',
     material_code: '',
     material_name: '',
     material_unit: '',
@@ -247,7 +312,16 @@ const addMaterial = () => {
   })
 }
 
-const deleteSelectedMaterials = () => {
+const deleteSelectedMaterials = async () => {
+  for (const row of materialList.value) {
+    console.log("✅ 삭제 후보:", row) // 이 로그로 값 제대로 들어오는지 확인
+    if (row.selected && row.process_code && row.material_code) {
+      try {
+        await axios.delete(`/processDetail/${row.process_code}/${row.material_code}`)
+      } catch (err) {
+      }
+    }
+  }
   materialList.value = materialList.value.filter(row => !row.selected)
 }
 
@@ -266,6 +340,7 @@ const saveMaterial = async (): Promise<void> => {
     const res = await axios.post(`/process/${popupProcessCode.value}`, payload) // 한 번에 POST
     if (res.data.isSuccessed === true) {
       alert('모든 재료 등록 완료!')
+      await fetchProcessDetail()
     } else {
       alert('등록 실패!')
     }
@@ -276,26 +351,45 @@ const saveMaterial = async (): Promise<void> => {
 }
 
 const saveProcesses = async (): Promise<void> => {
-  const payload: ProcessPayload[] = processes.value.map((p, idx) => ({
-    process_code: `${selectedProductCode.value}Process${idx + 1}`,
-    process_name: p.process_name,
-    process_time: p.process_time,
-    process_seq: idx + 1,
-    code_value: p.code_value,
-    product_code: selectedProductCode.value,
-  }))
-  console.log('📦 저장할 데이터:', payload)
+  const insertList: ProcessPayload[] = []
+  const updateList: ProcessPayload[] = []
+
+  processes.value.forEach((p, idx) => {
+    const code = `${selectedProductCode.value}Process${idx + 1}`
+    const payload: ProcessPayload = {
+      process_code: code,
+      process_name: p.process_name,
+      process_time: p.process_time,
+      process_seq: idx + 1,
+      code_value: p.code_value,
+      product_code: selectedProductCode.value,
+    }
+
+    if (!p.process_code) {
+      // 신규 등록 대상
+      insertList.push(payload)
+    } else {
+      // 기존 수정 대상
+      updateList.push(payload)
+    }
+  })
 
   try {
-    const res = await axios.post('/process', payload)
-    if (res.data.isSuccessed === true) {
-      alert('등록완료!')
-    } else {
-      alert('등록 실패!')
+    if (insertList.length > 0) {
+      const res = await axios.post('/process', insertList)
+      if (!res.data.isSuccessed) throw new Error('신규 등록 실패')
     }
+
+    if (updateList.length > 0) {
+      const res = await axios.put('/process', updateList)
+      if (!res.data.isSuccessed) throw new Error('수정 실패')
+    }
+
+    alert('공정 저장 완료!')
+    await fetchProcess()
   } catch (err) {
-    console.log('오류 발생:', err)
-    alert('서버 오류!')
+    console.error('❌ 저장 실패:', err)
+    alert('저장 중 오류 발생!')
   }
 }
 
@@ -308,6 +402,7 @@ onMounted(() => {
   fetchProducts()
   fetchEquipmentCodes()
   fetchMaterials()
+  fetchProcess()
 })
 </script>
 
@@ -361,8 +456,8 @@ h2.title {
   color: white;
 }
 
-.btn.add {
-  background-color: #2d9cdb;
+.btn.let {
+  background-color: #535658;
   color: white;
 }
 
@@ -371,7 +466,7 @@ h2.title {
   color: white;
 }
 
-.btn.detail {
+.btn.add {
   background-color: #2f80ed;
   color: white;
   font-weight: 500;
