@@ -17,6 +17,7 @@ const connectionPool = mariadb.createPool({
 });
 
 const query = (alias, values) => {
+      console.log('Executing SQL alias:', alias);
     return new Promise((resolve, reject) => {
         let executeSql = sqlList[alias];
 

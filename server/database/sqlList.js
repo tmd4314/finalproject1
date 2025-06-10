@@ -21,6 +21,6 @@ const bom = require('./sqls/bom.js');
      ...processFlowChart,
      ...line,
      ...inspection,
-    ...processFlowChart
+   //  ...processFlowChart
  }
 
