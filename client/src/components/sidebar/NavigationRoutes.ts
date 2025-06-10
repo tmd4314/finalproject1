@@ -177,10 +177,6 @@ export default {
           displayName: 'menu.공정흐름도 관리',
         },
         {
-          name: 'process flow chart check',
-          displayName: 'menu.공정흐름도 조회',
-        },
-        {
           name: 'equipment-register',
           displayName: 'menu.설비 등록',
         },
@@ -208,9 +204,13 @@ export default {
           name: 'staff-management',
           displayName: 'menu.사원 관리',
         },
-                {
+        {
           name: 'InspectionManagement',
           displayName: 'menu.검사항목 관리',
+        },
+                {
+          name: 'defectManagement',
+          displayName: 'menu.불량유형 관리',
         },
       ],
     },

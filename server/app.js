@@ -37,7 +37,7 @@ const materialRouter =require('./routers/materialRouter.js');
 
 const processRouter =require('./routers/processRouter.js');
 
-const bomRouter =require('./routers/bomRouter.js');
+const bomRouter = require('./routers/bomRouter');
 
 const lineRouter = require('./routers/lineRouter.js')
 
@@ -55,6 +55,10 @@ app.get('/', (req, res)=>{
 
  // 라우터 모듈 등록
 app.use('/api/orders', orderRouter);
+//현석
+app.use('/api/lines', lineRouter);
+//다산
+app.use('/bom', bomRouter);
  //라우터 모듈 등록
 app.use('/', productRouter);
 
@@ -66,10 +70,7 @@ app.use('/equipments', equipmentRouter);
 app.use('/common-codes', commonCodeRouter);
 app.use('/img', express.static('../client/public/img'));
 
-//다산
-app.use('/', bomRouter);
 
-//현석
-app.use('/api/lines', lineRouter);
 
+//현기
 app.use('/inspections', inspectionRouter);
