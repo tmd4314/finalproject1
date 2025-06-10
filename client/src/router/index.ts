@@ -192,6 +192,18 @@ const routes: Array<RouteRecordRaw> = [
         ],
       },
       {
+        path: 'account',
+        name: 'account',
+        component: RouteViewComponent,
+        children: [
+          {
+            name: 'account-management',
+            path: 'account-management',
+            component: () => import('../pages/admin/account/AccountManagePage.vue'),
+          },
+        ],
+      },
+      {
         name: 'order',
         path: 'order',
         component: RouteViewComponent,
