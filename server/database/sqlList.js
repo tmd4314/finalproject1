@@ -7,7 +7,7 @@ const inspection = require('./sqls/inspection.js');
 const processFlowChart = require('./sqls/processFlowChart.js');
 const line = require('./sqls/line.js');
 const bom = require('./sqls/bom.js');
-
+const package =  require('./sqls/package.js');
 
 
  module.exports ={
@@ -21,6 +21,7 @@ const bom = require('./sqls/bom.js');
      ...processFlowChart,
      ...line,
      ...inspection,
-    ...processFlowChart
+    ...processFlowChart,
+    ...package,
  }
 

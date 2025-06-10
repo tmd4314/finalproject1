@@ -69,6 +69,16 @@
             <span class="time">{{ formatTime(outerCompletionTime) }}</span>
           </div>
         </div>
+        
+        <!-- 모든 작업 완료시 -->
+        <div v-if="completedSteps.includes('INNER') && completedSteps.includes('OUTER')" class="all-complete-section">
+          <div class="all-complete-message">
+            🎉 모든 포장 작업이 완료되었습니다!
+          </div>
+          <button @click="resetAllSteps" class="reset-btn">
+            새 작업 시작하기
+          </button>
+        </div>
       </div>
     </div>
 
@@ -79,12 +89,12 @@
         <span class="breadcrumb-separator">/</span>
         <span class="breadcrumb-item">포장</span>
         <span class="breadcrumb-separator">/</span>
-        <span class="breadcrumb-item active">포장 라인 선택/조회</span>
+        <span class="breadcrumb-item active">포장 라인 선택</span>
       </nav>
       
       <div class="header-section">
-        <h1>포장 라인 선택</h1>
-        <p>사용 가능한 포장 라인을 선택하여 작업을 시작하세요</p>
+        <h1>{{ getLineTypeText(selectedPackageType) }} 라인 선택</h1>
+        <p>사용 가능한 {{ getLineTypeText(selectedPackageType) }} 라인을 선택하여 작업을 시작하세요</p>
       </div>
 
       <!-- 필터 및 검색 -->
@@ -244,11 +254,12 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, onMounted, onBeforeMount } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import axios from 'axios'
 
 const router = useRouter()
+const route = useRoute()
 
 // 상태 관리
 const currentStep = ref('package-type-selection')
@@ -271,13 +282,37 @@ const error = ref('')
 const showStartModal = ref(false)
 const selectedLineForStart = ref(null)
 
+// URL 파라미터에서 작업 완료 정보 확인
+onBeforeMount(() => {
+  // 작업 완료 후 돌아온 경우 처리
+  if (route.query.work_completed) {
+    const completedType = route.query.completed_type
+    if (completedType && !completedSteps.value.includes(completedType)) {
+      completedSteps.value.push(completedType)
+      
+      if (completedType === 'INNER') {
+        innerCompletionTime.value = new Date()
+      } else if (completedType === 'OUTER') {
+        outerCompletionTime.value = new Date()
+      }
+    }
+    
+    // URL 파라미터 정리
+    router.replace({ query: {} })
+  }
+})
+
 // DB에서 라인 목록 가져오기
 async function fetchLines() {
   loading.value = true
   error.value = ''
   try {
-    const res = await axios.get('/api/lines/list')
-    packageLines.value = res.data
+    // 실제 API 호출 (예시 URL: /lines/list)
+    const res = await axios.get('/lines/list')
+    packageLines.value = res.data // 서버에서 받은 라인 목록으로 교체
+
+    // 혹시 서버 응답이 배열이 아닐 경우 확인 필요
+    // ex: packageLines.value = res.data.lines
   } catch (err) {
     error.value = '라인 목록을 불러오지 못했습니다.'
     console.error('Error fetching lines:', err)
@@ -319,11 +354,22 @@ function selectPackageType(type) {
 function goBackToPackageTypeSelection() {
   currentStep.value = 'package-type-selection'
   selectedPackageType.value = null
+  clearAllFilters()
+}
+
+// 모든 단계 초기화
+function resetAllSteps() {
+  completedSteps.value = []
+  innerCompletionTime.value = null
+  outerCompletionTime.value = null
+  currentStep.value = 'package-type-selection'
+  selectedPackageType.value = null
+  clearAllFilters()
 }
 
 // 필터 초기화
 function clearAllFilters() {
-  lineTypeFilter.value = ''
+  lineTypeFilter.value = selectedPackageType.value || ''
   lineStatusFilter.value = ''
   searchText.value = ''
 }
@@ -345,8 +391,8 @@ async function confirmStartWork() {
   if (!selectedLineForStart.value) return
   
   try {
-    // 라인 상태를 WORKING으로 변경하는 API 호출
-    await axios.post(`/api/lines/${selectedLineForStart.value.line_id}/start`)
+    // 라인 상태를 WORKING으로 변경하는 API 호출 (실제로는 서버에서 처리)
+    // await axios.post(`/api/lines/${selectedLineForStart.value.line_id}/start`)
     
     // 작업 수행 페이지로 이동
     navigateToWorkPage(selectedLineForStart.value)
@@ -361,15 +407,27 @@ async function confirmStartWork() {
 
 // 작업 수행 페이지로 이동
 function navigateToWorkPage(line) {
+  // localStorage에 현재 상태 저장 (새로고침 대비)
+  localStorage.setItem('packageLineState', JSON.stringify({
+    completedSteps: completedSteps.value,
+    innerCompletionTime: innerCompletionTime.value,
+    outerCompletionTime: outerCompletionTime.value,
+    selectedPackageType: selectedPackageType.value
+  }))
+  
   // Vue Router를 사용하는 경우
   if (router) {
+    // 같은 SPA 내에서 라우팅
     router.push({
-      name: 'PackageWork',
+      name: 'package_work', // 라우터에 정의된 이름
       query: {
         line_id: line.line_id,
         line_name: line.line_name,
         line_type: line.line_type,
-        work_no: line.work_no || ''
+        work_no: line.work_no || '',
+        // 돌아올 때 필요한 정보
+        return_to: 'package_line',
+        current_package_type: selectedPackageType.value
       }
     })
   } else {
@@ -378,13 +436,35 @@ function navigateToWorkPage(line) {
       line_id: line.line_id,
       line_name: line.line_name,
       line_type: line.line_type,
-      work_no: line.work_no || ''
+      work_no: line.work_no || '',
+      return_to: 'package_line',
+      current_package_type: selectedPackageType.value
     })
     
     // 포장 작업 수행 페이지로 이동
     window.location.href = `/packaging/work?${params.toString()}`
   }
 }
+
+// 작업 완료 후 돌아오는 함수 (PackageWork에서 호출)
+function handleWorkCompleted(workType) {
+  if (!completedSteps.value.includes(workType)) {
+    completedSteps.value.push(workType)
+    
+    if (workType === 'INNER') {
+      innerCompletionTime.value = new Date()
+    } else if (workType === 'OUTER') {
+      outerCompletionTime.value = new Date()
+    }
+  }
+  
+  // 포장 타입 선택 화면으로 돌아가기
+  currentStep.value = 'package-type-selection'
+  selectedPackageType.value = null
+}
+
+// 전역에 함수 노출 (다른 컴포넌트에서 접근 가능)
+window.handlePackageWorkCompleted = handleWorkCompleted
 
 // 모달 닫기
 function closeStartModal() {
@@ -421,6 +501,11 @@ function formatTime(date) {
   if (!date) return ''
   return date.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
 }
+
+// 컴포넌트명을 전역에 노출
+defineOptions({
+  name: 'PackageLine'
+})
 </script>
 
 <style scoped>
@@ -606,6 +691,7 @@ function formatTime(date) {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  margin-bottom: 20px;
 }
 
 .completed-item {
@@ -627,6 +713,35 @@ function formatTime(date) {
   color: #64748b;
 }
 
+.all-complete-section {
+  border-top: 1px solid #e2e8f0;
+  padding-top: 20px;
+  text-align: center;
+}
+
+.all-complete-message {
+  font-size: 18px;
+  font-weight: 600;
+  color: #059669;
+  margin-bottom: 16px;
+}
+
+.reset-btn {
+  padding: 12px 24px;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.reset-btn:hover {
+  background: #2563eb;
+}
+
 /* 라인 선택 */
 .line-selection {
   padding: 0 24px 60px;
@@ -640,7 +755,7 @@ function formatTime(date) {
 .filter-row {
   display: flex;
   gap: 20px;
-  align-items: end;
+  align-items: flex-end;   /* ← 이렇게 수정 */
   background: white;
   padding: 20px;
   border-radius: 12px;

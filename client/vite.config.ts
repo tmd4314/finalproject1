@@ -47,6 +47,16 @@ export default defineConfig({
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/inspections/, '/inspections')
         },
+        '/lines': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/lines/, '/lines'),
+        },
+        '/packages': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/packages/, '/packages'),
+        },
         '/api': {
         target: 'http://localhost:3000',
         changeOrigin: true,

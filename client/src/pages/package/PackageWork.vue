@@ -7,11 +7,10 @@
         <span class="breadcrumb-separator">/</span>
         <span class="breadcrumb-item">포장</span>
         <span class="breadcrumb-separator">/</span>
-        <span class="breadcrumb-item">포장 라인 선택</span>
+        <span class="breadcrumb-item" @click="goBackToLineSelection" style="cursor: pointer; color: #3b82f6;">포장 라인 선택</span>
         <span class="breadcrumb-separator">/</span>
         <span class="breadcrumb-item active">포장 작업 수행</span>
       </nav>
-      
       <div class="header-info">
         <div class="header-left">
           <h1>{{ workInfo.lineName }} - 포장 작업 수행</h1>
@@ -40,16 +39,14 @@
           <!-- 작업 제어 패널 -->
           <div class="control-panel">
             <h3>작업 제어</h3>
-            
-            <!-- 작업 선택 -->
             <div class="control-section">
               <div class="control-row">
                 <div class="control-group">
                   <label class="control-label">작업번호 선택</label>
                   <select v-model="selectedWorkOrder" @change="onWorkOrderChange" class="control-select">
                     <option value="">작업을 선택하세요</option>
-                    <option v-for="order in availableWorkOrders" :key="order.workNo" :value="order.workNo">
-                      {{ order.workNo }} - {{ order.productName }} ({{ order.progressRate }}%)
+                    <option v-for="order in availableWorkOrders" :key="order.work_no" :value="order.work_no">
+                      {{ order.work_no }} - {{ order.product_name }}
                     </option>
                   </select>
                 </div>
@@ -65,7 +62,6 @@
                 </div>
               </div>
             </div>
-
             <!-- 작업 버튼들 -->
             <div class="control-buttons">
               <button 
@@ -98,45 +94,40 @@
           <!-- 실시간 진행 상황 -->
           <div class="progress-panel">
             <h3>실시간 진행 상황</h3>
-            
             <div class="progress-cards">
               <div class="progress-card">
                 <div class="card-header">
                   <span class="card-title">투입수량</span>
                   <span class="card-icon">📥</span>
                 </div>
-                <div class="card-value">{{ formatNumber(currentWork.inputQuantity) }}</div>
+                <div class="card-value">{{ formatNumber(currentWork.input_qty) }}</div>
                 <div class="card-unit">개</div>
               </div>
-              
               <div class="progress-card">
                 <div class="card-header">
                   <span class="card-title">생산수량</span>
                   <span class="card-icon">⚙️</span>
                 </div>
-                <div class="card-value">{{ formatNumber(currentWork.producedQuantity) }}</div>
+                <div class="card-value">{{ formatNumber(currentWork.input_qty) }}</div>
                 <div class="card-unit">개</div>
               </div>
-              
               <div class="progress-card success">
                 <div class="card-header">
                   <span class="card-title">합격수량</span>
                   <span class="card-icon">✅</span>
                 </div>
-                <div class="card-value">{{ formatNumber(currentWork.passedQuantity) }}</div>
+                <div class="card-value">{{ formatNumber(currentWork.output_qty) }}</div>
                 <div class="card-unit">개</div>
               </div>
-              
               <div class="progress-card danger">
                 <div class="card-header">
                   <span class="card-title">불량수량</span>
                   <span class="card-icon">❌</span>
                 </div>
-                <div class="card-value">{{ formatNumber(currentWork.defectQuantity) }}</div>
+                <div class="card-value">{{ formatNumber(currentWork.defect_qty) }}</div>
                 <div class="card-unit">개</div>
               </div>
             </div>
-
             <!-- 진행률 바 -->
             <div class="progress-section">
               <div class="progress-header">
@@ -144,10 +135,7 @@
                 <span class="progress-percent">{{ currentWork.progressRate }}%</span>
               </div>
               <div class="progress-bar">
-                <div 
-                  class="progress-fill" 
-                  :style="{ width: currentWork.progressRate + '%' }"
-                ></div>
+                <div class="progress-fill" :style="{ width: currentWork.progressRate + '%' }"></div>
               </div>
             </div>
           </div>
@@ -169,31 +157,32 @@
           </div>
         </div>
 
-        <!-- 우측: 작업 정보 및 품질 관리 -->
+        <!-- 우측: 작업 정보 -->
         <div class="work-sidebar">
-          <!-- 현재 작업 정보 -->
           <div class="info-panel">
             <h3>현재 작업 정보</h3>
-            
             <div class="info-section">
               <div class="info-row">
+                <span class="info-label">라인 정보</span>
+                <span class="info-value">{{ workInfo.lineName }} ({{ workInfo.lineId }})</span>
+              </div>
+              <div class="info-row">
                 <span class="info-label">작업번호</span>
-                <span class="info-value">{{ currentWork.workNo || '-' }}</span>
+                <span class="info-value">{{ currentWork.work_no || '-' }}</span>
               </div>
               <div class="info-row">
                 <span class="info-label">제품명</span>
-                <span class="info-value">{{ currentWork.productName || '-' }}</span>
+                <span class="info-value">{{ currentWork.product_name || '-' }}</span>
               </div>
               <div class="info-row">
                 <span class="info-label">포장형태</span>
-                <span class="info-value">{{ currentWork.packageType || '-' }}</span>
+                <span class="info-value">{{ currentWork.package_type || '-' }}</span>
               </div>
               <div class="info-row">
                 <span class="info-label">지시수량</span>
-                <span class="info-value">{{ formatNumber(currentWork.orderQuantity) || '-' }}</span>
+                <span class="info-value">{{ formatNumber(currentWork.order_quantity) || '-' }}</span>
               </div>
             </div>
-
             <div class="info-section">
               <h4>품질 정보</h4>
               <div class="info-row">
@@ -207,12 +196,11 @@
                 <span class="info-value defect-rate">{{ currentWork.defectRate }}%</span>
               </div>
             </div>
-
             <div class="info-section">
               <h4>작업 정보</h4>
               <div class="info-row">
                 <span class="info-label">담당자</span>
-                <span class="info-value">{{ currentWork.operator || '김포장' }}</span>
+                <span class="info-value">{{ currentWork.employee_name || '김포장' }}</span>
               </div>
               <div class="info-row">
                 <span class="info-label">작업시간</span>
@@ -220,82 +208,19 @@
               </div>
               <div class="info-row">
                 <span class="info-label">시작시간</span>
-                <span class="info-value">{{ formatTime(currentWork.startTime) }}</span>
+                <span class="info-value">{{ formatTime(currentWork.start_time) }}</span>
               </div>
             </div>
           </div>
 
-          <!-- 불량 등록 -->
-          <div class="defect-panel">
-            <h3>불량 등록</h3>
-            
-            <div class="defect-form">
-              <div class="form-group">
-                <label>불량 유형</label>
-                <select v-model="defectForm.type" class="form-select">
-                  <option value="">불량 유형 선택</option>
-                  <option value="PACKAGE_DAMAGE">포장지 파손</option>
-                  <option value="LABEL_ERROR">라벨 오부착</option>
-                  <option value="SEAL_DEFECT">밀봉 불량</option>
-                  <option value="CONTAMINATION">이물질 혼입</option>
-                  <option value="OTHER">기타</option>
-                </select>
-              </div>
-              
-              <div class="form-group">
-                <label>불량 수량</label>
-                <input 
-                  v-model.number="defectForm.quantity" 
-                  type="number" 
-                  class="form-input" 
-                  placeholder="불량 수량 입력"
-                >
-              </div>
-              
-              <div class="form-group">
-                <label>불량 사유</label>
-                <textarea 
-                  v-model="defectForm.reason" 
-                  class="form-textarea" 
-                  placeholder="불량 사유를 입력하세요"
-                  rows="3"
-                ></textarea>
-              </div>
-              
-              <button @click="registerDefect" class="btn-defect" :disabled="!canRegisterDefect">
-                불량 등록
-              </button>
-            </div>
-          </div>
-
-          <!-- 품질 체크리스트 -->
-          <div class="quality-panel">
-            <h3>품질 체크리스트</h3>
-            
-            <div class="checklist">
-              <div 
-                v-for="item in qualityChecklist" 
-                :key="item.id" 
-                class="checklist-item"
-              >
-                <label class="checkbox-label">
-                  <input 
-                    type="checkbox" 
-                    v-model="item.checked" 
-                    @change="updateQualityStatus"
-                  >
-                  <span class="checkmark"></span>
-                  {{ item.name }}
-                </label>
-              </div>
-            </div>
-            
-            <div class="quality-status">
-              <span class="status-label">품질 상태:</span>
-              <span class="status-value" :class="qualityStatus.toLowerCase()">
-                {{ getQualityStatusText(qualityStatus) }}
-              </span>
-            </div>
+          <!-- 라인 변경 버튼 -->
+          <div class="line-change-panel">
+            <button @click="goBackToLineSelection" class="btn-line-change">
+              🔄 다른 라인으로 변경하기
+            </button>
+            <p class="line-change-help">
+              잘못된 라인을 선택했거나 다른 라인에서 작업하고 싶다면 클릭하세요
+            </p>
           </div>
         </div>
       </div>
@@ -314,29 +239,43 @@
             <div class="summary-grid">
               <div class="summary-item">
                 <span class="summary-label">투입수량</span>
-                <span class="summary-value">{{ formatNumber(currentWork.inputQuantity) }}개</span>
-              </div>
-              <div class="summary-item">
-                <span class="summary-label">생산수량</span>
-                <span class="summary-value">{{ formatNumber(currentWork.producedQuantity) }}개</span>
+                <span class="summary-value">{{ formatNumber(currentWork.input_qty) }}개</span>
               </div>
               <div class="summary-item">
                 <span class="summary-label">합격수량</span>
-                <span class="summary-value">{{ formatNumber(currentWork.passedQuantity) }}개</span>
+                <span class="summary-value">{{ formatNumber(currentWork.output_qty) }}개</span>
               </div>
               <div class="summary-item">
                 <span class="summary-label">불량수량</span>
-                <span class="summary-value">{{ formatNumber(currentWork.defectQuantity) }}개</span>
+                <span class="summary-value">{{ formatNumber(currentWork.defect_qty) }}개</span>
+              </div>
+              <div class="summary-item">
+                <span class="summary-label">합격률</span>
+                <span class="summary-value">{{ currentWork.passRate }}%</span>
               </div>
             </div>
           </div>
-          <p class="confirmation-text">작업을 완료하시겠습니까?</p>
+          <p class="confirmation-text">{{ workInfo.lineType === 'INNER' ? '내포장' : '외포장' }} 작업을 완료하시겠습니까?</p>
+          <div class="next-step-info">
+            <p v-if="workInfo.lineType === 'INNER'" class="next-step-text">
+              💡 내포장 완료 후 외포장 작업을 진행할 수 있습니다.
+            </p>
+            <p v-else class="next-step-text">
+              🎉 모든 포장 작업이 완료됩니다!
+            </p>
+          </div>
         </div>
         <div class="modal-actions">
           <button @click="closeCompleteModal" class="btn-cancel">취소</button>
           <button @click="confirmCompleteWork" class="btn-confirm">작업 완료</button>
         </div>
       </div>
+    </div>
+
+    <!-- 로딩 스피너 -->
+    <div v-if="loading" class="loading-overlay">
+      <div class="loading-spinner"></div>
+      <div class="loading-text">{{ loadingMessage }}</div>
     </div>
   </div>
 </template>
@@ -346,15 +285,23 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import axios from 'axios'
 
+// 라인 정보 (URL 파라미터에서 가져옴)
 const router = useRouter()
 const route = useRoute()
-
-// 라인 정보 (URL 파라미터에서 가져옴)
 const workInfo = ref({
   lineId: route.query.line_id || '',
   lineName: route.query.line_name || '',
-  lineType: route.query.line_type || 'INNER'
+  lineType: route.query.line_type || 'INNER',
+  returnTo: route.query.return_to || '',
+  currentPackageType: route.query.current_package_type || ''
 })
+
+// API 기본 설정
+const API_BASE_URL = 'http://localhost:3000/packages'
+
+// 로딩 상태
+const loading = ref(false)
+const loadingMessage = ref('')
 
 // 작업 상태
 const workStatus = ref('READY') // READY, WORKING, PAUSED, COMPLETED
@@ -365,74 +312,26 @@ const workElapsedTime = ref('00:00:00')
 // 작업 선택
 const selectedWorkOrder = ref('')
 const inputQuantity = ref(500)
-const availableWorkOrders = ref([
-  {
-    workNo: 'PM1001',
-    productName: '타이레놀정500mg',
-    packageType: '10정/PTP',
-    orderQuantity: 7000,
-    progressRate: 99
-  },
-  {
-    workNo: 'PM1002', 
-    productName: '타이레놀정500mg',
-    packageType: '10정/PTP',
-    orderQuantity: 1000,
-    progressRate: 99
-  },
-  {
-    workNo: 'PM1003',
-    productName: '타이레놀정500mg', 
-    packageType: '10정/PTP',
-    orderQuantity: 3000,
-    progressRate: 97
-  }
-])
+const availableWorkOrders = ref([])
 
 // 현재 작업 정보
 const currentWork = ref({
-  workNo: '',
-  productName: '',
-  packageType: '',
-  orderQuantity: 0,
-  inputQuantity: 0,
-  producedQuantity: 0,
-  passedQuantity: 0,
-  defectQuantity: 0,
+  work_no: '',
+  product_name: '',
+  package_type: '',
+  order_quantity: 0,
+  input_qty: 0,
+  output_qty: 0,
+  defect_qty: 0,
   progressRate: 0,
   passRate: 0,
   defectRate: 0,
-  operator: '김포장',
-  startTime: null
+  employee_name: '김포장',
+  start_time: null
 })
 
 // 작업 로그
-const workLogs = ref([
-  {
-    id: 1,
-    timestamp: new Date(),
-    message: '작업 페이지에 접속했습니다.',
-    type: 'info'
-  }
-])
-
-// 불량 등록
-const defectForm = ref({
-  type: '',
-  quantity: 0,
-  reason: ''
-})
-
-// 품질 체크리스트
-const qualityChecklist = ref([
-  { id: 1, name: '포장재 상태 확인', checked: false },
-  { id: 2, name: '라벨 부착 상태 확인', checked: false },
-  { id: 3, name: '밀봉 상태 확인', checked: false },
-  { id: 4, name: '외관 검사', checked: false },
-  { id: 5, name: '중량 확인', checked: false }
-])
-
-const qualityStatus = ref('PENDING') // PENDING, GOOD, WARNING, CRITICAL
+const workLogs = ref([])
 
 // 모달
 const showCompleteModal = ref(false)
@@ -445,205 +344,154 @@ const canStartWork = computed(() => {
   return selectedWorkOrder.value && inputQuantity.value > 0 && !isWorking.value
 })
 
-const canRegisterDefect = computed(() => {
-  return defectForm.value.type && defectForm.value.quantity > 0 && isWorking.value
-})
-
 // 컴포넌트 마운트
-onMounted(() => {
-  // URL 파라미터에서 작업번호가 있으면 자동 선택
+onMounted(async () => {
+  await loadAvailableWorkOrders()
   if (route.query.work_no) {
     selectedWorkOrder.value = route.query.work_no
-    onWorkOrderChange()
+    await onWorkOrderChange()
   }
-  
-  addLog('작업 페이지에 접속했습니다.', 'info')
+  addLog(`${workInfo.value.lineName}에서 작업을 시작합니다.`, 'info')
 })
 
 onUnmounted(() => {
-  if (workTimer) {
-    clearInterval(workTimer)
-  }
+  if (workTimer) clearInterval(workTimer)
 })
 
-// 작업번호 변경시
-function onWorkOrderChange() {
-  const selectedOrder = availableWorkOrders.value.find(order => order.workNo === selectedWorkOrder.value)
-  if (selectedOrder) {
-    Object.assign(currentWork.value, {
-      workNo: selectedOrder.workNo,
-      productName: selectedOrder.productName,
-      packageType: selectedOrder.packageType,
-      orderQuantity: selectedOrder.orderQuantity,
-      inputQuantity: 0,
-      producedQuantity: 0,
-      passedQuantity: 0,
-      defectQuantity: 0,
-      progressRate: 0,
-      passRate: 100,
-      defectRate: 0
-    })
-    
-    addLog(`작업번호 ${selectedOrder.workNo}를 선택했습니다.`, 'info')
+// 1. 작업 목록 조회
+async function loadAvailableWorkOrders() {
+  try {
+    loading.value = true
+    loadingMessage.value = '작업 목록을 불러오는 중...'
+    const res = await axios.get(API_BASE_URL)
+    availableWorkOrders.value = res.data
+    addLog(`${availableWorkOrders.value.length}개의 작업을 불러왔습니다.`, 'info')
+  } catch (error) {
+    addLog('작업 목록 로드에 실패했습니다.', 'error')
+  } finally {
+    loading.value = false
   }
 }
 
-// 작업 시작/일시정지
-function startWork() {
+// 2. 작업 선택시 상세 조회
+async function onWorkOrderChange() {
+  if (!selectedWorkOrder.value) return
+  try {
+    loading.value = true
+    loadingMessage.value = '작업 상세 정보를 불러오는 중...'
+    const res = await axios.get(`${API_BASE_URL}/${selectedWorkOrder.value}`)
+    currentWork.value = {
+      ...res.data,
+      progressRate: 0,
+      passRate: 0,
+      defectRate: 0,
+      input_qty: 0,
+      output_qty: 0,
+      defect_qty: 0,
+      start_time: null
+    }
+    addLog(`작업번호 ${selectedWorkOrder.value} 상세정보를 불러왔습니다.`, 'info')
+  } catch (err) {
+    addLog('작업 상세 정보 불러오기에 실패했습니다.', 'error')
+  } finally {
+    loading.value = false
+  }
+}
+
+// 3. 작업 시작(등록)
+async function startWork() {
   if (!isWorking.value) {
-    // 작업 시작
-    isWorking.value = true
-    workStatus.value = 'WORKING'
-    workStartTime.value = new Date()
-    currentWork.value.startTime = workStartTime.value
-    currentWork.value.inputQuantity = inputQuantity.value
-    
-    // 타이머 시작
-    startWorkTimer()
-    
-    addLog(`작업을 시작했습니다. (투입수량: ${inputQuantity.value}개)`, 'success')
-    
-    // 자동 생산 시뮬레이션 시작
-    startProductionSimulation()
-    
+    try {
+      loading.value = true
+      loadingMessage.value = '작업을 시작하는 중...'
+      const workData = {
+        work_no: selectedWorkOrder.value,
+        line_id: workInfo.value.lineId,
+        work_line: workInfo.value.lineName,
+        work_step: workInfo.value.lineType === 'INNER' ? '내포장' : '외포장',
+        step_name: currentWork.value.product_name,
+        input_qty: inputQuantity.value,
+        eq_code: 'PKG001',
+        employee_no: 'EMP001',
+        employee_name: currentWork.value.employee_name
+      }
+      // 등록
+      const response = await axios.post(`${API_BASE_URL}/work`, workData)
+      // 서버에서 계산된 결과 반영
+      currentWork.value.input_qty = inputQuantity.value
+      currentWork.value.output_qty = response.data.output_qty
+      currentWork.value.defect_qty = response.data.defect_qty
+      currentWork.value.passRate = Math.round((response.data.output_qty / inputQuantity.value) * 100)
+      currentWork.value.defectRate = 100 - currentWork.value.passRate
+      workStatus.value = 'WORKING'
+      isWorking.value = true
+      workStartTime.value = new Date()
+      currentWork.value.start_time = workStartTime.value
+      updateWorkProgress()
+      startWorkTimer()
+      addLog(`작업을 시작했습니다. (투입수량: ${inputQuantity.value}개)`, 'success')
+      addLog(`예상 합격수량: ${currentWork.value.output_qty}개, 불량수량: ${currentWork.value.defect_qty}개`, 'info')
+    } catch (error) {
+      addLog('작업 시작에 실패했습니다.', 'error')
+    } finally {
+      loading.value = false
+    }
   } else {
-    // 작업 일시정지
     isWorking.value = false
     workStatus.value = 'PAUSED'
-    
-    if (workTimer) {
-      clearInterval(workTimer)
-    }
-    
+    if (workTimer) clearInterval(workTimer)
     addLog('작업을 일시정지했습니다.', 'warning')
   }
 }
 
-// 생산 완료
+// 4. 생산 완료 버튼
 function completeProduction() {
   showCompleteModal.value = true
 }
 
-// 작업 종료
+// 5. 작업 완료 처리
+async function confirmCompleteWork() {
+  try {
+    loading.value = true
+    loadingMessage.value = '작업을 완료하는 중...'
+    const res = await axios.put(`${API_BASE_URL}/work/${currentWork.value.work_no}/complete`, {
+      input_qty: currentWork.value.input_qty
+    })
+    currentWork.value.output_qty = res.data.output_qty
+    currentWork.value.defect_qty = res.data.defect_qty
+    currentWork.value.passRate = Math.round((res.data.output_qty / currentWork.value.input_qty) * 100)
+    currentWork.value.defectRate = 100 - currentWork.value.passRate
+    isWorking.value = false
+    workStatus.value = 'COMPLETED'
+    if (workTimer) clearInterval(workTimer)
+    updateWorkProgress()
+    addLog('작업이 완료되었습니다.', 'success')
+    closeCompleteModal()
+    setTimeout(() => { goBackToLineSelectionWithCompletion() }, 2000)
+  } catch (error) {
+    addLog('작업 완료 처리에 실패했습니다.', 'error')
+  } finally {
+    loading.value = false
+  }
+}
+
+// 작업 종료 (강제)
 function stopWork() {
   isWorking.value = false
   workStatus.value = 'COMPLETED'
-  
-  if (workTimer) {
-    clearInterval(workTimer)
-  }
-  
+  if (workTimer) clearInterval(workTimer)
   addLog('작업을 종료했습니다.', 'info')
 }
 
-// 작업 완료 확인
-function confirmCompleteWork() {
-  isWorking.value = false
-  workStatus.value = 'COMPLETED'
-  
-  if (workTimer) {
-    clearInterval(workTimer)
-  }
-  
-  addLog('작업이 완료되었습니다.', 'success')
-  closeCompleteModal()
-  
-  // 작업 완료 후 라인 선택으로 돌아가기
-  setTimeout(() => {
-    goBackToLineSelection()
-  }, 2000)
-}
-
-// 불량 등록
-function registerDefect() {
-  if (!canRegisterDefect.value) return
-  
-  currentWork.value.defectQuantity += defectForm.value.quantity
-  updateWorkProgress()
-  
-  addLog(`불량 등록: ${getDefectTypeText(defectForm.value.type)} ${defectForm.value.quantity}개`, 'error')
-  
-  // 폼 초기화
-  defectForm.value = {
-    type: '',
-    quantity: 0,
-    reason: ''
-  }
-}
-
-// 품질 상태 업데이트
-function updateQualityStatus() {
-  const checkedCount = qualityChecklist.value.filter(item => item.checked).length
-  const totalCount = qualityChecklist.value.length
-  const checkRate = (checkedCount / totalCount) * 100
-  
-  if (checkRate === 100) {
-    qualityStatus.value = 'GOOD'
-  } else if (checkRate >= 80) {
-    qualityStatus.value = 'WARNING'
-  } else {
-    qualityStatus.value = 'CRITICAL'
-  }
-}
-
-// 작업 타이머 시작
-function startWorkTimer() {
-  workTimer = setInterval(() => {
-    if (workStartTime.value) {
-      const elapsed = new Date() - workStartTime.value
-      workElapsedTime.value = formatElapsedTime(elapsed)
-    }
-  }, 1000)
-}
-
-// 생산 시뮬레이션
-function startProductionSimulation() {
-  const simulationInterval = setInterval(() => {
-    if (!isWorking.value) {
-      clearInterval(simulationInterval)
-      return
-    }
-    
-    // 랜덤 생산량 증가
-    const increment = Math.floor(Math.random() * 5) + 1
-    currentWork.value.producedQuantity = Math.min(
-      currentWork.value.producedQuantity + increment,
-      currentWork.value.inputQuantity
-    )
-    
-    // 합격/불량 랜덤 배정 (95% 합격률)
-    const isPass = Math.random() > 0.05
-    if (isPass) {
-      currentWork.value.passedQuantity += increment
-    } else {
-      currentWork.value.defectQuantity += Math.floor(increment * 0.1)
-      currentWork.value.passedQuantity += Math.ceil(increment * 0.9)
-    }
-    
-    updateWorkProgress()
-    
-    // 완료 체크
-    if (currentWork.value.producedQuantity >= currentWork.value.inputQuantity) {
-      clearInterval(simulationInterval)
-      addLog('투입 수량의 생산이 완료되었습니다.', 'success')
-    }
-  }, 2000)
-}
-
-// 작업 진행률 업데이트
+// 진행률/품질 업데이트
 function updateWorkProgress() {
-  if (currentWork.value.inputQuantity > 0) {
-    currentWork.value.progressRate = Math.round(
-      (currentWork.value.producedQuantity / currentWork.value.inputQuantity) * 100
-    )
-  }
-  
-  if (currentWork.value.producedQuantity > 0) {
+  if (currentWork.value.input_qty > 0) {
+    currentWork.value.progressRate = 100 // 작업 시작하면 100%로 표시
     currentWork.value.passRate = Math.round(
-      (currentWork.value.passedQuantity / currentWork.value.producedQuantity) * 100
+      (currentWork.value.output_qty / currentWork.value.input_qty) * 100
     )
     currentWork.value.defectRate = Math.round(
-      (currentWork.value.defectQuantity / currentWork.value.producedQuantity) * 100
+      (currentWork.value.defect_qty / currentWork.value.input_qty) * 100
     )
   }
 }
@@ -656,72 +504,82 @@ function addLog(message, type = 'info') {
     message,
     type
   })
-  
-  // 최대 50개 로그만 유지
-  if (workLogs.value.length > 50) {
-    workLogs.value = workLogs.value.slice(0, 50)
-  }
+  if (workLogs.value.length > 50) workLogs.value = workLogs.value.slice(0, 50)
 }
 
 // 모달 제어
-function closeCompleteModal() {
-  showCompleteModal.value = false
+function closeCompleteModal() { showCompleteModal.value = false }
+
+// 라인 선택으로 돌아가기 (작업 완료시)
+function goBackToLineSelectionWithCompletion() {
+  if (window.handlePackageWorkCompleted) {
+    window.handlePackageWorkCompleted(workInfo.value.lineType)
+  }
+  if (router) {
+    router.push({
+      name: 'package_line',
+      query: {
+        work_completed: 'true',
+        completed_type: workInfo.value.lineType
+      }
+    })
+  } else {
+    window.location.href = `/packaging/line?work_completed=true&completed_type=${workInfo.value.lineType}`
+  }
 }
 
-// 라인 선택으로 돌아가기
+// 라인 선택으로 돌아가기 (작업 완료 없이)
 function goBackToLineSelection() {
-  router.push({ name: 'PackageLineSelection' })
+  if (isWorking.value) {
+    if (!confirm('진행 중인 작업이 있습니다. 정말 라인 선택으로 돌아가시겠습니까?')) {
+      return
+    }
+  }
+  if (router) {
+    router.push({ name: 'package_line' })
+  } else {
+    window.location.href = '/packaging/line'
+  }
 }
 
 // 헬퍼 함수들
-function formatNumber(num) {
-  return num ? num.toLocaleString() : '0'
-}
-
+function formatNumber(num) { return num ? num.toLocaleString() : '0' }
 function formatTime(date) {
   if (!date) return '-'
-  return date.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
+  return date instanceof Date
+    ? date.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
+    : new Date(date).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
 }
-
 function formatDateTime(date) {
   if (!date) return '-'
-  return date.toLocaleString('ko-KR', { 
-    month: '2-digit', 
-    day: '2-digit', 
-    hour: '2-digit', 
-    minute: '2-digit', 
-    second: '2-digit' 
-  })
+  return date instanceof Date
+    ? date.toLocaleString('ko-KR', {
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      })
+    : new Date(date).toLocaleString('ko-KR', {
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      })
 }
-
 function formatElapsedTime(ms) {
   const hours = Math.floor(ms / (1000 * 60 * 60))
   const minutes = Math.floor((ms % (1000 * 60 * 60)) / (1000 * 60))
   const seconds = Math.floor((ms % (1000 * 60)) / 1000)
-  
   return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
 }
-
 function getWorkStatusText(status) {
   const map = {
-    'READY': '준비',
-    'WORKING': '작업중',
-    'PAUSED': '일시정지',
-    'COMPLETED': '완료'
+    'READY': '준비', 'WORKING': '작업중', 'PAUSED': '일시정지', 'COMPLETED': '완료'
   }
   return map[status] || status
 }
-
-function getQualityStatusText(status) {
-  const map = {
-    'PENDING': '검사 대기',
-    'GOOD': '양호',
-    'WARNING': '주의',
-    'CRITICAL': '위험'
-  }
-  return map[status] || status
-}
-
 function getQualityRateClass(rate) {
   if (rate >= 98) return 'excellent'
   if (rate >= 95) return 'good'
@@ -729,23 +587,63 @@ function getQualityRateClass(rate) {
   return 'danger'
 }
 
-function getDefectTypeText(type) {
-  const map = {
-    'PACKAGE_DAMAGE': '포장지 파손',
-    'LABEL_ERROR': '라벨 오부착',
-    'SEAL_DEFECT': '밀봉 불량',
-    'CONTAMINATION': '이물질 혼입',
-    'OTHER': '기타'
-  }
-  return map[type] || type
+// 타이머
+function startWorkTimer() {
+  workTimer = setInterval(() => {
+    if (workStartTime.value) {
+      const elapsed = new Date() - workStartTime.value
+      workElapsedTime.value = formatElapsedTime(elapsed)
+    }
+  }, 1000)
 }
+
+defineOptions({
+  name: 'PackageWork'
+})
 </script>
+
 
 <style scoped>
 .package-work-container {
   min-height: 100vh;
   background-color: #f8fafc;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* 로딩 오버레이 */
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #e2e8f0;
+  border-top: 4px solid #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 16px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.loading-text {
+  color: white;
+  font-size: 16px;
+  font-weight: 500;
 }
 
 /* 헤더 */
@@ -846,7 +744,6 @@ function getDefectTypeText(type) {
   background: #4b5563;
 }
 
-/* 메인 레이아웃 */
 .work-content {
   padding: 24px;
 }
@@ -871,13 +768,11 @@ function getDefectTypeText(type) {
   gap: 24px;
 }
 
-/* 패널 공통 스타일 */
 .control-panel,
 .progress-panel,
 .log-panel,
 .info-panel,
-.defect-panel,
-.quality-panel {
+.line-change-panel {
   background: white;
   border-radius: 12px;
   padding: 24px;
@@ -888,9 +783,7 @@ function getDefectTypeText(type) {
 .control-panel h3,
 .progress-panel h3,
 .log-panel h3,
-.info-panel h3,
-.defect-panel h3,
-.quality-panel h3 {
+.info-panel h3 {
   font-size: 18px;
   font-weight: 600;
   color: #1e293b;
@@ -899,7 +792,6 @@ function getDefectTypeText(type) {
   border-bottom: 2px solid #f1f5f9;
 }
 
-/* 작업 제어 패널 */
 .control-section {
   margin-bottom: 20px;
 }
@@ -907,7 +799,7 @@ function getDefectTypeText(type) {
 .control-row {
   display: flex;
   gap: 16px;
-  align-items: end;
+  align-items: flex-end;
 }
 
 .control-group {
@@ -997,7 +889,6 @@ function getDefectTypeText(type) {
   cursor: not-allowed;
 }
 
-/* 진행 상황 패널 */
 .progress-cards {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -1090,7 +981,6 @@ function getDefectTypeText(type) {
   border-radius: 6px;
 }
 
-/* 로그 패널 */
 .log-container {
   max-height: 300px;
   overflow-y: auto;
@@ -1138,7 +1028,6 @@ function getDefectTypeText(type) {
   color: #1e293b;
 }
 
-/* 정보 패널 */
 .info-section {
   margin-bottom: 20px;
 }
@@ -1190,133 +1079,35 @@ function getDefectTypeText(type) {
   color: #ef4444;
 }
 
-/* 불량 등록 패널 */
-.defect-form {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+/* 라인 변경 패널 */
+.line-change-panel {
+  text-align: center;
 }
 
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.form-group label {
-  font-size: 12px;
-  font-weight: 600;
-  color: #374151;
-}
-
-.form-select,
-.form-input,
-.form-textarea {
-  padding: 8px 12px;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-  font-size: 14px;
-  transition: border-color 0.2s;
-}
-
-.form-select:focus,
-.form-input:focus,
-.form-textarea:focus {
-  outline: none;
-  border-color: #3b82f6;
-}
-
-.form-textarea {
-  resize: vertical;
-  min-height: 60px;
-}
-
-.btn-defect {
-  padding: 10px 16px;
-  background: #ef4444;
+.btn-line-change {
+  width: 100%;
+  padding: 16px 20px;
+  background: #f59e0b;
   color: white;
   border: none;
-  border-radius: 6px;
-  font-size: 14px;
+  border-radius: 8px;
+  font-size: 16px;
   font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.btn-defect:hover:not(:disabled) {
-  background: #dc2626;
-}
-
-.btn-defect:disabled {
-  background: #e5e7eb;
-  color: #9ca3af;
-  cursor: not-allowed;
-}
-
-/* 품질 체크리스트 */
-.checklist {
-  margin-bottom: 16px;
-}
-
-.checklist-item {
+  transition: all 0.2s;
   margin-bottom: 12px;
 }
 
-.checkbox-label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  font-size: 14px;
-  color: #374151;
+.btn-line-change:hover {
+  background: #d97706;
+  transform: translateY(-1px);
 }
 
-.checkbox-label input[type="checkbox"] {
-  width: 16px;
-  height: 16px;
-  cursor: pointer;
-}
-
-.quality-status {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px;
-  background: #f8fafc;
-  border-radius: 6px;
-  font-size: 14px;
-}
-
-.status-label {
-  color: #6b7280;
-  font-weight: 500;
-}
-
-.status-value {
-  font-weight: 600;
-  padding: 4px 8px;
-  border-radius: 12px;
+.line-change-help {
   font-size: 12px;
-}
-
-.status-value.pending {
-  background: #e0e7ff;
-  color: #3730a3;
-}
-
-.status-value.good {
-  background: #dcfce7;
-  color: #166534;
-}
-
-.status-value.warning {
-  background: #fef3c7;
-  color: #a16207;
-}
-
-.status-value.critical {
-  background: #fecaca;
-  color: #dc2626;
+  color: #6b7280;
+  line-height: 1.4;
+  margin: 0;
 }
 
 /* 모달 */
@@ -1397,6 +1188,7 @@ function getDefectTypeText(type) {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
+  margin-bottom: 16px;
 }
 
 .summary-item {
@@ -1421,8 +1213,21 @@ function getDefectTypeText(type) {
 .confirmation-text {
   font-size: 16px;
   color: #1e293b;
-  margin: 0;
+  margin: 0 0 16px 0;
   text-align: center;
+}
+
+.next-step-info {
+  background: #f0f9ff;
+  padding: 12px;
+  border-radius: 6px;
+  border-left: 3px solid #3b82f6;
+}
+
+.next-step-text {
+  font-size: 14px;
+  color: #1e293b;
+  margin: 0;
 }
 
 .modal-actions {
@@ -1462,7 +1267,6 @@ function getDefectTypeText(type) {
   background: #2563eb;
 }
 
-/* 반응형 */
 @media (max-width: 1024px) {
   .work-layout {
     grid-template-columns: 1fr;
