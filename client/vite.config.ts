@@ -5,74 +5,47 @@ import { fileURLToPath } from 'url'
 import VueI18nPlugin from '@intlify/unplugin-vue-i18n/vite'
 import { vuestic } from '@vuestic/compiler/vite'
 
-// https://vitejs.dev/config/
+// ✅ 중복 프록시 설정 경로 배열
+const proxyPaths = [
+  'product',
+  'common-codes',
+  'equipments',
+  'material',
+  'bom',
+  'process',
+  'processDetail',
+  'inspections',
+  'api'
+]
+
+// ✅ 공통 proxy 설정 생성 함수
+const createProxy = (paths: string[]) =>
+  Object.fromEntries(
+    paths.map((path) => [
+      `/${path}`,
+      {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+        rewrite: (p: string) => p.replace(new RegExp(`^/${path}`), `/${path}`)
+      }
+    ])
+  )
+
 export default defineConfig({
   build: {
-    sourcemap: true,
+    sourcemap: true
   },
   server: {
-    proxy: {
-      '/product': {
-          target: 'http://localhost:3000', // ✅ 백엔드 서버 주소
-          changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/product/, '/product'), // 경로 그대로 유지
-        },
-        '/common-codes': {
-        target: 'http://localhost:3000',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/common-codes/, '/common-codes'),
-        },
-        '/equipments': {
-        target: 'http://localhost:3000',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/equipments/, '/equipments'),
-        },
-        '/material': {
-          target: 'http://localhost:3000', // ✅ 백엔드 서버 주소
-          changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/material/, '/material'), // 경로 그대로 유지
-        },
-        '/bom': {
-          target: 'http://localhost:3000',
-          changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/bom/, '/bom'),
-        },
-        '/process': {
-          target: 'http://localhost:3000', // ✅ 백엔드 서버 주소
-          changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/process/, '/process'), // 경로 그대로 유지
-        },
-        '/inspections': {
-          target: 'http://localhost:3000',
-          changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/inspections/, '/inspections')
-        },
-        '/lines': {
-        target: 'http://localhost:3000',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/lines/, '/lines'),
-        },
-        '/packages': {
-        target: 'http://localhost:3000',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/packages/, '/packages'),
-        },
-        '/api': {
-        target: 'http://localhost:3000',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, '/api'),
-      },
-    },
+    proxy: createProxy(proxyPaths)
   },
-  
   plugins: [
     vuestic({
       devtools: true,
-      cssLayers: true,
+      cssLayers: true
     }),
     vue(),
     VueI18nPlugin({
-      include: resolve(dirname(fileURLToPath(import.meta.url)), './src/i18n/locales/**'),
-    }),
-  ],
+      include: resolve(dirname(fileURLToPath(import.meta.url)), './src/i18n/locales/**')
+    })
+  ]
 })

@@ -1,7 +1,6 @@
 <template>
   <VaForm ref="formRef" :key="formKey" v-slot="{ isValid }" class="max-w-5xl mx-auto p-6 flex flex-col gap-6 bg-white shadow rounded">
-
-    <!-- 파일 미리보기 + 파일 선택 버튼 -->
+    <!-- 이미지 미리보기 + 파일 선택 버튼 -->
     <div class="flex flex-col items-center gap-2">
       <div class="w-40 h-40 border rounded flex items-center justify-center bg-gray-100 overflow-hidden">
         <img v-if="previewUrl" :src="previewUrl" class="object-contain max-w-full max-h-full" />
@@ -29,33 +28,12 @@
 
     <!-- 설비 분류 / 설비 유형 / 도입 유형 -->
     <div class="grid grid-cols-3 gap-4 va-label-lg">
-      <VaSelect 
-        v-model="formData.category" 
-        label="설비 분류" 
-        :options="codeOptions.eq_group" 
-        :rules="[requiredRule]" 
-        value-by="value"
-        text-by="label"
-      />
-      <VaSelect 
-        v-model="formData.type" 
-        label="설비 세부 유형" 
-        :options="codeOptions.eq_type" 
-        :rules="[requiredRule]" 
-        value-by="value"
-        text-by="label"
-      />
-      <VaSelect 
-        v-model="formData.installType" 
-        label="도입 유형" 
-        :options="codeOptions.eq_import" 
-        :rules="[requiredRule]" 
-        value-by="value"
-        text-by="label"
-      />
+      <VaSelect v-model="formData.category" label="설비 분류" :options="codeOptions.eq_group" :rules="[requiredRule]" value-by="value" text-by="label" />
+      <VaSelect v-model="formData.type" label="설비 세부 유형" :options="codeOptions.eq_type" :rules="[requiredRule]" value-by="value" text-by="label" />
+      <VaSelect v-model="formData.installType" label="도입 유형" :options="codeOptions.eq_import" :rules="[requiredRule]" value-by="value" text-by="label" />
     </div>
 
-    <!-- 포장 설비전용 라인 -->
+    <!-- 포장 설비 전용 라인 -->
     <VaSelect
       v-if="formData.category === 'e3'"
       v-model="formData.line"
@@ -69,32 +47,9 @@
 
     <!-- 공장 / 층 / 공정실 -->
     <div class="grid grid-cols-3 gap-4 va-label-lg">
-      <VaSelect 
-        v-model="formData.factory" 
-        label="공장" 
-        :options="codeOptions.factory" 
-        :rules="[requiredRule]" 
-        value-by="value"
-        text-by="label"
-      />
-      <VaSelect 
-        v-if="formData.factory" 
-        v-model="formData.floor" 
-        label="층" 
-        :options="codeOptions.floor" 
-        :rules="[requiredRule]" 
-        value-by="value"
-        text-by="label"
-      />
-      <VaSelect 
-        v-if="formData.floor" 
-        v-model="formData.room" 
-        label="공정실" 
-        :options="codeOptions.room" 
-        :rules="[requiredRule]" 
-        value-by="value"
-        text-by="label"
-      />
+      <VaSelect v-model="formData.factory" label="공장" :options="codeOptions.factory" :rules="[requiredRule]" value-by="value" text-by="label" />
+      <VaSelect v-if="formData.factory" v-model="formData.floor" label="층" :options="codeOptions.floor" :rules="[requiredRule]" value-by="value" text-by="label" />
+      <VaSelect v-if="formData.floor" v-model="formData.room" label="공정실" :options="codeOptions.room" :rules="[requiredRule]" value-by="value" text-by="label" />
     </div>
 
     <!-- 설비 제조일 / 등록일 -->
@@ -142,7 +97,10 @@
 
 <script setup lang="ts">
 import { ref, onMounted, watch, nextTick } from 'vue'
+import { useRoute } from 'vue-router'
 import axios from 'axios'
+
+const route = useRoute()
 
 interface CodeOption {
   label: string
@@ -171,19 +129,9 @@ interface FormData {
   note: string
 }
 
-interface ApiResponse {
-  isSuccessed: boolean
-  data?: any
-  message?: string
-}
-
-interface CommonCodesResponse {
-  [key: string]: CodeOption[]
-}
-
 interface Props {
   mode: 'register' | 'edit'
-  initialData?: Partial<FormData>
+  initialData?: Partial<FormData & { eq_image?: string }>
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -191,18 +139,14 @@ const props = withDefaults(defineProps<Props>(), {
   initialData: undefined
 })
 
-const emit = defineEmits<{
-  save: [data: FormData]
-  cancel: []
-}>()
+const emit = defineEmits<{ save: [data: FormData] }>()
 
 const formRef = ref<any>()
 const fileUploadRef = ref<any>()
 const previewUrl = ref<string>('')
+const formKey = ref(0)
 
-const requiredRule = (v: any): string | boolean => {
-  return !!v || '필수 입력 항목입니다'
-}
+const requiredRule = (v: any): string | boolean => !!v || '필수 입력 항목입니다'
 
 const getInitialFormState = (): FormData => ({
   image: [],
@@ -227,7 +171,6 @@ const getInitialFormState = (): FormData => ({
 })
 
 const formData = ref<FormData>(getInitialFormState())
-const formKey = ref(0) // 폼 강제 리렌더링용 키
 
 const codeOptions = ref({
   factory: [] as CodeOption[],
@@ -244,132 +187,106 @@ const onImageSelected = (files: any) => {
   if (file instanceof File) {
     formData.value.image = [file]
     previewUrl.value = URL.createObjectURL(file)
-    console.log('이미지 선택됨:', file.name)
-  } else {
-    console.warn('File 객체 아님:', file)
   }
 }
 
 const loadCommonCodes = async () => {
-  try {
-    const { data: codes }: { data: CommonCodesResponse } = await axios.get('/common-codes?groups=0F,0L,0M,0E,0T,0I,line')
-    codeOptions.value = {
-      factory: codes['0F'] || [],
-      floor: codes['0L'] || [],
-      room: codes['0M'] || [],
-      eq_group: codes['0E'] || [],
-      eq_type: codes['0T'] || [],
-      eq_import: codes['0I'] || [],
-      line: codes.line || []
-    }
-  } catch (error: any) {
-    console.error('공통코드 로드 실패:', error)
+  const { data } = await axios.get('/common-codes?groups=0F,0L,0M,0E,0T,0I,line')
+  codeOptions.value = {
+    factory: data['0F'] || [],
+    floor: data['0L'] || [],
+    room: data['0M'] || [],
+    eq_group: data['0E'] || [],
+    eq_type: data['0T'] || [],
+    eq_import: data['0I'] || [],
+    line: data['line'] || [],
   }
 }
 
 const resetForm = async () => {
-  try {
-    // 1. 미리보기 이미지 메모리 해제
-    if (previewUrl.value) {
-      URL.revokeObjectURL(previewUrl.value)
-      previewUrl.value = ''
-    }
-    
-    // 2. 폼 데이터를 완전히 새로 생성하여 할당
-    formData.value = getInitialFormState()
-    
-    // 3. 폼 키 변경으로 컴포넌트 리렌더링 강제
-    formKey.value += 1
-    
-    // 4. DOM 업데이트 대기 후 파일 업로드 컴포넌트 초기화
-    await nextTick()
-    
-    // 5. 파일 업로드 컴포넌트 초기화 (있다면)
-    if (fileUploadRef.value && fileUploadRef.value.reset) {
-      fileUploadRef.value.reset()
-    }
-    
-    console.log('폼이 완전히 초기화되었습니다.')
-  } catch (error) {
-    console.error('폼 초기화 중 오류:', error)
+  if (previewUrl.value) {
+    URL.revokeObjectURL(previewUrl.value)
+    previewUrl.value = ''
   }
+  formData.value = getInitialFormState()
+  formKey.value += 1
+  await nextTick()
+  if (fileUploadRef.value?.reset) fileUploadRef.value.reset()
 }
 
-onMounted(() => {
-  loadCommonCodes()
-})
+onMounted(async () => {
+  await loadCommonCodes()
 
-watch(() => props.initialData, (data) => {
-  if (props.mode === 'edit' && data) {
-    formData.value = {
-      ...getInitialFormState(),
-      ...data,
-      category: data.category ? String(data.category) : '',
-      type: data.type ? String(data.type) : '',
-      installType: data.installType ? String(data.installType) : '',
-      factory: data.factory ? String(data.factory) : '',
-      floor: data.floor ? String(data.floor) : '',
-      room: data.room ? String(data.room) : '',
-      line: data.line ? String(data.line) : ''
+  if (props.mode === 'edit') {
+    if (props.initialData) {
+      formData.value = {
+        ...getInitialFormState(),
+        ...props.initialData,
+        image: [],
+      }
+      if (props.initialData.eq_image) {
+        previewUrl.value = `/uploads/${props.initialData.eq_image}`
+      }
+    } else if (route.params.id) {
+      const res = await axios.get(`/equipments/${route.params.id}`)
+      if (res.data.isSuccessed) {
+        const data = res.data.data
+        formData.value = {
+          ...getInitialFormState(),
+          ...data,
+          image: [],
+        }
+        if (data.eq_image) {
+          previewUrl.value = `/uploads/${data.eq_image}`
+        }
+      }
     }
   }
-}, { immediate: true })
+})
 
-watch(() => formData.value.category, (newCategory: string) => {
-  if (newCategory !== 'e3') {
+watch(() => formData.value.category, (val) => {
+  if (val !== 'e3') {
     formData.value.line = ''
   }
 })
 
-const handleSubmit = async (): Promise<void> => {
+const handleSubmit = async () => {
   if (!confirm(`${props.mode === 'edit' ? '수정' : '등록'}하시겠습니까?`)) return
   if (!formRef.value?.validate()) return
 
   const url = props.mode === 'edit' ? `/equipments/${formData.value.id}` : '/equipments'
   const method = props.mode === 'edit' ? 'put' : 'post'
 
-  try {
-    const submitFormData = new FormData()
-
-    // FormData의 각 키를 순회하며 값 추가
-    Object.entries(formData.value).forEach(([key, value]) => {
-      if (key !== 'image') {
-        if (value !== null && value !== undefined && value !== '' && !Array.isArray(value)) {
-          submitFormData.append(key, String(value))
-        }
-      }
-    })
-
-    if (formData.value.image && formData.value.image.length > 0) {
-      const imageFile = formData.value.image[0]
-      if (imageFile instanceof File) {
-        submitFormData.append('image', imageFile)
-      }
+  const submitFormData = new FormData()
+  Object.entries(formData.value).forEach(([key, value]) => {
+    if (key !== 'image' && value) {
+      submitFormData.append(key, String(value))
     }
+  })
 
-    const config = { headers: { 'Content-Type': 'multipart/form-data' } }
-    const res: { data: ApiResponse } = await axios[method](url, submitFormData, config)
+  if (formData.value.image?.[0] instanceof File) {
+    submitFormData.append('image', formData.value.image[0])
+  } else if (props.mode === 'edit' && route.params.id && previewUrl.value) {
+    submitFormData.append('existingImage', previewUrl.value.split('/').pop())
+  }
 
-    if (res.data.isSuccessed) {
-      alert(`설비 ${props.mode === 'edit' ? '수정' : '등록'}에 성공했습니다!`)
-      emit('save', formData.value)
-      
-      // 등록 모드에서만 폼 초기화
-      if (props.mode === 'register') {
-        await resetForm()
-      }
-    } else {
-      alert(`실패: ${res.data.message}`)
-    }
-  } catch (err: any) {
-    console.error('설비 저장 에러:', err)
-    alert('에러 발생!')
+  const res = await axios[method](url, submitFormData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  })
+
+  if (res.data.isSuccessed) {
+    alert(`설비 ${props.mode === 'edit' ? '수정' : '등록'} 완료`)
+    emit('save', formData.value)
+    if (props.mode === 'register') await resetForm()
+  } else {
+    alert(`실패: ${res.data.message || '에러'}`)
   }
 }
 
-const handleReset = async (): Promise<void> => {
-  if (!confirm('정말 초기화하시겠습니까?')) return
-  await resetForm()
+const handleReset = async () => {
+  if (confirm('초기화하시겠습니까?')) {
+    await resetForm()
+  }
 }
 </script>
 

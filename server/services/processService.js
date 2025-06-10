@@ -1,11 +1,17 @@
 const mariadb = require("../database/mapper.js");
 const { convertObjToAry } = require('../utils/converts.js') 
 
-// const findAll = async() => {
-//   let list = await mariadb.query("selectMaterialList")
-//                           .catch(err => console.log(err));
-//   return list;
-// }
+const findProcess = async(productCode) => {
+  let list = await mariadb.query("processSelect", productCode)
+                          .catch(err => console.log(err));
+  return list;
+}
+
+const findProcessDetail = async(processCode) => {
+  let list = await mariadb.query("processDetailSelect", processCode)
+                          .catch(err => console.log(err));
+  return list;
+}
 
 const addProcess = async (processList) => {
   const insertColums = [
@@ -53,7 +59,8 @@ const addDetailProcess = async (processCode, detailList) => {
   const insertColums = [
     'material_code',
     'BOM_code',
-    'name'
+    'name',
+    'input_qty'
   ];
 
   let successCount = 0;
@@ -85,12 +92,30 @@ const addDetailProcess = async (processCode, detailList) => {
   };
 };
 
+const removeProcessInfo = async(processCode) => {
+  let result = await mariadb.query("processDELETE", processCode)
+                            .catch(err => console.log(err));
+  return {
+    isDeleted: Number(result.affectedRows) > 0 
+  };
+}
+
+const removeProcessDetailInfo = async(processCode, materialCode) => {
+  let result = await mariadb.query("processDetailDELETE", [processCode, materialCode])
+                            .catch(err => console.log(err));
+  return {
+    isDeleted: Number(result.affectedRows) > 0 
+  };
+}
 
 
 
 
 module.exports = {
-  // findAll,
+  findProcess,
   addProcess,
-  addDetailProcess
+  addDetailProcess,
+  findProcessDetail,
+  removeProcessInfo,
+  removeProcessDetailInfo
 };

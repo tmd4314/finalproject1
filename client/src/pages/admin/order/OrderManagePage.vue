@@ -249,8 +249,8 @@
               <thead>
                 <tr>
                   <th>제품명 <span class="required">*</span></th>
-                  <th>규격</th>
-                  <th>출하 필요량 <span class="required">*</span></th>
+                  <th>규격 <span class="required">*</span></th>
+                  <th>출하 필요량(Box) <span class="required">*</span></th>
                   <th>제품코드</th>
                   <th width="60">삭제</th>
                 </tr>
@@ -268,10 +268,9 @@
                     />
                   </td>
                   <td>
-                    <va-input
+                    <va-select
                       v-model="product.spec"
                       placeholder="규격"
-                      disabled
                     />
                   </td>
                   <td>
@@ -438,12 +437,12 @@ const customerSelectOptions = computed(() =>
   }))
 )
 
-const productSelectOptions = computed(() =>
-  products.value.map(p => ({
-    value: p.product_id,
-    label: p.product_name
-  }))
-)
+// const productSelectOptions = computed(() =>
+//   products.value.map(p => ({
+//     value: p.product_id,
+//     label: p.product_name
+//   }))
+// )
 
 // 주문 데이터를 그룹화 (주문번호별로)
 const groupedOrders = computed(() => {
@@ -460,12 +459,20 @@ const groupedOrders = computed(() => {
         items: []
       }
     }
-    
+
+    let specValue = '';
+    if (order.product_stand) {
+      const match = order.product_stand.match(/^\d+/);
+      specValue = match ? match[0] : order.product_stand;
+    } else if (order.spec) {
+      specValue = order.spec;
+    }
+
     grouped[order.order_id].items.push({
       productId: order.product_id,
       productName: order.product_name,
       productCode: order.product_code,
-      spec: order.spec,
+      spec: specValue,
       quantity: order.order_qty
     })
   })
@@ -499,6 +506,15 @@ const paginatedOrders = computed(() => {
   const end = start + itemsPerPage.value
   return groupedOrders.value.slice(start, end)
 })
+
+// 제품명 목록 만들기!
+const productSelectOptions = computed(() => {
+  return [...new Set(products.value.map(p => p.product_name))].map(name => ({
+    value: name,
+    label: name
+  }));
+});
+
 
 // 라이프사이클
 onMounted(async () => {
@@ -619,6 +635,32 @@ function toggleOrder(orderId: string) {
   loadOrderForEdit(orderId)
 }
 
+// 규격 옵션 만들기!
+function getSpecOptions(productName: string) {
+  if(!productName) return [];
+  return [
+    ...new Set(
+      products.value
+      .filter(p => p.product_name === productName)
+      .map(p => p.spec)
+    )
+  ];
+}
+
+// 제품, 규격 선택 시 product_code 자동입력!!
+function onProductSelect(productName: string, index: number) {
+  form.value.products[index].productName = productName;
+  form.value.products[index].spec = '';
+  form.value.products[index].productCode = '';
+}
+function onSpecSelect(spec: string, index: number) {
+  const name = form.value.products[index].productName;
+  const product = products.value.find(
+    p => p.product_name === name && p.spec === spec
+  );
+  form.value.products[index].productCode = product ? product.product_code : '';
+}
+
 async function loadOrderForEdit(orderId: string) {
   try {
     // 실제로는 API에서 상세 정보를 가져와야 함
@@ -671,18 +713,18 @@ function removeProduct(index: number) {
   }
 }
 
-function onProductSelect(productId: string, index: number) {
-  const product = products.value.find(p => p.product_id === productId)
-  if (product) {
-    form.value.products[index] = {
-      productId: product.product_id,
-      productName: product.product_name,
-      productCode: product.product_code,
-      spec: product.spec,
-      quantity: form.value.products[index].quantity || 1
-    }
-  }
-}
+// function onProductSelect(productId: string, index: number) {
+//   const product = products.value.find(p => p.product_id === productId)
+//   if (product) {
+//     form.value.products[index] = {
+//       productId: product.product_id,
+//       productName: product.product_name,
+//       productCode: product.product_code,
+//       spec: product.spec,
+//       quantity: form.value.products[index].quantity || 1
+//     }
+//   }
+// }
 
 function resetForm() {
   selectedOrder.value = null
