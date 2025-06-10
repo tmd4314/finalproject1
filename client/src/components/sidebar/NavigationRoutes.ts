@@ -204,9 +204,13 @@ export default {
           name: 'staff-management',
           displayName: 'menu.사원 관리',
         },
-                {
+        {
           name: 'InspectionManagement',
           displayName: 'menu.검사항목 관리',
+        },
+                {
+          name: 'defectManagement',
+          displayName: 'menu.불량유형 관리',
         },
       ],
     },

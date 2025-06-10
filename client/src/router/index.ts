@@ -110,6 +110,11 @@ const routes: Array<RouteRecordRaw> = [
             path: 'InspectionManagement',
             component: () => import('../pages/quality/InspectionManager.vue'),
             },
+                         {
+            name: 'defectManagement',
+            path: 'defectManagement',
+            component: () => import('../pages/quality/defectManager.vue'),
+            },
         ],
       },
       {

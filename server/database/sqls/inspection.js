@@ -24,7 +24,20 @@ const insertInspectionList =
 VALUES(?,?,?,?,?,?,?)`
 ;
 
+const updateInspection = `
+  UPDATE inspection_item
+  SET item_type = ?,
+      insp_name = ?,
+      insp_stad_val = ?,
+      insp_unit = ?,
+      insp_judt_type = ?,
+      insp_remark = ?
+  WHERE insp_code = ?
+`;
+
+
 module.exports ={
   selectInspectionList,
-  insertInspectionList
+  insertInspectionList,
+  updateInspection
 }
