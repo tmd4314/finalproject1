@@ -1,4 +1,3 @@
-// server/database/sqls/equipment.js
 module.exports = {
   // 설비 등록
   insertEquipment: `
@@ -12,7 +11,7 @@ module.exports = {
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `,
 
-  // 설비 리스트 조회 (설비 조회/관리용) - 날짜 포맷팅 추가
+  // 설비 리스트 조회 (설비 조회/관리용)
   selectEquipmentList: `
     SELECT
       e.eq_id, 
@@ -34,7 +33,6 @@ module.exports = {
       (SELECT code_label FROM common_code WHERE code_value = e.eq_factory_code AND code_group = '0F') as factory_name,
       (SELECT code_label FROM common_code WHERE code_value = e.eq_floor_code AND code_group = '0L') as floor_name,
       (SELECT code_label FROM common_code WHERE code_value = e.eq_room_code AND code_group = '0M') as room_name,
-      -- 최근 점검 정보 (작업유형 w3=점검)
       (SELECT 
         CONCAT(
           (SELECT code_label FROM common_code WHERE code_value = eil.status_code AND code_group = '0P'),
@@ -45,7 +43,6 @@ module.exports = {
        AND eil.inspection_type_code = 'w3'
        ORDER BY eil.inspection_log_id DESC 
        LIMIT 1) as inspection_status,
-      -- 최근 청소 정보 (작업유형 w4=청소)
       (SELECT 
         CONCAT(
           (SELECT code_label FROM common_code WHERE code_value = ecl.status_code AND code_group = '0P'),
@@ -73,27 +70,83 @@ module.exports = {
     WHERE eq_id = ?
   `,
 
-  // 설비 수정
+  // 설비 수정 (등록일 갱신 포함)
   updateEquipment: `
     UPDATE equipment SET
       eq_name = ?, eq_group_code = ?, eq_type_code = ?, eq_import_code = ?,
       eq_factory_code = ?, eq_floor_code = ?, eq_room_code = ?, line_id = ?,
-      eq_manufacture_date = ?, eq_manufacturer = ?, eq_model = ?,
+      eq_manufacture_date = ?, eq_registration_date = ?, eq_manufacturer = ?, eq_model = ?,
       eq_serial_number = ?, eq_power_spec = ?, eq_max_operation_time = ?,
       eq_inspection_cycle = ?, eq_remark = ?, eq_image = ?
     WHERE eq_id = ?
   `,
 
-  // 설비 삭제
-  deleteEquipment: `
-    DELETE FROM equipment
-    WHERE eq_id = ?
+  // 설비명 중복 수
+  countSameNameEquipments: `
+    SELECT COUNT(*) as count FROM equipment WHERE eq_name LIKE ?
   `,
 
-  // 같은 이름 설비 몇 개인지 (ex. 혼합기%)
-  countSameNameEquipments: `
-    SELECT COUNT(*) as count
-    FROM equipment
-    WHERE eq_name LIKE ?
+  // 단일 삭제
+  deleteInspectPartResultByEquipment: `
+    DELETE ipr FROM inspect_part_result ipr
+    INNER JOIN equipment_inspection_log eil ON ipr.inspection_log_id = eil.inspection_log_id
+    WHERE eil.eq_id = ?
+  `,
+  deleteCleaningPartResultByEquipment: `
+    DELETE cpr FROM cleaning_part_result cpr
+    INNER JOIN equipment_cleaning_log ecl ON cpr.cleaning_log_id = ecl.cleaning_log_id
+    WHERE ecl.eq_id = ?
+  `,
+  deleteCleaningChemicalLogByEquipment: `
+    DELETE ccl FROM cleaning_chemical_log ccl
+    INNER JOIN equipment_cleaning_log ecl ON ccl.cleaning_log_id = ecl.cleaning_log_id
+    WHERE ecl.eq_id = ?
+  `,
+  deleteEquipmentInspectionLog: `
+    DELETE FROM equipment_inspection_log WHERE eq_id = ?
+  `,
+  deleteEquipmentCleaningLog: `
+    DELETE FROM equipment_cleaning_log WHERE eq_id = ?
+  `,
+  deleteEquipmentStopLog: `
+    DELETE FROM equipment_stop_log WHERE eq_id = ?
+  `,
+  deleteEquipmentMaintenanceStatus: `
+    DELETE FROM eq_maintenance_status WHERE eq_id = ?
+  `,
+  deleteEquipment: `
+    DELETE FROM equipment WHERE eq_id = ?
+  `,
+
+  // 다중 삭제
+  deleteInspectPartResultByEqIds: `
+    DELETE ipr FROM inspect_part_result ipr
+    INNER JOIN equipment_inspection_log eil ON ipr.inspection_log_id = eil.inspection_log_id
+    WHERE eil.eq_id IN (?)
+  `,
+  deleteCleaningPartResultByEqIds: `
+    DELETE cpr FROM cleaning_part_result cpr
+    INNER JOIN equipment_cleaning_log ecl ON cpr.cleaning_log_id = ecl.cleaning_log_id
+    WHERE ecl.eq_id IN (?)
+  `,
+  deleteCleaningChemicalLogByEqIds: `
+    DELETE ccl FROM cleaning_chemical_log ccl
+    INNER JOIN equipment_cleaning_log ecl ON ccl.cleaning_log_id = ecl.cleaning_log_id
+    WHERE ecl.eq_id IN (?)
+  `,
+  deleteEquipmentInspectionLogByEqIds: `
+    DELETE FROM equipment_inspection_log WHERE eq_id IN (?)
+  `,
+  deleteEquipmentCleaningLogByEqIds: `
+    DELETE FROM equipment_cleaning_log WHERE eq_id IN (?)
+  `,
+  deleteEquipmentStopLogByEqIds: `
+    DELETE FROM equipment_stop_log WHERE eq_id IN (?)
+  `,
+  deleteEquipmentMaintenanceStatusByEqIds: `
+    DELETE FROM eq_maintenance_status WHERE eq_id IN (?)
+  `,
+  deleteMultipleEquipments: `
+    DELETE FROM equipment WHERE eq_id IN (?)
   `,
 };

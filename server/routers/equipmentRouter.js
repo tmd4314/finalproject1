@@ -1,5 +1,3 @@
-// server/routers/equipmentRouter.js
-
 const express = require('express');
 const router = express.Router();
 const equipmentService = require('../services/equipmentService');
@@ -66,6 +64,7 @@ router.post('/', upload.single('image'), async (req, res) => {
     if (req.body.category === 'e3' && !req.body.line) {
       return res.status(400).json({ isSuccessed: false, message: '포장설비는 라인을 선택해야 합니다.' });
     }
+
     const result = await equipmentService.insertEquipment(req.body, req.file);
     res.json({ isSuccessed: true, result });
   } catch (err) {
@@ -111,7 +110,18 @@ router.put('/:id', upload.single('image'), async (req, res) => {
     if (req.body.category === 'e3' && !req.body.line) {
       return res.status(400).json({ isSuccessed: false, message: '포장설비는 라인을 선택해야 합니다.' });
     }
-    const result = await equipmentService.updateEquipment(req.params.id, req.body, req.file);
+
+    const imageFilename = req.file ? req.file.filename : req.body.existingImage || null;
+
+    // 수정 시 등록일은 현재 날짜로 자동 설정
+    const updatedData = {
+      ...req.body,
+      eq_image: imageFilename,
+      registerDate: new Date().toISOString().slice(0, 10),
+    };
+
+    const result = await equipmentService.updateEquipment(req.params.id, updatedData);
+
     res.json({ isSuccessed: true, result });
   } catch (err) {
     console.error('설비 수정 실패:', err);
@@ -123,27 +133,48 @@ router.put('/:id', upload.single('image'), async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const result = await equipmentService.deleteEquipment(req.params.id);
-    res.json({ isSuccessed: true, result });
+    res.json({
+      isSuccessed: true,
+      message: '설비와 관련 데이터가 성공적으로 삭제되었습니다.',
+      result
+    });
   } catch (err) {
     console.error('설비 삭제 실패:', err);
-    res.status(500).json({ isSuccessed: false, message: '설비 삭제 실패' });
+    let errorMessage = '설비 삭제 실패';
+    if (err.message.includes('찾을 수 없습니다')) {
+      errorMessage = '삭제할 설비를 찾을 수 없습니다.';
+    } else if (err.message.includes('foreign key')) {
+      errorMessage = '설비에 연결된 데이터가 있어 삭제할 수 없습니다.';
+    }
+    res.status(500).json({ isSuccessed: false, message: errorMessage, error: err.message });
   }
 });
 
 // 설비 다중 삭제
 router.post('/delete', async (req, res) => {
   const { eq_ids } = req.body;
+
   if (!Array.isArray(eq_ids) || eq_ids.length === 0) {
-    return res.status(400).json({ isSuccessed: false, message: '삭제할 설비 ID가 없습니다.' });
+    return res.status(400).json({
+      isSuccessed: false,
+      message: '삭제할 설비 ID가 없습니다.'
+    });
   }
+
   try {
-    const placeholders = eq_ids.map(() => '?').join(',');
-    const sql = `DELETE FROM equipment WHERE eq_id IN (${placeholders})`;
-    await equipmentService.rawQuery(sql, eq_ids);
-    res.json({ isSuccessed: true });
+    const result = await equipmentService.deleteMultipleEquipments(eq_ids);
+    res.json({
+      isSuccessed: true,
+      message: `${result.deletedCount}개 설비와 관련 데이터가 삭제되었습니다.`,
+      result
+    });
   } catch (err) {
-    console.error('설비 삭제 오류:', err);
-    res.status(500).json({ isSuccessed: false, message: '설비 삭제 중 오류 발생' });
+    console.error('설비 다중 삭제 오류:', err);
+    res.status(500).json({
+      isSuccessed: false,
+      message: '설비 삭제 중 오류가 발생했습니다.',
+      error: err.message
+    });
   }
 });
 
