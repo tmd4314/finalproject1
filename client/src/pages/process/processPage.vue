@@ -331,17 +331,28 @@ const deleteSelectedMaterials = async () => {
 }
 
 const saveMaterial = async (): Promise<void> => {
+  // 현재 공정에 해당하는 모든 자재 먼저 삭제
+  try {
+    await axios.delete(`/processDetail/${popupProcessCode.value}`)
+    console.log(`✅ ${popupProcessCode.value} 에 해당하는 기존 자재 삭제 완료`)
+  } catch (err) {
+    console.error('❌ 기존 자재 삭제 실패:', err)
+    alert('기존 자재 삭제 중 오류 발생!')
+    return
+  }
+
+  // 새로운 자재 저장 (삭제 후 insert)
   const payload = materialList.value.map(p => ({
-    process_code: popupProcessCode.value, // 동일한 공정 코드
+    process_code: popupProcessCode.value,
     material_code: p.material_code,
-    BOM_code:  bomCode.value,
-    name: p.responsible
+    BOM_code: bomCode.value,
+    name: p.responsible,
   }))
 
   console.log('📦 저장할 재료 데이터:', payload)
 
   try {
-    const res = await axios.post(`/process/${popupProcessCode.value}`, payload) // 한 번에 POST
+    const res = await axios.post(`/process/${popupProcessCode.value}`, payload)
     if (res.data.isSuccessed === true) {
       alert('모든 재료 등록 완료!')
       await fetchProcessDetail()
@@ -349,7 +360,7 @@ const saveMaterial = async (): Promise<void> => {
       alert('등록 실패!')
     }
   } catch (err) {
-    console.error('❌ 전송 실패:', err)
+    console.error('❌ 자재 등록 실패:', err)
     alert('서버 오류 발생!')
   }
 }

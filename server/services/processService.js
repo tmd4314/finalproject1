@@ -123,6 +123,14 @@ const addDetailProcess = async (processCode, detailList) => {
   };
 };
 
+const updateProcessDetailInfo = async(processCode) => {
+  let result = await mariadb.query("processUpdateDetail", processCode)
+                            .catch(err => console.log(err));
+  return {
+    isDeleted: Number(result.affectedRows) > 0 
+  };
+}
+
 const removeProcessInfo = async(processCode) => {
   let result = await mariadb.query("processDELETE", processCode)
                             .catch(err => console.log(err));
@@ -149,5 +157,6 @@ module.exports = {
   findProcessDetail,
   removeProcessInfo,
   removeProcessDetailInfo,
-  modifyProcess
+  modifyProcess,
+  updateProcessDetailInfo
 };
