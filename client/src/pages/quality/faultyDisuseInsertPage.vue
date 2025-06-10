@@ -158,4 +158,5 @@ function deleteProduct() {
   justify-content: space-between;
   margin-top: 0.5rem;
 }
+
 </style>

@@ -1,396 +1,440 @@
 <template>
-  <div class="bom-page">
-    <!-- 좌측: BOM 조회 및 검색 -->
-    <div class="bom-list">
-      <div class="search-bar">
-        <va-select
-          v-model="selectedProduct"
-          :options="productOptions" 
-          label="제품명"
-          class="bom-select"
-          placeholder="제품명 선택"
-        />
-      </div>
-      <div class="table-area">
-        <va-data-table
-          :items="bomList"
-          :columns="bomColumns"
-          :per-page="7"
-          dense
-          class="bom-table"
-          @row-click="onProductRowClick"
-          :selected="selectedBomCode"
-          primary-key="bomCode"
-        />
-      </div>
+  <div class="grid grid-cols-2 gap-4 p-4">
+    <!-- 좌측: BOM 리스트 -->
+    <div class="border rounded p-4">
+      <label class="block font-semibold mb-2">제품명</label>
+      <select v-model="selectedProduct" @change="filterBomList" class="w-full border p-1 rounded mb-4">
+        <option value="">제품명 선택</option>
+        <option v-for="prod in uniqueProductOptions" :key="prod.product_name" :value="prod.product_name">
+          {{ prod.product_name }}
+        </option>
+      </select>
+
+      <table class="w-full border text-sm">
+        <thead class="bg-gray-100">
+          <tr>
+            <th class="border p-1">BOM코드</th>
+            <th class="border p-1">제품코드</th>
+            <th class="border p-1">제품명</th>
+            <th class="border p-1">규격</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="bom in filteredBoms" :key="bom.bom_code" @click="selectBom(bom)" class="hover:bg-gray-50 cursor-pointer">
+            <td class="border p-1">{{ bom.bom_code }}</td>
+            <td class="border p-1">{{ bom.product_code }}</td>
+            <td class="border p-1">{{ bom.product_name }}</td>
+            <td class="border p-1">{{ bom.product_stand }}</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
 
-    <!-- 우측: BOM 등록/수정 -->
-    <div class="bom-register">
-      <form @submit.prevent="saveBOM">
-        <fieldset class="fieldset">
-          <legend>제품 기본 정보</legend>
-          <va-select v-model="registerForm.productCode" :options="productOptions" label="제품명" class="input-short" style="width: 165px; margin-right:10px;"/>
-          <va-input v-model="registerForm.bomCode" label="BOM 코드" class="input-short" />
-          <va-input v-model="registerForm.spec" label="규격" class="input-short" />
-        </fieldset>
-        <fieldset class="fieldset">
-          <legend>
-            투입 자재
-          </legend>
-          <va-data-table
-            :items="registerForm.materials"
-            :columns="materialColumns"
-            dense
-            selectable
-            v-model:selected="selectedMaterials"
-            class="material-table"
-            primary-key="materialCode"
-          >
-            <template #cell-usage="{ row, rowIndex }">
-              <va-input
-                v-model="registerForm.materials[rowIndex].usage"
-                style="width:60px;"
-                placeholder="투입량"
-              />
-            </template>
-          </va-data-table>
-          <va-button
-            color="danger"
-            @click="removeSelectedMaterials"
-            class="remove-btn"
-            :disabled="selectedMaterials.length === 0"
-            style="float:right;margin-top:-7px;"
-          >제거</va-button>
-        </fieldset>
-        <fieldset class="fieldset">
-          <legend>자재 검색 및 추가</legend>
-          <div class="material-search-row">
-            <va-input v-model="searchMaterialCode" label="자재코드" class="input-short" />
-            <va-input v-model="searchMaterialName" label="자재명" class="input-short" />
-            <va-button color="primary" @click="searchMaterials" size="small" class="search-btn">검색</va-button>
-            <va-button
-              color="primary"
-              @click="addSelectedMaterialsToBom"
-              class="add-btn"
-              size="small"
-              :disabled="selectedSearchMaterials.length === 0">추가</va-button>
+    <!-- 우측: BOM 상세 -->
+    <div class="border rounded p-4">
+      <div class="grid grid-cols-3 gap-2 mb-4">
+        <div>
+          <label class="block text-sm font-medium">제품명</label>
+          <div class="relative">
+            <!-- 편집 모드가 아닐 때는 직접 입력 가능한 텍스트 필드 -->
+            <input 
+              v-if="!isEditMode"
+              v-model="form.product_name" 
+              placeholder="제품명을 입력하세요"
+              class="w-full border p-1 rounded"
+              @input="onProductNameInput"
+            />
+            <!-- 편집 모드일 때는 읽기 전용 텍스트 필드 -->
+            <input 
+              v-else
+              v-model="form.product_name" 
+              class="w-full border p-1 rounded bg-gray-100"
+              readonly
+            />
           </div>
-          <va-data-table
-            :items="materialSearchResults"
-            :columns="materialColumns"
-            dense
-            selectable
-            v-model:selected="selectedSearchMaterials"
-            class="material-table"
-            primary-key="materialCode"
-          >
-            <template #cell-usage>
-              <span>-</span>
-            </template>
-          </va-data-table>
-        </fieldset>
-        <div class="form-buttons">
-          <va-button @click="saveBOM" color="primary" class="action-btn">저장</va-button>
-          <va-button @click="resetForm" color="secondary" class="action-btn">초기화</va-button>
         </div>
-      </form>
+        <div>
+          <label class="block text-sm font-medium">BOM 코드</label>
+          <input v-model="form.bom_code" class="w-full border p-1 rounded" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium">규격</label>
+          <input 
+            v-model="form.product_stand" 
+            placeholder="규격을 입력하세요"
+            class="w-full border p-1 rounded"
+          />
+        </div>
+      </div>
+
+      <!-- 투입 자재 -->
+      <div class="mb-4">
+        <label class="font-semibold mb-1 block">투입 자재</label>
+        <table class="w-full text-sm border">
+          <thead class="bg-gray-100">
+            <tr>
+              <th class="border px-2">#</th>
+              <th class="border px-2">자재코드</th>
+              <th class="border px-2">자재명</th>
+              <th class="border px-2">분류</th>
+              <th class="border px-2">단위</th>
+              <th class="border px-2">규격</th>
+              <th class="border px-2">투입량</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(mat, index) in form.materials" :key="mat.material_code || index">
+              <td class="border px-2"><input type="checkbox" v-model="mat.selected" /></td>
+              <td class="border px-2">{{ mat.material_code }}</td>
+              <td class="border px-2">{{ mat.material_name }}</td>
+              <td class="border px-2">{{ mat.material_type || '-' }}</td>
+              <td class="border px-2">{{ mat.material_unit }}</td>
+              <td class="border px-2">{{ mat.material_stand }}</td>
+              <td class="border px-2">
+                <input v-model.number="mat.usage_qty" type="number" step="0.01" class="w-20 border p-1 rounded" />
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <button @click="removeSelectedMaterials" class="mt-2 bg-red-500 text-white px-3 py-1 rounded" :disabled="!hasSelectedMaterials">
+          제거
+        </button>
+      </div>
+
+      <!-- 자재 검색 및 추가 -->
+      <div class="mb-4">
+        <label class="font-semibold mb-1 block">자재 검색 및 추가</label>
+        <div class="flex gap-2 mb-2">
+          <input v-model="searchMaterial" placeholder="자재코드 또는 자재명" class="flex-1 border p-1 rounded" @keyup.enter="searchMaterials" />
+          <button @click="addMaterialsToBom" class="bg-green-600 text-white px-3 py-1 rounded">추가</button>
+        </div>
+        <table class="w-full text-sm border max-h-48 overflow-y-auto">
+          <thead class="bg-gray-100">
+            <tr>
+              <th class="border px-2">#</th>
+              <th class="border px-2">자재코드</th>
+              <th class="border px-2">자재명</th>
+              <th class="border px-2">분류</th>
+              <th class="border px-2">단위</th>
+              <th class="border px-2">규격</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="mat in filteredMaterials" :key="mat.material_code">
+              <td class="border px-2"><input type="checkbox" :value="mat" v-model="selectedMaterials" /></td>
+              <td class="border px-2">{{ mat.material_code }}</td>
+              <td class="border px-2">{{ mat.material_name }}</td>
+              <td class="border px-2">{{ mat.material_type }}</td>
+              <td class="border px-2">{{ mat.material_unit }}</td>
+              <td class="border px-2">{{ mat.material_stand }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- 저장/초기화 버튼 -->
+      <div class="flex gap-2">
+        <button @click="saveBom" class="bg-blue-600 text-white px-4 py-2 rounded" :disabled="!canSave">
+          {{ isEditMode ? '수정' : '저장' }}
+        </button>
+        <button @click="resetForm" class="bg-gray-500 text-white px-4 py-2 rounded">초기화</button>
+      </div>
     </div>
   </div>
 </template>
 
-<script lang="ts" setup>
-import { ref, watch } from 'vue'
+<script setup>
+import { ref, onMounted, computed } from 'vue'
+import axios from 'axios'
 
-interface BomItem {
-  bomCode: string
-  productCode: string
-  productName: string
-  spec: string
-  materials: Material[]
-}
-interface Material {
-  materialCode: string
-  materialName: string
-  unit: string
-  spec: string
-  usage: string
-}
+const bomList = ref([])
+const productOptions = ref([])
+const materialList = ref([])
 
-// 제품/자재 더미 데이터
-const productOptions = [
-  { text: '타이레놀', value: 'BJA-STD-10', spec: '100정', bomCode: 'MK-70' },
-  { text: '우먼스정', value: 'FST-PLUS-10', spec: '80정', bomCode: 'MK-71' },
-]
-const materialMaster: Material[] = [
-  { materialCode: 'PM1000', materialName: '아세트아미노펜', unit: 'mg', spec: '25kg/1포', usage: '' },
-  { materialCode: 'PM1001', materialName: '유당', unit: 'mg', spec: '25kg/1포', usage: '' },
-  { materialCode: 'PM1002', materialName: '말토덱스트린', unit: 'mg', spec: '25kg/1포', usage: '' },
-  { materialCode: 'PM1003', materialName: 'PVP(폴리비닐피롤리돈)', unit: 'mg', spec: '25kg/1포', usage: '' },
-]
+const selectedProduct = ref('')
+const selectedMaterials = ref([])
+const searchMaterial = ref('')
+const isEditMode = ref(false)
 
-const allBomList = ref<BomItem[]>([
-  {
-    bomCode: 'MK-70',
-    productCode: 'BJA-STD-10',
-    productName: '타이레놀',
-    spec: '100정',
-    materials: [
-      { materialCode: 'PM1000', materialName: '아세트아미노펜', unit: 'mg', spec: '25kg/1포', usage: '100' },
-      { materialCode: 'PM1001', materialName: '유당', unit: 'mg', spec: '25kg/1포', usage: '50' },
-    ],
-  },
-  {
-    bomCode: 'MK-71',
-    productCode: 'FST-PLUS-10',
-    productName: '우먼스정',
-    spec: '80정',
-    materials: [
-      { materialCode: 'PM1002', materialName: '말토덱스트린', unit: 'mg', spec: '25kg/1포', usage: '80' },
-    ],
-  },
-])
-
-const bomColumns = [
-  { key: 'bomCode', label: 'BOM코드' },
-  { key: 'productCode', label: '제품코드' },
-  { key: 'productName', label: '제품명' },
-  { key: 'spec', label: '규격' },
-]
-const materialColumns = [
-  { key: 'materialCode', label: '자재코드' },
-  { key: 'materialName', label: '자재명' },
-  { key: 'unit', label: '단위' },
-  { key: 'spec', label: '규격' },
-  { key: 'usage', label: '투입량' },
-]
-
-const bomList = ref<BomItem[]>([...allBomList.value])
-const selectedProduct = ref<string>('')
-
-// 단일 row 하이라이트(클릭 선택)
-const selectedBomCode = ref<string | null>(null)
-
-// 우측 등록폼
-const registerForm = ref<{
-  bomCode: string
-  productCode: string
-  spec: string
-  materials: Material[]
-}>({ bomCode: '', productCode: '', spec: '', materials: [] })
-
-// 투입자재(체크박스)
-const selectedMaterials = ref<string[]>([])
-
-function removeSelectedMaterials() {
-  registerForm.value.materials = registerForm.value.materials.filter(
-    m => !selectedMaterials.value.includes(m.materialCode)
-  )
-  selectedMaterials.value = []
-}
-
-// 자재 검색(체크박스)
-const searchMaterialCode = ref<string>('')
-const searchMaterialName = ref<string>('')
-const materialSearchResults = ref<Material[]>([])
-const selectedSearchMaterials = ref<string[]>([])
-
-function searchMaterials() {
-  materialSearchResults.value = materialMaster.filter(mat =>
-    (!searchMaterialCode.value || mat.materialCode.includes(searchMaterialCode.value)) &&
-    (!searchMaterialName.value || mat.materialName.includes(searchMaterialName.value))
-  )
-}
-
-function addSelectedMaterialsToBom() {
-  const selected = materialSearchResults.value.filter(mat =>
-    selectedSearchMaterials.value.includes(mat.materialCode)
-  )
-  selected.forEach(mat => {
-    if (!registerForm.value.materials.find(m => m.materialCode === mat.materialCode)) {
-      registerForm.value.materials.push({ ...mat, usage: '' })
-    }
-  })
-  selectedSearchMaterials.value = []
-}
-
-// 좌측 row 클릭 시 오른쪽 자동 입력
-function onProductRowClick(row: BomItem) {
-  selectedBomCode.value = row.bomCode
-  registerForm.value = {
-    bomCode: row.bomCode,
-    productCode: row.productCode,
-    spec: row.spec,
-    materials: row.materials.map(m => ({ ...m })),
-  }
-}
-
-// 제품 드롭다운 선택 시 동작
-watch(selectedProduct, (prodCode) => {
-  if (!prodCode) {
-    bomList.value = [...allBomList.value]
-    registerForm.value = { bomCode: '', productCode: '', spec: '', materials: [] }
-    selectedBomCode.value = null
-    return
-  }
-  bomList.value = allBomList.value.filter(b => b.productCode === prodCode)
-  const item = bomList.value[0]
-  if (item) {
-    selectedBomCode.value = item.bomCode
-    registerForm.value = {
-      bomCode: item.bomCode,
-      productCode: item.productCode,
-      spec: item.spec,
-      materials: item.materials.map(m => ({ ...m })),
-    }
-  } else {
-    selectedBomCode.value = null
-    registerForm.value = { bomCode: '', productCode: prodCode, spec: '', materials: [] }
-  }
+const form = ref({
+  bom_code: '',
+  product_code: '',
+  product_name: '',
+  product_stand: '',
+  materials: [],
+  deletedMaterials: [], // 삭제할 자재 목록
 })
 
-function saveBOM() {
-  const idx = allBomList.value.findIndex(b => b.productCode === registerForm.value.productCode)
-  const prod = productOptions.find(p => p.value === registerForm.value.productCode)
-  if (idx !== -1) {
-    allBomList.value[idx] = {
-      bomCode: registerForm.value.bomCode,
-      productCode: registerForm.value.productCode,
-      productName: prod ? prod.text : '',
-      spec: registerForm.value.spec,
-      materials: registerForm.value.materials.map(m => ({ ...m })),
+// BOM 목록을 고유하게 변환 (중복 제거)
+const uniqueBomList = computed(() => {
+  const bomMap = new Map()
+  bomList.value.forEach(bom => {
+    if (!bomMap.has(bom.bom_code)) {
+      bomMap.set(bom.bom_code, {
+        bom_code: bom.bom_code,
+        product_code: bom.product_code,
+        product_name: bom.product_name,
+        product_stand: bom.product_stand
+      })
     }
-  } else {
-    allBomList.value.push({
-      bomCode: registerForm.value.bomCode,
-      productCode: registerForm.value.productCode,
-      productName: prod ? prod.text : '',
-      spec: registerForm.value.spec,
-      materials: registerForm.value.materials.map(m => ({ ...m })),
-    })
+  })
+  return Array.from(bomMap.values())
+})
+
+// 제품명 중복 제거하여 드롭다운 옵션 생성 (왼쪽 필터용)
+const uniqueProductOptions = computed(() => {
+  const productNameSet = new Set()
+  const uniqueProducts = []
+  
+  uniqueBomList.value.forEach(bom => {
+    if (!productNameSet.has(bom.product_name)) {
+      productNameSet.add(bom.product_name)
+      uniqueProducts.push({
+        product_name: bom.product_name
+      })
+    }
+  })
+  
+  return uniqueProducts
+})
+
+// 우측 폼에서 사용할 제품 옵션 (중복 제거된 상태로 표시)
+const availableProductOptions = computed(() => {
+  const productMap = new Map()
+  
+  productOptions.value.forEach(prod => {
+    if (!productMap.has(prod.product_name)) {
+      productMap.set(prod.product_name, prod)
+    }
+  })
+  
+  return Array.from(productMap.values())
+})
+
+// 규격 옵션 (DB에서 가져온 데이터만 사용)
+const availableStandOptions = computed(() => {
+  const standSet = new Set()
+  
+  productOptions.value.forEach(prod => {
+    if (prod.product_stand) {
+      standSet.add(prod.product_stand)
+    }
+  })
+  
+  return Array.from(standSet).sort()
+})
+
+// 선택된 제품명으로 BOM 목록 필터링
+const filteredBoms = computed(() => {
+  if (!selectedProduct.value) return uniqueBomList.value
+  return uniqueBomList.value.filter(bom => 
+    bom.product_name.includes(selectedProduct.value)
+  )
+})
+
+const filteredMaterials = computed(() => {
+  if (!searchMaterial.value) return materialList.value.slice(0, 50)
+  const keyword = searchMaterial.value.toLowerCase()
+  return materialList.value.filter(mat => {
+    return (
+      mat.material_code.toLowerCase().includes(keyword) ||
+      mat.material_name.toLowerCase().includes(keyword)
+    )
+  }).slice(0, 50)
+})
+
+const hasSelectedMaterials = computed(() => {
+  return form.value.materials.some(material => material.selected)
+})
+
+const canSave = computed(() => {
+  return form.value.bom_code && form.value.product_name && form.value.product_stand && form.value.materials.length > 0
+})
+
+// 제품명 입력 시 처리 (신규 등록 모드에서만)
+const onProductNameInput = () => {
+  if (!isEditMode.value) {
+    // 신규 등록 모드에서는 제품코드를 임시로 생성하거나 비워둠
+    form.value.product_code = ''
   }
-  if (selectedProduct.value) {
-    bomList.value = allBomList.value.filter(b => b.productCode === selectedProduct.value)
-  } else {
-    bomList.value = [...allBomList.value]
-  }
-  alert('저장되었습니다!')
-  resetForm()
 }
 
-function resetForm() {
-  if (selectedProduct.value) {
-    registerForm.value = { bomCode: '', productCode: selectedProduct.value, spec: '', materials: [] }
-  } else {
-    registerForm.value = { bomCode: '', productCode: '', spec: '', materials: [] }
-  }
-  selectedMaterials.value = []
-  selectedSearchMaterials.value = []
-  selectedBomCode.value = null
+const filterBomList = () => {
+  // 필터링은 computed에서 처리되므로 빈 함수
 }
+
+const selectBom = async (bom) => {
+  try {
+    const res = await axios.get(`/bom/detail/${bom.bom_code}`)
+    if (res.data && res.data.length > 0) {
+      const bomData = res.data[0]
+      
+      form.value = {
+        bom_code: bomData.bom_code,
+        product_code: bomData.product_code,
+        product_name: bom.product_name,
+        product_stand: bomData.product_stand || '',
+        materials: res.data.map(item => {
+          // 자재 목록에서 해당 자재의 상세 정보 찾기
+          const materialDetail = materialList.value.find(mat => mat.material_code === item.material_code)
+          
+          return {
+            material_code: item.material_code,
+            material_name: item.material_name,
+            material_type: materialDetail?.material_type || item.material_type || item.material_category || '',
+            material_unit: item.material_unit,
+            material_stand: item.material_stand,
+            usage_qty: item.usage_qty,
+            bom_unit: item.bom_unit,
+            selected: false,
+            status: 'existing'
+          }
+        })
+      }
+      isEditMode.value = true
+    }
+  } catch (err) {
+    console.error('BOM 상세 조회 오류:', err)
+    alert('BOM 상세 정보를 불러오는데 실패했습니다.')
+  }
+}
+
+const addMaterialsToBom = () => {
+  selectedMaterials.value.forEach(mat => {
+    if (!form.value.materials.find(d => d.material_code === mat.material_code)) {
+      form.value.materials.push({
+        material_code: mat.material_code,
+        material_name: mat.material_name,
+        material_type: mat.material_type || mat.material_category || '',
+        material_unit: mat.material_unit,
+        material_stand: mat.material_stand,
+        usage_qty: 0,
+        bom_unit: mat.material_unit,
+        selected: false,
+        status: 'new'
+      })
+    }
+  })
+  selectedMaterials.value = []
+}
+
+const removeSelectedMaterials = () => {
+  const selectedMaterialsToDelete = form.value.materials.filter(material => material.selected)
+  
+  if (selectedMaterialsToDelete.length === 0) {
+    alert('삭제할 자재를 선택해주세요.')
+    return
+  }
+
+  // 기존 자재(DB에 있는 자재)는 삭제 목록에 추가
+  const existingMaterialsToDelete = selectedMaterialsToDelete.filter(mat => mat.status === 'existing')
+  if (existingMaterialsToDelete.length > 0) {
+    form.value.deletedMaterials = form.value.deletedMaterials || []
+    existingMaterialsToDelete.forEach(material => {
+      form.value.deletedMaterials.push({
+        material_code: material.material_code,
+        bom_code: form.value.bom_code
+      })
+    })
+  }
+  
+  // UI에서 선택된 자재들 제거
+  form.value.materials = form.value.materials.filter(material => !material.selected)
+}
+
+const saveBom = async () => {
+  if (!canSave.value) {
+    alert('BOM 코드, 제품명, 규격, 자재를 모두 입력해주세요.')
+    return
+  }
+
+  try {
+    const payload = {
+      bom_code: form.value.bom_code,
+      product_code: form.value.product_code || form.value.bom_code,
+      product_name: form.value.product_name,
+      product_stand: form.value.product_stand,
+      materials: form.value.materials.map(mat => ({
+        material_code: mat.material_code,
+        usage_qty: mat.usage_qty,
+        bom_unit: mat.bom_unit,
+        status: mat.status || 'new'
+      })),
+      // 삭제할 자재 목록 추가 (편집 모드일 때만)
+      deletedMaterials: isEditMode.value ? (form.value.deletedMaterials || []) : []
+    }
+
+    if (isEditMode.value) {
+      await axios.put('/bom', payload)
+      alert('BOM 수정 완료')
+    } else {
+      await axios.post('/bom', payload)
+      alert('BOM 등록 완료')
+    }
+    
+    await fetchBomList()
+    resetForm()
+  } catch (err) {
+    console.error('BOM 저장 오류:', err)
+    alert('BOM 저장에 실패했습니다.')
+  }
+}
+
+const resetForm = () => {
+  form.value = { 
+    bom_code: '', 
+    product_code: '', 
+    product_name: '', 
+    product_stand: '', 
+    materials: [],
+    deletedMaterials: [] // 삭제된 자재 목록 초기화
+  }
+  isEditMode.value = false
+  selectedMaterials.value = []
+}
+
+const fetchBomList = async () => {
+  try {
+    const res = await axios.get('/bom/list')
+    bomList.value = res.data || []
+  } catch (err) {
+    console.error('BOM 목록 조회 오류:', err)
+  }
+}
+
+const fetchProductList = async () => {
+  try {
+    const res = await axios.get('/bom/products')
+    productOptions.value = res.data || []
+  } catch (err) {
+    console.error('제품 목록 조회 오류:', err)
+  }
+}
+
+const fetchMaterialList = async () => {
+  try {
+    const res = await axios.get('/bom/materials')
+    materialList.value = res.data || []
+  } catch (err) {
+    console.error('자재 목록 조회 오류:', err)
+  }
+}
+
+const searchMaterials = () => {
+  // Enter 키 입력 시 자동으로 filteredMaterials가 업데이트됨
+}
+
+onMounted(() => {
+  fetchBomList()
+  fetchProductList()
+  fetchMaterialList()
+})
 </script>
 
 <style scoped>
-.bom-page {
-  width: 1060px;
-  height: 739px;
-  min-width: 1060px;
-  max-width: 1060px;
-  min-height: 739px;
-  max-height: 739px;
-  display: grid;
-  grid-template-columns: 1.1fr 1.7fr;
-  gap: 20px;
-  background: none;
-  margin: 0;
-  padding: 0;
-}
-.bom-list {
-  background: #fff;
-  border-radius: 10px;
-  box-shadow: 0 0 12px #0001;
-  height: 739px;
-  padding: 20px 12px 10px 12px;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
-}
-.bom-register {
-  background: #fff;
-  border-radius: 10px;
-  box-shadow: 0 0 12px #0001;
-  height: 739px;
-  padding: 20px 16px 10px 16px;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
-}
-.search-bar {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 12px;
-}
-.bom-select {
-  width: 175px;
-}
-.search-btn {
-  min-width: 56px;
-  height: 32px;
-}
-.table-area, .material-table {
-  flex: 1;
-  min-height: 0;
-}
-.fieldset {
-  border: 1px solid #c2c2c2;
-  border-radius: 8px;
-  margin-bottom: 10px;
-  padding: 12px 10px 8px 10px;
-}
-.input-short {
-  width: 165px;
-  margin-right: 10px;
-}
-.material-section {
-  margin-top: 4px;
-}
-.material-title-row {
-  display: flex;
-  align-items: center;
-  font-size: 14px;
-  margin-bottom: 6px;
-}
-.material-search-row {
-  display: flex;
-  gap: 10px;
-  margin: 10px 0 5px 0;
-}
-.form-buttons {
-  margin-top: 10px;
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-}
-.action-btn {
-  min-width: 62px;
-  height: 32px;
-  font-size: 15px;
-}
-.bom-table,
-.material-table {
-  font-size: 14px;
-  margin-bottom: 0;
-}
-.material-search-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin: 10px 0 5px 0;
-}
-.search-btn, .add-btn {
-  min-width: 56px;
-  height: 32px;
-  font-size: 14px;
-  padding: 0 12px;
+input, select {
+  border: 1px solid #ccc;
+  padding: 4px;
+  border-radius: 4px;
 }
 </style>

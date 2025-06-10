@@ -81,9 +81,19 @@ const routes: Array<RouteRecordRaw> = [
             component: () => import('../pages/bom/BomManager.vue'),
           },
           {
-            name: 'billing',
-            path: 'billing',
-            component: () => import('../pages/billing/BillingPage.vue'),
+            name: 'material management',
+            path: 'material management',
+            component: () => import('../pages/material/MaterialPage.vue'),
+          },
+          {
+            name: 'process flow chart management',
+            path: 'process flow chart management',
+            component: () => import('../pages/process/processPage.vue'),
+          },
+          {
+            name: 'material management',
+            path: 'material management',
+            component: () => import('../pages/material/MaterialPage.vue'),
           },
           {
             name: 'pricing-plans',
@@ -94,6 +104,16 @@ const routes: Array<RouteRecordRaw> = [
             name: 'equipment-register',
             path: 'equipment-register',
             component: () => import('../pages/equipment/EquipmentForm.vue'),
+            },
+             {
+            name: 'InspectionManagement',
+            path: 'InspectionManagement',
+            component: () => import('../pages/quality/InspectionManager.vue'),
+            },
+                         {
+            name: 'defectManagement',
+            path: 'defectManagement',
+            component: () => import('../pages/quality/defectManager.vue'),
             },
         ],
       },
@@ -108,10 +128,27 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('../pages/users/UsersPage.vue'),
       },
       {
-        name: 'facility',
-        path: 'facility',
-        component: () => import('../pages/projects/ProjectsPage.vue'),
-      },
+      name: 'facility',
+      path: 'facility',
+      component: RouteViewComponent,
+      children: [
+        {
+          name: 'equipment-inquiry',
+          path: 'inquiry',
+          component: () => import('../pages/equipment/EquipmentInquiry.vue'),
+        },
+        {
+          name: 'equipment-management',
+          path: 'management',
+          component: () => import('../pages/equipment/EquipmentManagement.vue'),
+        },
+        {
+          name: 'equipment-edit',
+          path: 'edit/:id',
+          component: () => import('../pages/equipment/EquipmentForm.vue'),
+        },
+      ],
+    },
       {
         name: 'material',
         path: 'material',
@@ -151,6 +188,35 @@ const routes: Array<RouteRecordRaw> = [
             name: 'material-pricing-plans',
             path: 'pricing-plans',
             component: () => import('../pages/pricing-plans/PricingPlans.vue'),
+          },
+        ],
+      },
+      {
+        path: 'account',
+        name: 'account',
+        component: RouteViewComponent,
+        children: [
+          {
+            name: 'account-management',
+            path: 'account-management',
+            component: () => import('../pages/admin/account/AccountManagePage.vue'),
+          },
+        ],
+      },
+      {
+        name: 'order',
+        path: 'order',
+        component: RouteViewComponent,
+        children: [
+          {
+            name: 'order-management',
+            path: 'order-management',
+            component: () => import('../pages/admin/order/OrderManagePage.vue'),
+          },
+          {
+            name: 'order-list',
+            path: 'order-list',
+            component: () => import('../pages/admin/order/OrderListPage.vue'),
           },
         ],
       },
