@@ -25,7 +25,7 @@ const accountInsert =
                           trade_status_yn,
                           reg_date,
                           upd_date )
-    VALUES(?,?,?,?,?,?,?,?,?,?)`
+    VALUES(?,?,?,?,?,?,?,?,?)`
     ;
 
 // 거래처id로 단일 조회

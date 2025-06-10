@@ -23,8 +23,12 @@ const processSelect =
 
 const processUpdate = 
   `UPDATE process
-   SET
-   WHERE`
+   SET    process_name = ?,
+          process_seq = ?,
+          process_time = ?,
+          code_value = ?
+   WHERE  process_code = ?`
+;
 
 const processDELETE =
   `DELETE FROM process
@@ -34,21 +38,30 @@ const processDELETE =
 const processDetail =
   `INSERT INTO process_detail(
                               process_code,
-                              material_code,
                               BOM_code,
+                              material_code,
                               name,
-                              insert_date,
-                              input_qty)
-   VALUES (?, ?, ?, ?, NOW(), ?)`
+                              insert_date)
+   VALUES (?, ?, ?, ? ,NOW())`
 ;
 
 const processDetailSelect =
-  `SELECT material_code,
-          BOM_code,
-          input_qty,
-          name
-   FROM   process_detail
-   WHERE  process_code = ?`
+  `SELECT 
+      pd.material_code,
+      pd.BOM_code,
+      pd.name,
+      bd.usage_qty,
+      m.material_name,
+      m.material_unit
+  FROM process_detail pd
+  JOIN bom_detail bd 
+    ON pd.material_code = bd.material_code
+  JOIN bom_master bm 
+    ON pd.BOM_code = bm.bom_code AND bm.bom_code = bd.bom_code
+  JOIN material m 
+    ON pd.material_code = m.material_code
+  WHERE pd.process_code = ?
+  ORDER BY material_code`
 ;
 
 
@@ -64,5 +77,6 @@ module.exports ={
   processSelect,
   processDetailSelect,
   processDELETE,
-  processDetailDELETE
+  processDetailDELETE,
+  processUpdate
 }

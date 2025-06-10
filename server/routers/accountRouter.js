@@ -33,7 +33,7 @@ router.get('/account/:id', async (req, res) => {
 router.post('/account', async (req, res) => {
   try {
     // req.body에서 값 받기
-    const result = await accountService.create(req.body);
+    const result = await accountService.addAccount(req.body);
     res.json({ success: true, id: result.insertId });
   } catch (err) {
     console.error(err);
@@ -45,7 +45,7 @@ router.post('/account', async (req, res) => {
 router.put('/account/:id', async (req, res) => {
   try {
     const id = req.params.id;
-    const result = await accountService.update(id, req.body);
+    const result = await accountService.updateAccount(id, req.body);
     res.json({ success: true, affectedRows: result.affectedRows });
   } catch (err) {
     console.error(err);
@@ -57,12 +57,26 @@ router.put('/account/:id', async (req, res) => {
 router.delete('/account/:id', async (req, res) => {
   try {
     const id = req.params.id;
-    const result = await accountService.remove(id);
+    const result = await accountService.removeAccount(id);
     res.json({ success: true, affectedRows: result.affectedRows });
   } catch (err) {
     console.error(err);
     res.status(500).send('거래처 삭제 실패');
   }
 });
+
+// 여러 거래처 삭제
+router.post('/account/delete-multiple', async (req, res) => {
+  const { ids } = req.body
+  try {
+    // 서비스 함수에서 ids 배열 받아서 처리
+    const result = await accountService.removeMultiple(ids)
+    res.json({ success: true, affectedRows: result.affectedRows })
+  } catch (err) {
+    console.error(err)
+    res.status(500).send('여러 거래처 삭제 실패')
+  }
+})
+
 
 module.exports = router;

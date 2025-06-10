@@ -99,6 +99,28 @@ getBomDetailFull: `
     ORDER BY material_code ASC;
   `,
 
+  // 공정흐름도 관리 상세정보 추가를 위한 리스트
+  getProcessBomList: `
+    SELECT 
+      bm.bom_code,
+      bm.product_code,
+      p.product_name,
+      p.product_stand,
+      bd.material_code,
+      m.material_name,
+      m.material_unit,
+      bd.usage_qty
+  FROM tablets.bom_master bm
+  JOIN tablets.product p 
+      ON bm.product_code = p.product_code
+  LEFT JOIN tablets.bom_detail bd 
+      ON bm.bom_code = bd.bom_code
+  LEFT JOIN tablets.material m 
+      ON bd.material_code = m.material_code  
+  WHERE p.product_code = ?
+  ORDER BY bm.bom_code DESC;
+  `
+
 };
 
 

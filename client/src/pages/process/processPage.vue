@@ -57,7 +57,9 @@
 
             </td>
             <td>
-              <button class="btn save" @click="openPopup(`${selectedProductCode}Process${index + 1}`)">
+              <button class="btn save" 
+               @click="handlePopupOpen(process.process_code, index)"
+              >
                 상세추가
               </button>
             </td>
@@ -103,7 +105,7 @@
 
               <td>{{ row.material_name }}</td>
               <td>{{ row.material_unit }}</td>
-              <td><input type="number" v-model="row.input_qty" /></td>
+              <td>{{ row.usage_qty }}</td>
               <td><input type="text" v-model="row.responsible" /></td>
             </tr>
           </tbody>
@@ -156,7 +158,7 @@ interface MaterialRow {
   material_name: string
   material_unit: string
   BOM_code: string
-  input_qty: number
+  usage_qty: number
   responsible: string
   selected?: boolean
 }
@@ -165,6 +167,7 @@ interface MaterialOption {
   material_code: string
   material_name: string
   material_unit: string
+  usage_qty: number
 }
 
 const selectedProductCode = ref<string>('')
@@ -175,6 +178,8 @@ const popupVisible = ref(false)
 const popupProcessCode = ref('')
 const materialList = ref<MaterialRow[]>([])
 const materialOptions = ref<MaterialOption[]>([])
+const popupProductCode = ref<string>('')
+const bomCode = ref('')
 
 const fetchProducts = async () => {
   try {
@@ -196,11 +201,13 @@ const fetchEquipmentCodes = async () => {
 
 const fetchMaterials = async () => {
   try {
-    const res = await axios.get('/material')
+    const res = await axios.get(`/bom/processList/${popupProductCode.value}`)
+    
     materialOptions.value = res.data
+    bomCode.value = res.data[0].bom_code
     console.log("자재:",res.data);
   } catch (err) {
-    console.log('❌ 제품 목록 조회 실패:', err)
+    console.log('❌ 자재 목록 조회 실패:', err)
   }
 }
 
@@ -227,7 +234,7 @@ const fetchProcessDetail = async () => {
         process_code: item.process_code || popupProcessCode.value,
         material_code: item.material_code,
         BOM_code: item.BOM_code || '', // 필요 시
-        input_qty: item.input_qty,
+        usage_qty: item.usage_qty,
         responsible: item.name,
         material_name: matched?.material_name || '',
         material_unit: matched?.material_unit || '',
@@ -245,20 +252,18 @@ watch(popupProcessCode, (newCode) => {
   }
 })
 
-
 watch(selectedProductCode, (newCode) => {
   if (newCode) {
     fetchProcess()
   }
 })
 
-
-
 const onMaterialCodeChange = (row: MaterialRow) => {
   const selected = materialOptions.value.find(m => m.material_code === row.material_code)
   if (selected) {
     row.material_name = selected.material_name
     row.material_unit = selected.material_unit
+    row.usage_qty = selected.usage_qty
   }
 }
 
@@ -306,7 +311,7 @@ const addMaterial = () => {
     material_name: '',
     material_unit: '',
     BOM_code: '',
-    input_qty: 0,
+    usage_qty: 0,
     responsible: '',
     selected: false
   })
@@ -329,8 +334,7 @@ const saveMaterial = async (): Promise<void> => {
   const payload = materialList.value.map(p => ({
     process_code: popupProcessCode.value, // 동일한 공정 코드
     material_code: p.material_code,
-    BOM_code: p.BOM_code,
-    input_qty: p.input_qty,
+    BOM_code:  bomCode.value,
     name: p.responsible
   }))
 
@@ -376,14 +380,25 @@ const saveProcesses = async (): Promise<void> => {
 
   try {
     if (insertList.length > 0) {
-      const res = await axios.post('/process', insertList)
+      const res = await axios.post('/process/', insertList)
       if (!res.data.isSuccessed) throw new Error('신규 등록 실패')
     }
 
     if (updateList.length > 0) {
-      const res = await axios.put('/process', updateList)
-      if (!res.data.isSuccessed) throw new Error('수정 실패')
+    for (const payload of updateList) {
+      try {
+        const res = await axios.put(`/process/${payload.process_code}`, [payload])
+        if (!res.data.isSuccessed) {
+          console.warn(`⚠️ 수정 실패: ${payload.process_code}`)
+          continue // 실패한 항목은 건너뛰고 다음으로 진행
+        }
+      } catch (err) {
+        console.error(`❌ 수정 중 오류: ${payload.process_code}`, err)
+        alert(`공정 수정 중 오류 발생: ${payload.process_code}`)
+        continue
+      }
     }
+}
 
     alert('공정 저장 완료!')
     await fetchProcess()
@@ -393,9 +408,21 @@ const saveProcesses = async (): Promise<void> => {
   }
 }
 
-const openPopup = (processCode: string): void => {
+const openPopup = (processCode: string,  productCode: string): void => {
   popupProcessCode.value = processCode
+  popupProductCode.value = productCode
   popupVisible.value = true
+  fetchMaterials()
+}
+
+const handlePopupOpen = (processCode: string, index: number): void => {
+  if (!processCode) {
+    alert('공정을 먼저 저장해야 상세정보를 추가할 수 있습니다.')
+    return
+  }
+
+  const fullCode = `${selectedProductCode.value}Process${index + 1}`
+  openPopup(fullCode, selectedProductCode.value)
 }
 
 onMounted(() => {

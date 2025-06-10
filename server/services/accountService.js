@@ -101,11 +101,25 @@ const removeAccount = async (accountId) => {
   };
 }
 
+// 여러 거래처 삭제
+const removeMultiple = async (ids) => {
+  if (!Array.isArray(ids) || ids.length === 0) return { affectedRows: 0 }
+  let totalAffected = 0
+  for (const id of ids) {
+    const result = await mariadb.query("accountDelete", [id])
+      .catch(err => { console.error(err); return { affectedRows: 0 } })
+    totalAffected += Number(result.affectedRows)
+  }
+  return { affectedRows: totalAffected }
+}
+
+
 // 외부에서 함수로 쓸 수 있게 내보내기
 module.exports = {
   findAll,
   findById,
   addAccount,
   updateAccount,
-  removeAccount
+  removeAccount,
+  removeMultiple
 };

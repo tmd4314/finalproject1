@@ -14,6 +14,17 @@ router.get('/list', async (req, res) => {
   }
 });
 
+// [GET] /bom/list - BOM 전체 목록
+router.get('/processList/:product_code', async (req, res) => {
+  let productCode =req.params.product_code;
+  try {
+    const result = await bomService.findProcessList(productCode);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err });
+  }
+});
+
 // [GET] /bom/detail/:bomCode - BOM 상세 구성
 router.get('/detail/:bomCode', async (req, res) => {
   try {
@@ -78,11 +89,17 @@ router.post('/', async (req, res) => {
 
 // [PUT] /bom - BOM 수정
 router.put('/', async (req, res) => {
-  const { bom_code, product_code, materials } = req.body;
+  const { bom_code, materials, deletedMaterials } = req.body;
 
   try {
-    await bomService.updateBomMaster(bom_code, { product_code });
+    // 1. 삭제할 자재들 먼저 처리
+    if (deletedMaterials && deletedMaterials.length > 0) {
+      for (const deletedMat of deletedMaterials) {
+        await bomService.removeBomDetail(deletedMat.bom_code, deletedMat.material_code);
+      }
+    }
 
+    // 2. 기존 자재들 업데이트/추가
     for (const item of materials) {
       const detailInfo = {
         bom_code,
@@ -93,16 +110,15 @@ router.put('/', async (req, res) => {
 
       if (item.status === 'new') {
         await bomService.addBomDetail(detailInfo);
-      } else if (item.status === 'modified') {
+      } else if (item.status === 'existing') {
         await bomService.updateBomDetail(detailInfo);
-      } else if (item.status === 'deleted') {
-        await bomService.removeBomDetail(bom_code, item.material_code);
       }
     }
 
     res.json({ message: 'BOM 수정 완료' });
   } catch (err) {
-    res.status(500).json({ error: err });
+    console.error('BOM 수정 오류:', err);
+    res.status(500).json({ error: err.message });
   }
 });
 
