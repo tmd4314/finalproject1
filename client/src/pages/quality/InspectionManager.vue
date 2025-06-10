@@ -39,7 +39,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="(item, index) in inspectionList" :key="index" @click="selectItem(item)">
+            <tr v-for="(item, index) in inspectionList" :key="item.insp_code" @click="selectItem(item)">
               <td>{{ item.item_type }}</td>
               <td>{{ item.insp_code }}</td>
               <td>{{ item.insp_name }}</td>
@@ -110,8 +110,26 @@ function resetForm() {
   }
 }
 
-function registerProduct() {
-  alert ('등록 기능은 아직 구현되지 않았습니다.')
+const registerProduct = async() => {
+  try {
+    const newInspection = {
+      item_type: form.value.type,
+      insp_code: form.value.itemCode,
+      insp_name: form.value.itemName,
+      insp_stad_val: form.value.basicFigure,
+      insp_unit: form.value.unit,
+      insp_judt_type: form.value.judgment,
+      insp_remark: form.value.supplementary
+    };
+    const response = await axios.post('/inspections/insert', newInspection);
+    alert('검사항목 등록 성공!');
+
+    await fetchInspectionList();
+    resetForm();
+  } catch (err) {
+    console.err('검사항목 등록 실패:', err);
+    alert('검사항목 등록 실패');
+  }
 }
 
 function updateProduct() {
