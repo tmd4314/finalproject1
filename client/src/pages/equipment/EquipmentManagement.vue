@@ -59,6 +59,7 @@
           v-model="selectedRows"
           :items="filteredEquipments"
           :columns="columns"
+          item-key="eq_id"
           selectable
           select-mode="multiple"
           sticky-header
@@ -138,7 +139,7 @@ const filteredEquipments = computed(() =>
   })
 )
 
-const resetSearch = () => {
+const resetSearch = async () => {
   searchParams.value = {
     equipmentCode: '',
     equipmentName: '',
@@ -146,6 +147,7 @@ const resetSearch = () => {
     status: ''
   }
   selectedRows.value = []
+  await loadEquipments()
 }
 
 const handleEdit = async () => {
@@ -153,26 +155,15 @@ const handleEdit = async () => {
     alert('수정할 설비 1개를 선택해주세요.')
     return
   }
+
   const id = selectedRows.value[0].eq_id
-  try {
-    const res = await axios.get(`/equipments/${id}`)
-    if (res.data.isSuccessed) {
-      const data = res.data.data
-      router.push({
-        path: '/settings/equipment-register',
-        query: {
-          mode: 'edit',
-          eq_id: data.eq_id,
-          data: encodeURIComponent(JSON.stringify(data))
-        }
-      })
-    } else {
-      alert('설비 정보를 불러올 수 없습니다.')
+  router.push({
+    path: '/settings/equipment-register',
+    query: {
+      mode: 'edit',
+      eq_id: id
     }
-  } catch (err) {
-    console.error(err)
-    alert('설비 정보 요청 실패')
-  }
+  })
 }
 
 const handleDelete = async () => {
@@ -204,7 +195,10 @@ const loadCommonCodes = async () => {
 const loadEquipments = async () => {
   const res = await axios.get('/equipments')
   if (res.data.isSuccessed) {
-    equipments.value = res.data.data
+    equipments.value = res.data.data.map(eq => ({
+      ...eq,
+      eq_id: eq.eq_id?.toString()
+    }))
   }
 }
 
