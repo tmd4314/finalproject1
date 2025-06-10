@@ -27,24 +27,53 @@ router.get('/:bomCode', async (req, res) => {
 // BOM 신규 등록
 router.post('/', async (req, res) => {
   try {
-    const bomData = req.body;
-    await bomService.saveBom(bomData);
-    res.status(201).json({ message: 'BOM이 저장되었습니다.' });
+    const { bom_code, product_code, materials } = req.body;
+
+    const result = await bomService.addBom(
+      { bom_code, product_code },
+      materials.map(m => ({
+        material_code: m.material_code,
+        usage_qty: m.usage,
+        bom_unit: m.material_unit || '' // 단위가 없으면 빈 문자열
+      }))
+    );
+
+    if (result.isSuccessed) {
+      res.status(201).json({ message: 'BOM이 저장되었습니다.' });
+    } else {
+      res.status(500).json({ message: 'BOM 저장 실패', error: result.message });
+    }
   } catch (err) {
     console.error('BOM 저장 실패:', err);
-    res.status(500).json({ message: 'BOM 저장 실패', error: err.message });
+    res.status(500).json({ message: 'BOM 저장 중 서버 오류', error: err.message });
   }
 });
+
+
 // BOM 수정
 router.put('/:bomCode', async (req, res) => {
   try {
     const { bomCode } = req.params;
-    const bomData = req.body;
-    await bomService.updateBom(bomCode, bomData);
-    res.json({ message: 'BOM이 수정되었습니다.' });
+    const { product_code, materials } = req.body;
+
+    const result = await bomService.updateBom(
+      bomCode,
+      { product_code },
+      materials.map(m => ({
+        material_code: m.material_code,
+        usage_qty: m.usage,
+        bom_unit: m.material_unit || ''
+      }))
+    );
+
+    if (result.isUpdated) {
+      res.json({ message: 'BOM이 수정되었습니다.' });
+    } else {
+      res.status(500).json({ message: 'BOM 수정 실패', error: result.message });
+    }
   } catch (err) {
     console.error('BOM 수정 실패:', err);
-    res.status(500).json({ message: 'BOM 수정 실패', error: err.message });
+    res.status(500).json({ message: 'BOM 수정 중 서버 오류', error: err.message });
   }
 });
 
