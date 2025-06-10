@@ -587,7 +587,7 @@ async function fetchProducts() {
 
 async function fetchCustomers() {
   try {
-    const response = await axios.get('/api/customers')
+    const response = await axios.get('/api/account')
     customers.value = response.data
   } catch (error) {
     console.error('거래처 목록 로드 실패:', error)
