@@ -16,6 +16,8 @@ const proxyPaths = [
   'processDetail',
   'inspections',
   'api',
+  'lines',
+  'packages',
   'account',
   'order'
 ]
