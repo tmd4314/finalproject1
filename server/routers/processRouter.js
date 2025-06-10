@@ -5,11 +5,19 @@ const router =express.Router();
 const processService =require('../services/processService.js');
  // 라우팅  = 사용자의 요청(URL+METHOD) + Service + 응답형태(View or Data)
 
-//  router.get('/process', async(req, res)=>{
-//   let materialList = await materialService.findAll()
-//                                         .catch(err => console.log(err));
-//   res.send(materialList);
-//  });
+ router.get('/process/:product_code', async(req, res)=>{
+  const productCode = req.params.product_code;
+  let processList = await processService.findProcess(productCode)
+                                        .catch(err => console.log(err));
+  res.send(processList);
+ });
+
+  router.get('/processDetail/:process_code', async(req, res)=>{
+  const processCode = req.params.process_code;
+  let processDetailList = await processService.findProcessDetail(processCode)
+                                        .catch(err => console.log(err));
+  res.send(processDetailList);
+ });
 
 router.post('/process', async (req, res) => {
   try {
@@ -35,6 +43,25 @@ router.post('/process/:process_code', async (req, res) => {
     res.status(500).send({ isSuccessed: false, message: '서버 오류' });
   }
 });
+
+// 삭제    : 자원(데이터) -> product / 삭제 -> DELETE
+ router.delete('/process/:process_code', async(req, res)=>{
+    let processCode =req.params.process_code;
+    let resInfo =await processService.removeProcessInfo(processCode)
+                                     .catch(err =>console.log(err));
+    res.send(resInfo);
+ })
+
+ // 삭제    : 자원(데이터) -> product / 삭제 -> DELETE
+ router.delete('/processDetail/:material_code/:process_code', async(req, res)=>{
+    let materialCode = req.params.material_code;
+    let processCode = req.params.process_code;
+    let resInfo =await processService.removeProcessDetailInfo(materialCode, processCode)
+                                     .catch(err =>console.log(err));
+    res.send(resInfo);
+ })
+
+
 
   
 // 실제 라우팅 등록 영역
