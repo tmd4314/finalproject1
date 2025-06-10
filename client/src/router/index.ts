@@ -108,7 +108,7 @@ const routes: Array<RouteRecordRaw> = [
              {
             name: 'InspectionManagement',
             path: 'InspectionManagement',
-            component: () => import('../pages/quality/Page.vue'),
+            component: () => import('../pages/quality/InspectionManager.vue'),
             },
         ],
       },
