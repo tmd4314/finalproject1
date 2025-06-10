@@ -8,6 +8,12 @@ const findAllBomList = async () => {
   return await mariadb.query('getBomList').catch(err => console.error(err));
 };
 
+// BOM process 목록 조회
+const findProcessList = async (productCode) => {
+  return await mariadb.query('getProcessBomList', productCode).catch(err => console.error(err));
+};
+
+
 // BOM 상세 구성 조회
 const findBomDetailFull = async (bomCode) => {
   return await mariadb.query('getBomDetailFull', [bomCode]).catch(err => console.error(err));
@@ -73,4 +79,5 @@ module.exports = {
   removeBomDetail,
   getProductList,
   getMaterialList,
+  findProcessList
 };

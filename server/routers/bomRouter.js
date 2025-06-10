@@ -14,6 +14,17 @@ router.get('/list', async (req, res) => {
   }
 });
 
+// [GET] /bom/list - BOM 전체 목록
+router.get('/processList/:product_code', async (req, res) => {
+  let productCode =req.params.product_code;
+  try {
+    const result = await bomService.findProcessList(productCode);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err });
+  }
+});
+
 // [GET] /bom/detail/:bomCode - BOM 상세 구성
 router.get('/detail/:bomCode', async (req, res) => {
   try {
