@@ -7,6 +7,7 @@ const inspection = require('./sqls/inspection.js');
 const processFlowChart = require('./sqls/processFlowChart.js');
 const line = require('./sqls/line.js');
 const bom = require('./sqls/bom.js');
+const package =  require('./sqls/package.js');
 const account = require('./sqls/account.js');
 
 
@@ -22,6 +23,8 @@ const account = require('./sqls/account.js');
      ...processFlowChart,
      ...line,
      ...inspection,
+    ...processFlowChart,
+    ...package,
      ...processFlowChart,
      ...account
  }

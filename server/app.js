@@ -43,7 +43,7 @@ const lineRouter = require('./routers/lineRouter.js')
 
 const inspectionRouter = require('./routers/inspectionRouter.js');
 
-
+const packageRouter = require('./routers/packageRouter.js');
 
  // 기본 라우팅
 app.get('/', (req, res)=>{
@@ -70,7 +70,11 @@ app.use('/equipments', equipmentRouter);
 app.use('/common-codes', commonCodeRouter);
 app.use('/img', express.static('../client/public/img'));
 
+//현석
+app.use('/lines', lineRouter);
+app.use('/packages', packageRouter);
 
 
 //현기
 app.use('/inspections', inspectionRouter);
+
