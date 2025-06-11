@@ -83,4 +83,4 @@ app.use('/packages', packageRouter);
 
 //현기
 app.use('/inspections', inspectionRouter);
-
+app.use('/defects', defectRouter);
