@@ -1,5 +1,5 @@
-<!-- <template>
-   <div class="equipment-inquiry-page">
+<template>
+   <!-- <div class="equipment-inquiry-page">
     <h1 class="va-h3 mb-6">설비 점검</h1>
 
     검색 영역
@@ -62,9 +62,9 @@
           </VaButton>
         </div>
       </VaCardContent>
-    </VaCard>
+    </VaCard> -->
 
 </template>
 
 <script setup lang="ts">
-</script> -->
+</script>

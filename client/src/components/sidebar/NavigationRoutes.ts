@@ -20,15 +20,15 @@ export default {
       children: [
         {
           name: 'order-list',
-          displayName: 'menu.주문 조회',
+          displayName: '주문 조회',
         },
         {
           name: 'order-management',
-          displayName: 'menu.주문 관리',
+          displayName: '주문 관리',
         },
       ],
     },
-    {
+       {
     name: 'facility',
     displayName: 'menu.설비',
     meta: {
@@ -63,46 +63,22 @@ export default {
       name: 'material',
       displayName: 'menu.자재',
       meta: {
-        icon: 'credit_card',
+        icon: 'credit_card'
       },
       children: [
         {
-          name: 'material-check',
-          displayName: 'menu.자재 조회',
-        },
-        {
-          name: 'mrp-calculation',
-          displayName: 'menu.MRP 계산',
-        },
-        {
           name: 'receiving-management',
-          displayName: 'menu.입고 관리',
+          displayName: 'menu.입고 관리'
         },
         {
           name: 'receiving-check',
-          displayName: 'menu.입고 조회',
-        },
-        {
-          name: 'order-management',
-          displayName: 'menu.발주 관리',
-        },
-        {
-          name: 'order-check',
-          displayName: 'menu.발주 조회',
-        },
-        {
-          name: 'delivery-management',
-          displayName: 'menu.출고 관리',
-        },
-        {
-          name: 'delivery-check',
-          displayName: 'menu.출고 조회',
+          displayName: 'menu.입고 조회'
         },
       ],
     },
     {
-      name: 'login',
-      displayName: 'menu.로그인',
+      name: 'production',
+      displayName: 'menu.생산',
       meta: {
         icon: 'login',
       },
@@ -122,23 +98,6 @@ export default {
       ],
     },
     {
-      name: 'production',
-      displayName: 'menu.생산',
-      meta: {
-        icon: 'login',
-      },
-      children: [
-        {
-          name: 'work_order_manager',
-          displayName: 'menu.작업지시 관리',
-        },
-        {
-          name: 'work_order_check',
-          displayName: 'menu.작업지시 조회',
-        },
-      ],
-    },
-    {
       name: 'packaging',                  
       displayName: 'menu.포장',
       meta: {
@@ -147,15 +106,15 @@ export default {
       children: [
         {
           name: 'package_line',     
-          displayName: 'menu.포장 라인 선택/조회',
+          displayName: '포장 라인 선택/조회',
         },
         {
           name: 'package_work',   
-          displayName: 'menu.포장 작업 수행',
+          displayName: '포장 작업 수행',
         },
         {
           name: 'package_status',         
-          displayName: 'menu.포장 작업 현황',
+          displayName: '포장 작업 현황',
         },
       ],
     },
@@ -225,16 +184,16 @@ export default {
           displayName: 'menu.설비 등록',
         },
         {
-          name: 'bom-manager',
-          displayName: 'menu.BOM 관리',
-        },
-        {
           name: 'account-management',
           displayName: 'menu.거래처 관리',
         },
+        // {
+        //   name: 'staff-management',
+        //   displayName: 'menu.사원 관리',
+        // },
         {
-          name: 'staff-management',
-          displayName: 'menu.사원 관리',
+          name: 'bom-manager',
+          displayName: 'menu.BOM 관리',
         },
         {
           name: 'InspectionManagement',
