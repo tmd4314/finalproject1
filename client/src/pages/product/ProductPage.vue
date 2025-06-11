@@ -48,7 +48,6 @@
           <va-input v-model="form.product_gred" label="주요성분" />
           <va-input v-model="form.product_stand" label="규격" />
           <va-input v-model="form.product_perdt" label="허가일" type="date" />
-          <va-input v-model="form.product_pt" label="포장 유형" />
           <va-input v-model="form.product_unit" label="단위" />
           <va-input v-model="form.product_safty" label="안전재고" />
 
@@ -76,7 +75,6 @@ interface Product {
   product_gred: string
   product_stand: string
   product_perdt: string
-  product_pt: string
   product_unit: string
   product_safty: string
   product_img: string
@@ -126,7 +124,6 @@ const form = ref({
   product_gred: '',
   product_stand: '',
   product_perdt: '',
-  product_pt: '',
   product_unit: '',
   product_safty: '',
   product_img: '', // 이미지 이름 저장
@@ -138,7 +135,7 @@ const imageFile = ref<File | null>(null);
 function resetForm() {
   form.value = {
     product_code: '', product_name: '', product_pay: '', product_atc: '', product_gred: '', product_stand: '',
-    product_perdt: '', product_pt: '', product_unit: '', product_safty: '', product_img: ''
+    product_perdt: '', product_unit: '', product_safty: '', product_img: ''
   };
   previewImage.value = null;
   imageFile.value = null;

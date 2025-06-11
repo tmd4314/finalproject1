@@ -47,7 +47,9 @@ const packageRouter = require('./routers/packageRouter.js');
 
 const accountRouter = require('./routers/accountRouter.js');
 
-const defectRouter = require('./routers/defectRouter.js')
+const defectRouter = require('./routers/defectRouter.js');
+
+const materialLotRouter = require('./routers/materialLotRouter.js')
 
  // 기본 라우팅
 app.get('/', (req, res)=>{
@@ -67,11 +69,11 @@ app.use('/', accountRouter);
 app.use('/api/lines', lineRouter);
 //다산
 app.use('/bom', bomRouter);
- //라우터 모듈 등록
+ //승민
 app.use('/', productRouter);
-
 app.use('/', materialRouter);
 app.use('/', processRouter);
+app.use('/', materialLotRouter);
 
 //열림
 app.use('/equipments', equipmentRouter);

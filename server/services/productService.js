@@ -8,7 +8,7 @@ const findAll = async() => {
 }
 
 const addProduct = async(ProductInfo) => {
-  let insertColums = ['product_code', 'product_name', 'product_pay', 'product_atc', 'product_gred', 'product_unit', 'product_stand', 'product_pt', 'product_perdt', 'product_safty','product_img'];
+  let insertColums = ['product_code', 'product_name', 'product_pay', 'product_atc', 'product_gred', 'product_unit', 'product_stand', 'product_perdt', 'product_safty','product_img'];
   let data = convertObjToAry(ProductInfo, insertColums);
 
   let resInfo = await mariadb.query("productInsert", data)
@@ -42,8 +42,7 @@ if (!resInfo) {
 const updateProductInfo = async(productCode, ProductInfo) => {
   const updateColumns = [
     'product_name', 'product_pay', 'product_atc', 'product_gred',
-    'product_unit', 'product_stand', 'product_pt',
-    'product_perdt', 'product_safty', 'product_img'
+    'product_unit', 'product_stand', 'product_perdt', 'product_safty', 'product_img'
   ];
 
   const values = convertObjToAry(ProductInfo, updateColumns);
