@@ -1,6 +1,5 @@
-// server/services/packageService.js
-const db = require('../database/mapper'); // 기존 방식 사용
-const packageSQL = require('../database/sqls/package');
+// services/packageService.js (기존 mapper 구조 사용)
+const db = require('../database/mapper'); // 기존 mapper 사용
 
 // BigInt를 Number로 안전하게 변환
 function convertBigIntToNumber(obj) {
@@ -25,6 +24,77 @@ function convertBigIntToNumber(obj) {
   return obj;
 }
 
+// 🔥 작업번호 목록 조회 (포장 작업 수행 페이지용)
+const getWorkList = async () => {
+  try {
+    console.log('=== 작업번호 목록 조회 시작 ===');
+    console.log('SQL alias: selectWorkList');
+    
+    const list = await db.query('selectWorkList');
+    
+    console.log('작업번호 목록 조회 성공:', list.length, '건');
+    if (list.length > 0) {
+      console.log('첫 번째 작업:', JSON.stringify(list[0], null, 2));
+    } else {
+      console.log('⚠️ 대기 중인 작업이 없습니다.');
+    }
+    
+    return convertBigIntToNumber(list);
+  } catch (error) {
+    console.error('=== 작업번호 목록 조회 에러 ===');
+    console.error('에러 객체:', error);
+    console.error('에러 메시지:', error.message || error.err?.message);
+    
+    if (error.err) {
+      throw new Error('작업번호 조회 실패: ' + (error.err.message || error.err));
+    } else {
+      throw new Error('작업번호 조회 실패: ' + error.message);
+    }
+  }
+};
+
+// 🔥 진행 중인 작업 목록 조회
+const getActiveWorks = async () => {
+  try {
+    console.log('=== 진행 중인 작업 목록 조회 시작 ===');
+    
+    const list = await db.query('selectActiveWorks');
+    
+    console.log('진행 중인 작업 조회 성공:', list.length, '건');
+    return convertBigIntToNumber(list);
+  } catch (error) {
+    console.error('=== 진행 중인 작업 조회 에러 ===');
+    console.error('에러 메시지:', error.message || error.err?.message);
+    
+    if (error.err) {
+      throw new Error('진행 중인 작업 조회 실패: ' + (error.err.message || error.err));
+    } else {
+      throw new Error('진행 중인 작업 조회 실패: ' + error.message);
+    }
+  }
+};
+
+// 🔥 작업번호 선택 옵션 조회 (셀렉트박스용)
+const getWorkOptions = async () => {
+  try {
+    console.log('=== 작업번호 옵션 조회 시작 ===');
+    
+    const list = await db.query('selectWorkOptions');
+    
+    console.log('작업번호 옵션 조회 성공:', list.length, '건');
+    return convertBigIntToNumber(list);
+  } catch (error) {
+    console.error('=== 작업번호 옵션 조회 에러 ===');
+    console.error('에러 메시지:', error.message || error.err?.message);
+    
+    if (error.err) {
+      throw new Error('작업번호 옵션 조회 실패: ' + (error.err.message || error.err));
+    } else {
+      throw new Error('작업번호 옵션 조회 실패: ' + error.message);
+    }
+  }
+};
+
 // 🔥 작업 등록
 const createWork = async (workData) => {
   try {
@@ -40,9 +110,12 @@ const createWork = async (workData) => {
       employee_name
     } = workData;
 
+    console.log('=== 작업 등록 시작 ===');
+    console.log('작업 데이터:', workData);
+
     // 필수 데이터 검증
     if (!work_no || !input_qty || !employee_no) {
-      throw new Error('필수 데이터가 누락되었습니다.');
+      throw new Error('필수 데이터가 누락되었습니다. (작업번호, 투입수량, 작업자번호)');
     }
 
     if (input_qty <= 0) {
@@ -50,13 +123,13 @@ const createWork = async (workData) => {
     }
 
     // 중복 작업번호 확인
-    const existCheck = await db.query(packageSQL.checkWorkExists, [work_no]);
+    const existCheck = await db.query('checkWorkExists', [work_no]);
     if (existCheck[0].count > 0) {
       throw new Error('이미 존재하는 작업번호입니다.');
     }
 
     // 작업 등록
-    const result = await db.query(packageSQL.insertWork, [
+    const result = await db.query('insertWork', [
       work_no,
       line_id || 'LINE001',
       work_line || '포장라인',
@@ -67,6 +140,8 @@ const createWork = async (workData) => {
       employee_no,
       employee_name || '작업자'
     ]);
+
+    console.log('작업 등록 성공:', result.insertId);
 
     // 예상 결과 계산 (95% 수율 가정)
     const expectedOutput = Math.floor(input_qty * 0.95);
@@ -94,10 +169,8 @@ const getWorkDetail = async (work_no) => {
     }
 
     console.log(`=== 작업 상세 조회: ${work_no} ===`);
-    console.log('SQL 실행:', packageSQL.selectWorkDetail);
-    console.log('매개변수:', [work_no]);
 
-    const result = await db.query(packageSQL.selectWorkDetail, [work_no]);
+    const result = await db.query('selectWorkDetail', [work_no]);
 
     console.log(`조회 결과: ${result.length}건`);
 
@@ -123,6 +196,8 @@ const startWork = async (work_no) => {
       throw new Error('작업번호가 필요합니다.');
     }
 
+    console.log(`=== 작업 시작: ${work_no} ===`);
+
     // 현재 작업 상태 확인
     const currentWork = await getWorkDetail(work_no);
     if (!currentWork) {
@@ -133,11 +208,13 @@ const startWork = async (work_no) => {
       throw new Error(`작업 상태가 '준비'가 아닙니다. 현재 상태: ${currentWork.step_status}`);
     }
 
-    const result = await db.query(packageSQL.startWork, [work_no]);
+    const result = await db.query('startWork', [work_no]);
 
     if (result.affectedRows === 0) {
       throw new Error('작업 시작에 실패했습니다.');
     }
+
+    console.log('작업 시작 성공');
 
     return {
       work_no,
@@ -154,10 +231,10 @@ const startWork = async (work_no) => {
 // 🔥 작업 진행률 업데이트
 const updateWorkProgress = async (work_no, progressData) => {
   try {
-    const {
-      output_qty,
-      step_status
-    } = progressData;
+    const { output_qty, step_status } = progressData;
+
+    console.log(`=== 작업 진행률 업데이트: ${work_no} ===`);
+    console.log('진행률 데이터:', progressData);
 
     if (!work_no) {
       throw new Error('작업번호가 필요합니다.');
@@ -191,7 +268,7 @@ const updateWorkProgress = async (work_no, progressData) => {
       finalStatus = 'DELAYED';
     }
 
-    const result = await db.query(packageSQL.updateWorkProgress, [
+    const result = await db.query('updateWorkProgress', [
       parseInt(output_qty),
       finalStatus,
       work_no
@@ -200,6 +277,8 @@ const updateWorkProgress = async (work_no, progressData) => {
     if (result.affectedRows === 0) {
       throw new Error('작업 진행률 업데이트에 실패했습니다.');
     }
+
+    console.log('작업 진행률 업데이트 성공');
 
     return {
       work_no,
@@ -222,6 +301,8 @@ const completeWork = async (work_no, completionData = {}) => {
     if (!work_no) {
       throw new Error('작업번호가 필요합니다.');
     }
+
+    console.log(`=== 작업 완료: ${work_no} ===`);
 
     // 현재 작업 정보 조회
     const currentWork = await getWorkDetail(work_no);
@@ -251,7 +332,7 @@ const completeWork = async (work_no, completionData = {}) => {
       Math.round((finalOutputQty / currentWork.input_qty) * 100 * 10) / 10 :
       0;
 
-    const result = await db.query(packageSQL.completeWork, [
+    const result = await db.query('completeWork', [
       parseInt(finalOutputQty),
       work_no
     ]);
@@ -259,6 +340,8 @@ const completeWork = async (work_no, completionData = {}) => {
     if (result.affectedRows === 0) {
       throw new Error('작업 완료 처리에 실패했습니다.');
     }
+
+    console.log('작업 완료 성공');
 
     return {
       work_no,
@@ -283,11 +366,15 @@ const pauseWork = async (work_no) => {
       throw new Error('작업번호가 필요합니다.');
     }
 
-    const result = await db.query(packageSQL.pauseWork, [work_no]);
+    console.log(`=== 작업 일시정지: ${work_no} ===`);
+
+    const result = await db.query('pauseWork', [work_no]);
 
     if (result.affectedRows === 0) {
       throw new Error('진행 중인 작업을 찾을 수 없습니다.');
     }
+
+    console.log('작업 일시정지 성공');
 
     return {
       work_no,
@@ -308,11 +395,15 @@ const resumeWork = async (work_no) => {
       throw new Error('작업번호가 필요합니다.');
     }
 
-    const result = await db.query(packageSQL.resumeWork, [work_no]);
+    console.log(`=== 작업 재시작: ${work_no} ===`);
+
+    const result = await db.query('resumeWork', [work_no]);
 
     if (result.affectedRows === 0) {
       throw new Error('일시정지된 작업을 찾을 수 없습니다.');
     }
+
+    console.log('작업 재시작 성공');
 
     return {
       work_no,
@@ -329,7 +420,7 @@ const resumeWork = async (work_no) => {
 // 🔥 작업 존재 확인
 const checkWorkExists = async (work_no) => {
   try {
-    const result = await db.query(packageSQL.checkWorkExists, [work_no]);
+    const result = await db.query('checkWorkExists', [work_no]);
     return result[0].count > 0;
   } catch (error) {
     console.error('작업 존재 확인 서비스 오류:', error);
@@ -338,12 +429,18 @@ const checkWorkExists = async (work_no) => {
 };
 
 module.exports = {
-  createWork,
-  getWorkDetail,
-  startWork,
-  updateWorkProgress,
-  completeWork,
-  pauseWork,
-  resumeWork,
-  checkWorkExists
+  // 작업번호 조회 관련
+  getWorkList,        // 전체 작업번호 목록
+  getActiveWorks,     // 진행 중인 작업 목록
+  getWorkOptions,     // 작업번호 선택 옵션
+  
+  // 작업 관리 관련
+  createWork,         // 작업 등록
+  getWorkDetail,      // 작업 상세 조회
+  startWork,          // 작업 시작
+  updateWorkProgress, // 작업 진행률 업데이트
+  completeWork,       // 작업 완료
+  pauseWork,          // 작업 일시정지
+  resumeWork,         // 작업 재시작
+  checkWorkExists     // 작업 존재 확인
 };

@@ -42,14 +42,22 @@
             <div class="control-section">
               <div class="control-row">
                 <div class="control-group">
-                  <label class="control-label">작업번호</label>
-                  <input 
+                  <label class="control-label">작업번호 선택</label>
+                  <select 
                     v-model="selectedWorkOrder" 
-                    type="text" 
-                    class="control-input" 
-                    placeholder="작업번호를 입력하세요"
+                    @change="onWorkOrderChange"
+                    class="control-select" 
                     :disabled="isWorking"
                   >
+                    <option value="">작업을 선택하세요</option>
+                    <option 
+                      v-for="work in availableWorkOrders" 
+                      :key="work.work_no" 
+                      :value="work.work_no"
+                    >
+                      {{ work.work_no }} - {{ work.step_name }} ({{ getWorkStatusText(work.step_status || 'READY') }} {{ work.progress_rate }}%)
+                    </option>
+                  </select>
                 </div>
                 <div class="control-group">
                   <label class="control-label">투입수량</label>
@@ -61,17 +69,30 @@
                     :disabled="!selectedWorkOrder || isWorking"
                   >
                 </div>
+                <div class="control-group">
+                  <label class="control-label">생산속도 (개/초)</label>
+                  <select 
+                    v-model.number="productionSettings.productionSpeed" 
+                    class="control-select" 
+                    :disabled="isWorking"
+                  >
+                    <option value="5">느림 (5개/초)</option>
+                    <option value="10">보통 (10개/초)</option>
+                    <option value="20">빠름 (20개/초)</option>
+                    <option value="50">매우빠름 (50개/초)</option>
+                  </select>
+                </div>
               </div>
             </div>
             <!-- 작업 버튼들 -->
             <div class="control-buttons">
               <button 
-                @click="startWork" 
-                :disabled="!canStartWork"
+                @click="handleWorkButton" 
+                :disabled="!canStartWork && !isWorking && workStatus !== 'PAUSED'"
                 class="btn-primary"
-                :class="{ disabled: !canStartWork }"
+                :class="{ disabled: !canStartWork && !isWorking && workStatus !== 'PAUSED' }"
               >
-                {{ isWorking ? '⏸ 작업 일시정지' : '▶ 작업 시작' }}
+                {{ getWorkButtonText() }}
               </button>
               <button 
                 @click="completeProduction" 
@@ -109,7 +130,7 @@
                   <span class="card-title">생산수량</span>
                   <span class="card-icon">⚙️</span>
                 </div>
-                <div class="card-value">{{ formatNumber(currentWork.input_qty) }}</div>
+                <div class="card-value">{{ formatNumber(productionSettings.currentProgress) }}</div>
                 <div class="card-unit">개</div>
               </div>
               <div class="progress-card success">
@@ -256,19 +277,23 @@
               </div>
             </div>
           </div>
-          <p class="confirmation-text">{{ workInfo.lineType === 'INNER' ? '내포장' : '외포장' }} 작업을 완료하시겠습니까?</p>
+          <p class="confirmation-text">
+            {{ workInfo.lineType === 'INNER' ? '내포장' : '외포장' }} 작업을 완료하시겠습니까?
+          </p>
           <div class="next-step-info">
             <p v-if="workInfo.lineType === 'INNER'" class="next-step-text">
-              💡 내포장 완료 후 외포장 작업을 진행할 수 있습니다.
+              ✅ 내포장 완료 후 외포장 라인을 선택하여 외포장 작업을 진행할 수 있습니다.
             </p>
             <p v-else class="next-step-text">
-              🎉 모든 포장 작업이 완료됩니다!
+              🎉 외포장 완료로 모든 포장 작업이 완료됩니다!
             </p>
           </div>
         </div>
         <div class="modal-actions">
           <button @click="closeCompleteModal" class="btn-cancel">취소</button>
-          <button @click="confirmCompleteWork" class="btn-confirm">작업 완료</button>
+          <button @click="confirmCompleteWork" class="btn-confirm">
+            {{ workInfo.lineType === 'INNER' ? '내포장 완료 → 외포장 진행' : '외포장 완료' }}
+          </button>
         </div>
       </div>
     </div>
@@ -294,16 +319,16 @@ axios.defaults.headers.common['Content-Type'] = 'application/json'
 const router = useRouter()
 const route = useRoute()
 const workInfo = ref({
-  lineId: route.query.line_id || '',
-  lineName: route.query.line_name || '',
+  lineId: route.query.line_id || '1',
+  lineName: route.query.line_name || 'A라인 내포장',
   lineType: route.query.line_type || 'INNER',
   returnTo: route.query.return_to || '',
   currentPackageType: route.query.current_package_type || ''
 })
 
-// API 기본 설정
+// 🔥 수정된 API 기본 설정 (백엔드 구조에 맞게)
 const PACKAGES_API_URL = 'http://localhost:3000/packages'
-const LINES_API_URL = 'http://localhost:3000/lines'
+const LINES_API_URL = 'http://localhost:3000/api/lines'
 
 // 로딩 상태
 const loading = ref(false)
@@ -315,9 +340,10 @@ const isWorking = ref(false)
 const workStartTime = ref(null)
 const workElapsedTime = ref('00:00:00')
 
-// 작업 선택 (단순화)
+// 🔥 수정: 작업 선택 (셀렉트박스용)
 const selectedWorkOrder = ref('')
 const inputQuantity = ref(500)
+const availableWorkOrders = ref([]) // 작업번호 목록
 
 // 현재 작업 정보
 const currentWork = ref({
@@ -343,15 +369,100 @@ const showCompleteModal = ref(false)
 
 // 타이머
 let workTimer = null
+let productionTimer = null
+
+// 🔥 생산 시뮬레이션 설정
+const productionSettings = ref({
+  productionSpeed: 10, // 초당 생산량
+  defectRate: 0.02, // 2% 불량률
+  targetQty: 0, // 목표 생산량
+  currentProgress: 0 // 현재 진행 수량
+})
 
 // 계산된 값들
 const canStartWork = computed(() => {
   return selectedWorkOrder.value && inputQuantity.value > 0 && !isWorking.value
 })
 
-// 컴포넌트 마운트 (안전한 방식)
+// 🔥 새로 추가: 데이터 계산 헬퍼 함수들
+function calculatePassRate(outputQty, inputQty) {
+  if (!inputQty || inputQty === 0) return 0
+  return Math.round((outputQty / inputQty) * 100)
+}
+
+function calculateDefectRate(defectQty, inputQty) {
+  if (!inputQty || inputQty === 0) return 0
+  return Math.round((defectQty / inputQty) * 100)
+}
+
+// 🔥 수정된 상태 업데이트 함수 (한글 상태값 지원)
+function updateWorkStatusFromData(workData) {
+  switch (workData.step_status) {
+    case '진행중':
+    case 'IN_PROGRESS':
+      workStatus.value = 'WORKING'
+      isWorking.value = true
+      if (workData.start_time) {
+        workStartTime.value = new Date(workData.start_time)
+        startWorkTimer()
+      }
+      // 🔥 진행중 상태일 때 자동으로 생산 시뮬레이션 시작
+      setTimeout(() => {
+        if (isWorking.value && !productionTimer) {
+          startProductionSimulation()
+          addLog('기존 진행 중인 작업의 생산을 재개합니다.', 'info')
+        }
+      }, 1000)
+      break
+    case '완료':
+    case 'COMPLETED':
+      workStatus.value = 'COMPLETED'
+      isWorking.value = false
+      if (productionTimer) {
+        clearInterval(productionTimer)
+        productionTimer = null
+      }
+      break
+    case '일시정지':
+    case 'PAUSED':
+      workStatus.value = 'PAUSED'
+      isWorking.value = false
+      if (productionTimer) {
+        clearInterval(productionTimer)
+        productionTimer = null
+      }
+      break
+    case '준비':
+    case 'READY':
+    default:
+      workStatus.value = 'READY'
+      isWorking.value = false
+      if (productionTimer) {
+        clearInterval(productionTimer)
+        productionTimer = null
+      }
+  }
+}
+
+function resetCurrentWork() {
+  currentWork.value = {
+    work_no: '',
+    product_name: '',
+    package_type: '',
+    order_quantity: 0,
+    input_qty: 0,
+    output_qty: 0,
+    defect_qty: 0,
+    progressRate: 0,
+    passRate: 0,
+    defectRate: 0,
+    employee_name: '김포장',
+    start_time: null
+  }
+}
+
+// 컴포넌트 마운트 (수정된 버전)
 onMounted(() => {
-  // nextTick을 사용하여 컴포넌트가 완전히 마운트된 후 실행
   nextTick(async () => {
     try {
       await initializeWorkPage()
@@ -367,51 +478,207 @@ onUnmounted(() => {
     clearInterval(workTimer)
     workTimer = null
   }
+  // 🔥 생산 타이머도 정리
+  if (productionTimer) {
+    clearInterval(productionTimer)
+    productionTimer = null
+  }
 })
 
-// 페이지 초기화 (작업 수행 전용)
+// 🔥 수정된 페이지 초기화 함수
 async function initializeWorkPage() {
   try {
     loading.value = true
     loadingMessage.value = '작업 정보를 초기화하는 중...'
     
-    // 기본 정보 설정
     addLog(`${workInfo.value.lineName || '선택된 라인'}에서 작업을 시작합니다.`, 'info')
     
-    // 서버 연결 상태 확인
-    let serverConnected = false
-    try {
-      await axios.get(`${LINES_API_URL}/health`).catch(() => {
-        return axios.get(LINES_API_URL).catch(() => null)
-      })
-      serverConnected = true
-    } catch (error) {
-      addLog('서버 연결 확인 중... (연결 실패 시 오프라인 모드로 동작)', 'warning')
-    }
-    
-    // 1. 라인 정보 확인 및 현재 작업번호 가져오기 (서버 연결된 경우에만)
-    if (serverConnected) {
-      await loadLineInfo()
-    } else {
-      addLog('오프라인 모드: 기본 라인 정보로 동작합니다.', 'warning')
-    }
+    // 1. 작업번호 목록 먼저 로드
+    await loadAvailableWorkOrders()
     
     // 2. URL에서 전달된 작업번호가 있으면 설정
     if (route.query.work_no) {
       selectedWorkOrder.value = route.query.work_no
       await onWorkOrderChange()
       addLog(`작업번호 ${route.query.work_no}가 선택되었습니다.`, 'info')
-    } else if (workInfo.value.currWorkNo) {
-      selectedWorkOrder.value = workInfo.value.currWorkNo
+    } else {
+      // 기본적으로 101번 작업을 선택 (백엔드 로그에서 보이는 대로)
+      selectedWorkOrder.value = '101'
       await onWorkOrderChange()
-      addLog(`현재 라인의 작업번호 ${workInfo.value.currWorkNo}가 자동으로 선택되었습니다.`, 'info')
+      addLog('작업번호 101이 자동으로 선택되었습니다.', 'info')
     }
     
     addLog('페이지 초기화가 완료되었습니다.', 'success')
     
   } catch (error) {
     console.error('페이지 초기화 실패:', error)
-    addLog('페이지 초기화에 실패했지만 기본 모드로 동작합니다.', 'warning')
+    addLog('페이지 초기화에 실패했지만 수동으로 작업번호를 입력할 수 있습니다.', 'warning')
+    
+    // 🔥 임시 테스트: 백엔드에서 조회되는 101번 작업 데이터 직접 설정
+    selectedWorkOrder.value = '101'
+    
+    // 백엔드 로그에서 보이는 데이터를 직접 설정
+    currentWork.value = {
+      work_no: '101',
+      product_name: '1차포장',
+      package_type: 'A라인 내포장',
+      order_quantity: 3000,
+      input_qty: 3000,
+      output_qty: 0,
+      defect_qty: 0, // 🔥 수정: 초기값 0으로 설정
+      progressRate: 0,
+      passRate: 0,
+      defectRate: 0, // 🔥 수정: 초기값 0으로 설정
+      employee_name: '김내포',
+      start_time: null,
+      step_status: '진행중' // 🔥 한글 상태값으로 설정
+    }
+    
+    inputQuantity.value = 500
+    
+    // 🔥 생산 시뮬레이션 초기 설정
+    productionSettings.value.targetQty = 500
+    productionSettings.value.currentProgress = 0
+    
+    // 🔥 상태 업데이트 및 자동 시작
+    updateWorkStatusFromData({ step_status: '진행중' })
+    
+    addLog('작업번호 101 데이터를 임시로 설정했습니다.', 'info')
+    addLog('생산 시뮬레이션이 자동으로 시작됩니다.', 'info')
+    
+  } finally {
+    loading.value = false
+  }
+}
+
+// 🔥 수정된 작업번호 목록 조회
+async function loadAvailableWorkOrders() {
+  try {
+    loadingMessage.value = '작업 목록을 불러오는 중...'
+    
+    // 백엔드 API에 맞게 수정
+    const res = await axios.get(`${PACKAGES_API_URL}/works/options`)
+    
+    if (res.data.success) {
+      availableWorkOrders.value = res.data.data
+      addLog(`${res.data.count}개의 작업을 불러왔습니다.`, 'info')
+    } else {
+      throw new Error(res.data.message || '작업 목록 조회 실패')
+    }
+    
+  } catch (error) {
+    console.error('작업 목록 조회 실패:', error)
+    
+    if (error.code === 'ERR_NETWORK' || error.code === 'ECONNREFUSED') {
+      addLog('서버에 연결할 수 없습니다. 패키지 API 서버 확인이 필요합니다.', 'error')
+      addLog('API 주소: http://localhost:3000/packages', 'info')
+    } else if (error.response) {
+      addLog(`API 오류: ${error.response.status} - ${error.response.statusText}`, 'error')
+    } else {
+      addLog('작업 목록 로드에 실패했습니다. 수동으로 작업번호를 입력해주세요.', 'warning')
+    }
+    
+    // 🔥 오프라인 모드용 기본 작업 목록
+    availableWorkOrders.value = [
+      { work_no: '101', step_name: '1차포장', progress_rate: '0.0', step_status: '진행중' },
+      { work_no: 'PM1001', step_name: '타이레놀정500mg 포장', progress_rate: '99.0', step_status: '진행중' },
+      { work_no: 'PM1002', step_name: '타이레놀정500mg 포장', progress_rate: '99.0', step_status: '진행중' },
+      { work_no: 'PM1003', step_name: '타이레놀정500mg 포장', progress_rate: '97.0', step_status: '진행중' }
+    ]
+    
+    addLog('오프라인 모드: 기본 작업 목록을 표시합니다.', 'warning')
+  }
+}
+
+// 🔥 수정된 작업 선택시 상세 조회
+async function onWorkOrderChange() {
+  if (!selectedWorkOrder.value) {
+    resetCurrentWork()
+    return
+  }
+  
+  try {
+    loading.value = true
+    loadingMessage.value = '작업 상세 정보를 불러오는 중...'
+    
+    // 백엔드에서 조회되는 데이터 구조에 맞게 수정
+    const res = await axios.get(`${PACKAGES_API_URL}/${selectedWorkOrder.value}`)
+    
+    if (res.data.success) {
+      const workData = res.data.data
+      
+      currentWork.value = {
+        work_no: workData.work_no,
+        product_name: workData.step_name || '제품명',
+        package_type: workData.line_type || '포장형태',
+        order_quantity: workData.input_qty || 0,
+        input_qty: workData.input_qty || 0,
+        output_qty: workData.output_qty || 0,
+        defect_qty: workData.defect_qty || 0,
+        progressRate: parseFloat(workData.progress_rate) || 0,
+        passRate: calculatePassRate(workData.output_qty, workData.input_qty),
+        defectRate: calculateDefectRate(workData.defect_qty, workData.input_qty),
+        employee_name: workData.employee_name || '김포장',
+        start_time: workData.start_time,
+        step_status: workData.step_status
+      }
+      
+      // 투입수량을 기존 투입수량으로 설정
+      inputQuantity.value = workData.input_qty || 500
+      
+      // 🔥 생산 시뮬레이션 초기 설정 (진행중 작업인 경우)
+      if (workData.step_status === '진행중' || workData.step_status === 'IN_PROGRESS') {
+        productionSettings.value.targetQty = workData.input_qty || inputQuantity.value
+        productionSettings.value.currentProgress = workData.output_qty || 0
+        addLog(`진행 중인 작업을 발견했습니다. 현재 생산량: ${workData.output_qty || 0}개`, 'info')
+      }
+      
+      // 작업 상태 업데이트
+      updateWorkStatusFromData(workData)
+      
+      addLog(`작업번호 ${selectedWorkOrder.value} 정보를 불러왔습니다.`, 'success')
+      
+    } else {
+      throw new Error(res.data.message || '작업 정보 조회 실패')
+    }
+    
+  } catch (err) {
+    console.error('작업 상세 정보 조회 실패:', err)
+    addLog(`작업번호 ${selectedWorkOrder.value} 정보를 찾을 수 없습니다.`, 'error')
+    
+    // 🔥 오프라인 모드: 101번 작업은 백엔드 데이터로 설정
+    if (selectedWorkOrder.value === '101') {
+      currentWork.value = {
+        work_no: '101',
+        product_name: '1차포장',
+        package_type: 'A라인 내포장',
+        order_quantity: 3000,
+        input_qty: 3000,
+        output_qty: 0,
+        defect_qty: 0, // 🔥 수정: 초기값 0으로 설정
+        progressRate: 0,
+        passRate: 0,
+        defectRate: 0, // 🔥 수정: 초기값 0으로 설정
+        employee_name: '김내포',
+        start_time: null,
+        step_status: '진행중' // 🔥 한글 상태값으로 설정
+      }
+      
+      inputQuantity.value = 500
+      
+      // 🔥 생산 시뮬레이션 초기 설정
+      productionSettings.value.targetQty = 500
+      productionSettings.value.currentProgress = 0
+      
+      // 🔥 상태 업데이트 및 자동 시작
+      updateWorkStatusFromData({ step_status: '진행중' })
+      
+      addLog('오프라인 모드: 101번 작업 데이터를 설정했습니다.', 'warning')
+      addLog('생산 시뮬레이션이 자동으로 시작됩니다.', 'info')
+    } else {
+      resetCurrentWork()
+    }
+    
   } finally {
     loading.value = false
   }
@@ -469,96 +736,7 @@ async function loadLineInfo() {
   }
 }
 
-// 1. 작업 목록 조회
-async function loadAvailableWorkOrders() {
-  try {
-    loadingMessage.value = '작업 목록을 불러오는 중...'
-    const res = await axios.get(PACKAGES_API_URL)
-    
-    // 라인 타입에 맞는 작업만 필터링
-    const filteredOrders = res.data.filter(order => {
-      // 여기서 작업의 포장 타입과 라인 타입을 매칭
-      // 예: 내포장 라인이면 내포장 작업만, 외포장 라인이면 외포장 작업만
-      return true // 일단 모든 작업을 표시 (필요시 필터링 로직 추가)
-    })
-    
-    availableWorkOrders.value = filteredOrders
-    addLog(`${availableWorkOrders.value.length}개의 작업을 불러왔습니다.`, 'info')
-    
-  } catch (error) {
-    console.error('작업 목록 조회 실패:', error)
-    
-    if (error.code === 'ERR_NETWORK' || error.code === 'ECONNREFUSED') {
-      addLog('서버에 연결할 수 없습니다. 패키지 API 서버 확인이 필요합니다.', 'error')
-      addLog('API 주소: http://localhost:3000/packages', 'info')
-    } else if (error.response) {
-      addLog(`API 오류: ${error.response.status} - ${error.response.statusText}`, 'error')
-    } else {
-      addLog('작업 목록 로드에 실패했습니다.', 'error')
-    }
-    
-    // 빈 배열로 설정하여 오류가 있어도 계속 진행
-    availableWorkOrders.value = []
-  }
-}
-
-// 2. 작업 선택시 상세 조회
-async function onWorkOrderChange() {
-  if (!selectedWorkOrder.value) {
-    // 작업 선택이 해제된 경우 현재 작업 정보 초기화
-    currentWork.value = {
-      work_no: '',
-      product_name: '',
-      package_type: '',
-      order_quantity: 0,
-      input_qty: 0,
-      output_qty: 0,
-      defect_qty: 0,
-      progressRate: 0,
-      passRate: 0,
-      defectRate: 0,
-      employee_name: '김포장',
-      start_time: null
-    }
-    return
-  }
-  
-  try {
-    loading.value = true
-    loadingMessage.value = '작업 상세 정보를 불러오는 중...'
-    
-    const res = await axios.get(`${PACKAGES_API_URL}/${selectedWorkOrder.value}`)
-    const workData = res.data
-    
-    currentWork.value = {
-      work_no: workData.work_no,
-      product_name: workData.product_name,
-      package_type: workData.package_type,
-      order_quantity: workData.order_quantity || workData.target_qty,
-      input_qty: 0,
-      output_qty: 0,
-      defect_qty: 0,
-      progressRate: 0,
-      passRate: 0,
-      defectRate: 0,
-      employee_name: workData.employee_name || '김포장',
-      start_time: null
-    }
-    
-    // 투입수량을 지시수량의 일부로 설정 (기본값)
-    inputQuantity.value = Math.min(500, currentWork.value.order_quantity)
-    
-    addLog(`작업번호 ${selectedWorkOrder.value} 상세정보를 불러왔습니다.`, 'info')
-    
-  } catch (err) {
-    console.error('작업 상세 정보 조회 실패:', err)
-    addLog('작업 상세 정보 불러오기에 실패했습니다.', 'error')
-  } finally {
-    loading.value = false
-  }
-}
-
-// 3. 작업 시작(등록)
+// 3. 작업 시작(등록) - 🔥 생산 시뮬레이션 추가
 async function startWork() {
   if (!isWorking.value) {
     try {
@@ -577,21 +755,32 @@ async function startWork() {
         employee_name: currentWork.value.employee_name
       }
       
-      // 작업 시작 API 호출
-      const response = await axios.post(`${PACKAGES_API_URL}/work`, workData)
+      // 작업 시작 API 호출 (오프라인 모드에서는 스킵)
+      try {
+        const response = await axios.post(`${PACKAGES_API_URL}/work`, workData)
+        
+        // 라인의 curr_work_no 업데이트
+        await axios.put(`${LINES_API_URL}/${workInfo.value.lineId}`, {
+          curr_work_no: selectedWorkOrder.value,
+          line_status: 'WORKING'
+        })
+        
+        addLog('백엔드 연동 성공: 작업이 등록되었습니다.', 'success')
+      } catch (apiError) {
+        addLog('오프라인 모드: 로컬에서 작업을 시작합니다.', 'warning')
+      }
       
-      // 라인의 curr_work_no 업데이트
-      await axios.put(`${LINES_API_URL}/${workInfo.value.lineId}`, {
-        curr_work_no: selectedWorkOrder.value,
-        line_status: 'WORKING'
-      })
+      // 🔥 생산 초기 설정
+      productionSettings.value.targetQty = inputQuantity.value
+      productionSettings.value.currentProgress = 0
       
-      // 서버에서 계산된 결과 반영
+      // 작업 정보 초기화
       currentWork.value.input_qty = inputQuantity.value
-      currentWork.value.output_qty = response.data.output_qty || Math.floor(inputQuantity.value * 0.95)
-      currentWork.value.defect_qty = response.data.defect_qty || (inputQuantity.value - currentWork.value.output_qty)
-      currentWork.value.passRate = Math.round((currentWork.value.output_qty / inputQuantity.value) * 100)
-      currentWork.value.defectRate = 100 - currentWork.value.passRate
+      currentWork.value.output_qty = 0
+      currentWork.value.defect_qty = 0
+      currentWork.value.progressRate = 0
+      currentWork.value.passRate = 0
+      currentWork.value.defectRate = 0
       
       workStatus.value = 'WORKING'
       isWorking.value = true
@@ -600,9 +789,11 @@ async function startWork() {
       
       updateWorkProgress()
       startWorkTimer()
+      startProductionSimulation() // 🔥 생산 시뮬레이션 시작
       
-      addLog(`작업을 시작했습니다. (투입수량: ${inputQuantity.value}개)`, 'success')
-      addLog(`예상 합격수량: ${currentWork.value.output_qty}개, 불량수량: ${currentWork.value.defect_qty}개`, 'info')
+      addLog(`작업을 시작했습니다. (목표수량: ${inputQuantity.value}개)`, 'success')
+      addLog(`생산 속도: ${productionSettings.value.productionSpeed}개/초`, 'info')
+      addLog('생산을 시작합니다...', 'info')
       
     } catch (error) {
       console.error('작업 시작 실패:', error)
@@ -612,11 +803,107 @@ async function startWork() {
     }
   } else {
     // 일시정지
-    isWorking.value = false
-    workStatus.value = 'PAUSED'
-    if (workTimer) clearInterval(workTimer)
-    addLog('작업을 일시정지했습니다.', 'warning')
+    pauseProduction()
   }
+}
+
+// 🔥 새로 추가: 생산 시뮬레이션 시작
+function startProductionSimulation() {
+  if (productionTimer) {
+    clearInterval(productionTimer)
+  }
+  
+  addLog('생산 시뮬레이션을 시작합니다...', 'info')
+  
+  productionTimer = setInterval(() => {
+    if (!isWorking.value) return
+    
+    // 생산 진행
+    const increment = productionSettings.value.productionSpeed
+    productionSettings.value.currentProgress = Math.min(
+      productionSettings.value.currentProgress + increment,
+      productionSettings.value.targetQty
+    )
+    
+    // 합격품과 불량품 계산
+    const totalProduced = productionSettings.value.currentProgress
+    const defectQty = Math.floor(totalProduced * productionSettings.value.defectRate)
+    const passQty = totalProduced - defectQty
+    
+    // 화면 업데이트
+    currentWork.value.output_qty = passQty
+    currentWork.value.defect_qty = defectQty
+    currentWork.value.progressRate = Math.min(100, Math.round((totalProduced / productionSettings.value.targetQty) * 100))
+    currentWork.value.passRate = totalProduced > 0 ? Math.round((passQty / totalProduced) * 100) : 0
+    currentWork.value.defectRate = totalProduced > 0 ? Math.round((defectQty / totalProduced) * 100) : 0
+    
+    // 로그 추가 (5초마다)
+    if (totalProduced > 0 && totalProduced % (productionSettings.value.productionSpeed * 5) === 0) {
+      addLog(`생산 진행: ${passQty}개 완료 (불량: ${defectQty}개, 진행률: ${currentWork.value.progressRate}%)`, 'info')
+    }
+    
+    // 목표 달성시 자동 완료
+    if (totalProduced >= productionSettings.value.targetQty) {
+      addLog('🎉 목표 수량에 도달했습니다!', 'success')
+      autoCompleteProduction()
+    }
+    
+  }, 1000) // 1초마다 업데이트
+}
+
+// 🔥 새로 추가: 생산 일시정지
+function pauseProduction() {
+  isWorking.value = false
+  workStatus.value = 'PAUSED'
+  
+  if (productionTimer) {
+    clearInterval(productionTimer)
+    productionTimer = null
+  }
+  
+  if (workTimer) {
+    clearInterval(workTimer)
+    workTimer = null
+  }
+  
+  addLog('작업을 일시정지했습니다.', 'warning')
+  addLog(`현재까지 생산: ${currentWork.value.output_qty}개 (진행률: ${currentWork.value.progressRate}%)`, 'info')
+}
+
+// 🔥 새로 추가: 생산 재시작 
+function resumeProduction() {
+  isWorking.value = true
+  workStatus.value = 'WORKING'
+  
+  startWorkTimer()
+  startProductionSimulation()
+  
+  addLog('작업을 재시작했습니다.', 'success')
+}
+
+// 🔥 새로 추가: 자동 완료
+function autoCompleteProduction() {
+  if (productionTimer) {
+    clearInterval(productionTimer)
+    productionTimer = null
+  }
+  
+  isWorking.value = false
+  workStatus.value = 'COMPLETED'
+  
+  addLog('🎉 생산이 완료되었습니다!', 'success')
+  addLog(`최종 결과 - 합격: ${currentWork.value.output_qty}개, 불량: ${currentWork.value.defect_qty}개`, 'success')
+  
+  if (workInfo.value.lineType === 'INNER') {
+    addLog('내포장이 완료되었습니다. 외포장을 진행해주세요!', 'info')
+  } else {
+    addLog('외포장이 완료되어 모든 작업이 끝났습니다!', 'info')
+  }
+  
+  // 3초 후 완료 모달 자동 표시
+  setTimeout(() => {
+    showCompleteModal.value = true
+  }, 3000)
 }
 
 // 4. 생산 완료 버튼
@@ -631,7 +918,7 @@ async function confirmCompleteWork() {
     loadingMessage.value = '작업을 완료하는 중...'
     
     // 작업 완료 API 호출
-    const res = await axios.put(`${PACKAGES_API_URL}/work/${currentWork.value.work_no}/complete`, {
+    const res = await axios.put(`${PACKAGES_API_URL}/${currentWork.value.work_no}/complete`, {
       input_qty: currentWork.value.input_qty,
       output_qty: currentWork.value.output_qty,
       defect_qty: currentWork.value.defect_qty
@@ -654,13 +941,14 @@ async function confirmCompleteWork() {
     if (workTimer) clearInterval(workTimer)
     
     updateWorkProgress()
-    addLog('작업이 완료되었습니다.', 'success')
+    addLog(`${workInfo.value.lineType === 'INNER' ? '내포장' : '외포장'} 작업이 완료되었습니다.`, 'success')
     closeCompleteModal()
     
-    // 2초 후 라인 선택 페이지로 이동
+    // 내포장 완료시 즉시 이동, 외포장 완료시 2초 후 이동
+    const moveDelay = workInfo.value.lineType === 'INNER' ? 1000 : 2000
     setTimeout(() => { 
       goBackToLineSelectionWithCompletion() 
-    }, 2000)
+    }, moveDelay)
     
   } catch (error) {
     console.error('작업 완료 처리 실패:', error)
@@ -670,20 +958,36 @@ async function confirmCompleteWork() {
   }
 }
 
-// 작업 종료 (강제)
+// 작업 종료 (강제) - 🔥 생산 타이머 정리 추가
 async function stopWork() {
   try {
     isWorking.value = false
     workStatus.value = 'COMPLETED'
-    if (workTimer) clearInterval(workTimer)
+    
+    // 🔥 모든 타이머 정리
+    if (workTimer) {
+      clearInterval(workTimer)
+      workTimer = null
+    }
+    if (productionTimer) {
+      clearInterval(productionTimer)
+      productionTimer = null
+    }
     
     // 라인 상태 업데이트
-    await axios.put(`${LINES_API_URL}/${workInfo.value.lineId}`, {
-      curr_work_no: null,
-      line_status: 'READY'
-    })
+    try {
+      await axios.put(`${LINES_API_URL}/${workInfo.value.lineId}`, {
+        curr_work_no: null,
+        line_status: 'READY'
+      })
+      addLog('라인 상태를 초기화했습니다.', 'info')
+    } catch (error) {
+      addLog('오프라인 모드: 로컬에서 작업을 종료합니다.', 'warning')
+    }
     
-    addLog('작업을 종료했습니다.', 'info')
+    addLog('작업을 강제 종료했습니다.', 'info')
+    addLog(`최종 생산량: ${currentWork.value.output_qty}개 (${currentWork.value.progressRate}% 완료)`, 'info')
+    
   } catch (error) {
     console.error('작업 종료 실패:', error)
     addLog('작업 종료 처리에 실패했습니다.', 'error')
@@ -721,26 +1025,54 @@ function closeCompleteModal() {
 
 // 라인 선택으로 돌아가기 (작업 완료시)
 function goBackToLineSelectionWithCompletion() {
-  if (window.handlePackageWorkCompleted) {
-    window.handlePackageWorkCompleted(workInfo.value.lineType)
-  }
-  if (router) {
-    router.push({
-      name: 'package_line',
-      query: {
-        work_completed: 'true',
-        completed_type: workInfo.value.lineType
-      }
-    })
+  if (workInfo.value.lineType === 'INNER') {
+    // 🔥 내포장 완료 → 외포장 라인 선택으로 이동
+    addLog('내포장이 완료되었습니다! 이제 외포장 작업을 진행해주세요.', 'success')
+    
+    if (window.handleInnerPackageCompleted) {
+      window.handleInnerPackageCompleted()
+    }
+    
+    if (router) {
+      router.push({
+        name: 'package_line_selection', // 포장 라인 선택 페이지
+        query: {
+          inner_completed: 'true',
+          next_step: 'outer',
+          message: '내포장 완료! 외포장을 진행해주세요.'
+        }
+      })
+    } else {
+      // 라인 선택 페이지로 이동하여 외포장 선택하도록 안내
+      window.location.href = '/packaging/line?inner_completed=true&next_step=outer'
+    }
   } else {
-    window.location.href = `/packaging/line?work_completed=true&completed_type=${workInfo.value.lineType}`
+    // 🔥 외포장 완료 → 모든 작업 완료
+    addLog('🎉 모든 포장 작업이 완료되었습니다!', 'success')
+    
+    if (window.handleAllPackageCompleted) {
+      window.handleAllPackageCompleted()
+    }
+    
+    if (router) {
+      router.push({
+        name: 'package_dashboard', // 대시보드나 메인으로
+        query: {
+          all_completed: 'true',
+          message: '모든 포장 작업이 완료되었습니다!'
+        }
+      })
+    } else {
+      window.location.href = '/packaging/dashboard?all_completed=true'
+    }
   }
 }
 
 // 라인 선택으로 돌아가기 (작업 완료 없이)
 function goBackToLineSelection() {
   if (isWorking.value) {
-    if (!confirm('진행 중인 작업이 있습니다. 정말 라인 선택으로 돌아가시겠습니까?')) {
+    const workType = workInfo.value.lineType === 'INNER' ? '내포장' : '외포장'
+    if (!confirm(`진행 중인 ${workType} 작업이 있습니다. 정말 라인 선택으로 돌아가시겠습니까?`)) {
       return
     }
   }
@@ -748,6 +1080,33 @@ function goBackToLineSelection() {
     router.push({ name: 'package_line' })
   } else {
     window.location.href = '/packaging/line'
+  }
+}
+
+// 🔥 새로 추가: 작업 버튼 핸들러
+function handleWorkButton() {
+  if (workStatus.value === 'READY') {
+    startWork()
+  } else if (workStatus.value === 'WORKING') {
+    pauseProduction()
+  } else if (workStatus.value === 'PAUSED') {
+    resumeProduction()
+  }
+}
+
+// 🔥 새로 추가: 작업 버튼 텍스트
+function getWorkButtonText() {
+  switch (workStatus.value) {
+    case 'READY':
+      return '▶ 작업 시작'
+    case 'WORKING':
+      return '⏸ 작업 일시정지'
+    case 'PAUSED':
+      return '▶ 작업 재시작'
+    case 'COMPLETED':
+      return '✅ 작업 완료됨'
+    default:
+      return '▶ 작업 시작'
   }
 }
 
@@ -789,12 +1148,17 @@ function formatElapsedTime(ms) {
   return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
 }
 
+// 🔥 수정된 상태 텍스트 변환 (한글-영어 양방향 지원)
 function getWorkStatusText(status) {
   const map = {
-    'READY': '준비', 
-    'WORKING': '작업중', 
-    'PAUSED': '일시정지', 
-    'COMPLETED': '완료'
+    'READY': '준비',
+    '준비': '준비',
+    'WORKING': '작업중',
+    '진행중': '작업중',
+    'PAUSED': '일시정지',
+    '일시정지': '일시정지',
+    'COMPLETED': '완료',
+    '완료': '완료'
   }
   return map[status] || status
 }

@@ -1,4 +1,4 @@
-// server/routes/packages.js - Service 사용 버전
+// routers/packageRouter.js (작업번호 조회 기능 포함)
 const express = require('express');
 const router = express.Router();
 const packageService = require('../services/packageService');
@@ -10,6 +10,84 @@ router.get('/health', (req, res) => {
     message: 'Package API is running',
     timestamp: new Date().toISOString()
   });
+});
+
+// 🔥 작업번호 목록 조회 (포장 작업 수행 페이지의 셀렉트박스용)
+router.get('/works', async (req, res) => {
+  try {
+    console.log('📡 작업번호 목록 조회 API 호출됨');
+    
+    const workList = await packageService.getWorkList();
+    
+    res.json({
+      success: true,
+      message: '작업번호 목록 조회 성공',
+      data: workList,
+      count: workList.length,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (err) {
+    console.error('❌ 작업번호 목록 조회 실패:', err);
+    res.status(500).json({
+      success: false,
+      message: '작업번호 목록 조회 실패',
+      error: err.message,
+      data: []
+    });
+  }
+});
+
+// 🔥 작업번호 선택 옵션 조회 (셀렉트박스 전용)
+router.get('/works/options', async (req, res) => {
+  try {
+    console.log('📡 작업번호 옵션 조회 API 호출됨');
+    
+    const options = await packageService.getWorkOptions();
+    
+    res.json({
+      success: true,
+      message: '작업번호 옵션 조회 성공',
+      data: options,
+      count: options.length,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (err) {
+    console.error('❌ 작업번호 옵션 조회 실패:', err);
+    res.status(500).json({
+      success: false,
+      message: '작업번호 옵션 조회 실패',
+      error: err.message,
+      data: []
+    });
+  }
+});
+
+// 🔥 진행 중인 작업 목록 조회 (실시간 진행 상황)
+router.get('/works/active', async (req, res) => {
+  try {
+    console.log('📡 진행 중인 작업 목록 조회 API 호출됨');
+    
+    const activeWorks = await packageService.getActiveWorks();
+    
+    res.json({
+      success: true,
+      message: '진행 중인 작업 목록 조회 성공',
+      data: activeWorks,
+      count: activeWorks.length,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (err) {
+    console.error('❌ 진행 중인 작업 목록 조회 실패:', err);
+    res.status(500).json({
+      success: false,
+      message: '진행 중인 작업 목록 조회 실패',
+      error: err.message,
+      data: []
+    });
+  }
 });
 
 // 🔥 작업 등록
@@ -28,13 +106,15 @@ router.post('/work', async (req, res) => {
     } = req.body;
     
     console.log(`=== 작업 등록: ${work_no} ===`);
+    console.log('요청 데이터:', req.body);
     
     // 필수 필드 검증
     if (!work_no || !input_qty || !employee_no) {
       return res.status(400).json({
         success: false,
         message: '필수 항목이 누락되었습니다.',
-        required: ['work_no', 'input_qty', 'employee_no']
+        required: ['work_no', 'input_qty', 'employee_no'],
+        received: req.body
       });
     }
     
@@ -52,7 +132,7 @@ router.post('/work', async (req, res) => {
     });
     
     console.log('작업 등록 성공');
-    res.json({
+    res.status(201).json({
       success: true,
       message: '작업이 등록되었습니다.',
       data: result
@@ -131,6 +211,7 @@ router.put('/:workNo/progress', async (req, res) => {
     const { output_qty, step_status } = req.body;
     
     console.log(`=== 작업 진행률 업데이트: ${workNo} ===`);
+    console.log('요청 데이터:', req.body);
     
     if (output_qty === undefined || output_qty < 0) {
       return res.status(400).json({
@@ -183,6 +264,7 @@ router.put('/:workNo/complete', async (req, res) => {
     const { input_qty, output_qty } = req.body;
     
     console.log(`=== 작업 완료: ${workNo} ===`);
+    console.log('요청 데이터:', req.body);
     
     const result = await packageService.completeWork(workNo, {
       input_qty,
@@ -287,7 +369,7 @@ router.put('/:workNo/resume', async (req, res) => {
   }
 });
 
-// 🔥 작업 상세 조회 (마지막에 위치)
+// 🔥 작업 상세 조회 (마지막에 위치 - 다른 라우트와 충돌 방지)
 router.get('/:workNo', async (req, res) => {
   try {
     const { workNo } = req.params;
@@ -312,7 +394,8 @@ router.get('/:workNo', async (req, res) => {
     console.log('작업 상세 조회 성공');
     res.json({
       success: true,
-      data: result
+      data: result,
+      timestamp: new Date().toISOString()
     });
     
   } catch (error) {
