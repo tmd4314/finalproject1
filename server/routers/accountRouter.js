@@ -67,16 +67,43 @@ router.delete('/account/:id', async (req, res) => {
 
 // 여러 거래처 삭제
 router.post('/account/delete-multiple', async (req, res) => {
-  const { ids } = req.body
   try {
-    // 서비스 함수에서 ids 배열 받아서 처리
-    const result = await accountService.removeMultiple(ids)
-    res.json({ success: true, affectedRows: result.affectedRows })
-  } catch (err) {
-    console.error(err)
-    res.status(500).send('여러 거래처 삭제 실패')
-  }
-})
+    const { ids } = req.body;
 
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: '삭제할 거래처를 선택해주세요'
+      });
+    }
+
+    // 각 ID에 대해 삭제 실행
+    let deletedCount = 0;
+    let failedCount = 0;
+    let inUseIds = [];
+
+    for (const id of ids) {
+      // DB에서 in_use 재확인 (방어코드, accountService.findInUse 참고)
+      const inUse = await accountService.isAccountInUse(id);
+      if (inUse) {
+        failedCount++;
+        inUseIds.push(id);
+        continue; // 삭제하지 않고 넘어감
+      }
+      const result = await accountService.removeAccount(id);
+      if (result.isDeleted) deletedCount++;
+      else failedCount++;
+    }
+    res.json({
+      success: true,
+      deletedCount,
+      failedCount,
+      inUseIds, // 삭제 불가 id 리스트도 같이 반환
+    });
+  } catch (err) {
+    console.error('다중 삭제 실패:', err);
+    res.status(500).json({ success: false, message: '거래처 삭제 실패' });
+  }
+});
 
 module.exports = router;
