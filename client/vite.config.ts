@@ -20,7 +20,7 @@ const proxyPaths = [
   'packages',
   'account',
   'order',
-  'defects'
+  'defects',
   'materialLot',
   'materialLotList',
   'orderCheck'

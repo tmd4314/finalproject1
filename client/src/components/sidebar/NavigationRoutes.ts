@@ -227,7 +227,8 @@ export default {
         {
           name: 'bom-manager',
           displayName: 'menu.BOM 관리',
-        }
+        },
+        {
           name: 'account-management',
           displayName: 'menu.거래처 관리',
         },
