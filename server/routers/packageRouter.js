@@ -91,7 +91,7 @@ router.get('/works/active', async (req, res) => {
 });
 
 // 🔥 작업 등록
-router.post('/work', async (req, res) => {
+router.post('/works', async (req, res) => {
   try {
     const {
       work_no,
@@ -101,7 +101,7 @@ router.post('/work', async (req, res) => {
       step_name,
       input_qty,
       eq_code,
-      employee_no,
+      employee_id,
       employee_name
     } = req.body;
     
@@ -109,11 +109,11 @@ router.post('/work', async (req, res) => {
     console.log('요청 데이터:', req.body);
     
     // 필수 필드 검증
-    if (!work_no || !input_qty || !employee_no) {
+    if (!work_no || !input_qty || !employee_id) {
       return res.status(400).json({
         success: false,
         message: '필수 항목이 누락되었습니다.',
-        required: ['work_no', 'input_qty', 'employee_no'],
+        required: ['work_no', 'input_qty', 'employee_id'],
         received: req.body
       });
     }
@@ -127,7 +127,7 @@ router.post('/work', async (req, res) => {
       step_name,
       input_qty,
       eq_code,
-      employee_no,
+      employee_id,
       employee_name
     });
     
