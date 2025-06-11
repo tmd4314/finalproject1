@@ -96,19 +96,36 @@
               </button>
               <button 
                 @click="completeProduction" 
-                :disabled="!isWorking"
+                :disabled="!isWorking && workStatus !== 'COMPLETED'"
                 class="btn-success"
-                :class="{ disabled: !isWorking }"
+                :class="{ 
+                  disabled: !isWorking && workStatus !== 'COMPLETED',
+                  'btn-completed': workStatus === 'COMPLETED'
+                }"
               >
-                ✅ 생산 완료
+                {{ workStatus === 'COMPLETED' ? '📝 완료 처리' : '✅ 생산 완료' }}
               </button>
+              <!-- 내포장에서는 작업 종료 버튼만 표시, 외포장에서는 작업 완료 버튼 표시 -->
               <button 
+                v-if="workInfo.lineType === 'INNER'"
                 @click="stopWork" 
                 :disabled="!isWorking"
                 class="btn-warning"
                 :class="{ disabled: !isWorking }"
               >
                 ⏹ 작업 종료
+              </button>
+              <button 
+                v-else
+                @click="completeProduction" 
+                :disabled="!isWorking && workStatus !== 'COMPLETED'"
+                class="btn-primary"
+                :class="{ 
+                  disabled: !isWorking && workStatus !== 'COMPLETED',
+                  'btn-completed': workStatus === 'COMPLETED'
+                }"
+              >
+                {{ workStatus === 'COMPLETED' ? '📋 최종 완료 처리' : '🏁 작업 완료' }}
               </button>
             </div>
           </div>
@@ -1055,15 +1072,35 @@ function autoCompleteProduction() {
   addLog(`최종 결과 - 합격: ${currentWork.value.output_qty}개, 불량: ${currentWork.value.defect_qty}개`, 'success')
   
   if (workInfo.value.lineType === 'INNER') {
-    addLog('내포장이 완료되었습니다. 외포장을 진행해주세요!', 'info')
+    addLog('내포장이 완료되었습니다. "완료 처리" 버튼을 눌러 다음 단계로 진행해주세요!', 'info')
+    addLog('💡 팁: 모달을 닫아도 언제든 "완료 처리" 버튼으로 다시 열 수 있습니다.', 'info')
+    // 내포장에서는 자동으로 생산완료 모달 표시
+    setTimeout(() => {
+      showCompleteModal.value = true
+    }, 1000)
   } else {
     addLog('외포장이 완료되어 모든 작업이 끝났습니다!', 'info')
+    addLog('💡 팁: "최종 완료 처리" 버튼으로 언제든 완료 모달을 다시 열 수 있습니다.', 'info')
+    // 외포장에서는 자동으로 생산완료 모달 표시
+    setTimeout(() => {
+      showCompleteModal.value = true
+    }, 1000)
   }
-  
 }
 
 // 생산 완료 버튼
 function completeProduction() {
+  // 작업이 완료된 상태에서도 모달을 열 수 있도록 허용
+  if (workStatus.value === 'COMPLETED' || !isWorking.value) {
+    // 이미 완료된 작업의 경우 바로 모달 표시
+    if (workStatus.value === 'COMPLETED') {
+      addLog('완료 처리 모달을 다시 엽니다.', 'info')
+    }
+    showCompleteModal.value = true
+    return
+  }
+  
+  // 진행 중인 작업의 경우 기존 로직
   showCompleteModal.value = true
 }
 
@@ -1139,6 +1176,12 @@ function addLog(message, type = 'info') {
 // 모달 제어
 function closeCompleteModal() { 
   showCompleteModal.value = false 
+  
+  // 모달을 닫을 때 안내 메시지 추가
+  if (workStatus.value === 'COMPLETED') {
+    const buttonText = workInfo.value.lineType === 'INNER' ? '"완료 처리"' : '"최종 완료 처리"'
+    addLog(`💡 모달을 다시 열려면 ${buttonText} 버튼을 클릭하세요.`, 'info')
+  }
 }
 
 // 외포장 라인으로 바로 가기
@@ -1422,7 +1465,6 @@ function startWorkTimer() {
     }
   }, 1000)
 }
-
 
 defineOptions({
   name: 'PackageWork'
@@ -1758,7 +1800,8 @@ defineOptions({
 
 .btn-primary,
 .btn-success,
-.btn-warning {
+.btn-warning,
+.btn-danger {
   flex: 1;
   padding: 12px 16px;
   border: none;
@@ -1787,6 +1830,37 @@ defineOptions({
   background: #059669;
 }
 
+/* 완료 상태 버튼 스타일 */
+.btn-success.btn-completed {
+  background: linear-gradient(135deg, #10b981, #34d399);
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.3);
+  animation: completePulseGreen 2s infinite;
+}
+
+.btn-primary.btn-completed {
+  background: linear-gradient(135deg, #3b82f6, #60a5fa);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+  animation: completePulseBlue 2s infinite;
+}
+
+@keyframes completePulseGreen {
+  0%, 100% {
+    box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.5);
+  }
+}
+
+@keyframes completePulseBlue {
+  0%, 100% {
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.5);
+  }
+}
+
 .btn-warning {
   background: #f59e0b;
   color: white;
@@ -1796,9 +1870,19 @@ defineOptions({
   background: #d97706;
 }
 
+.btn-danger {
+  background: #ef4444;
+  color: white;
+}
+
+.btn-danger:hover:not(.disabled) {
+  background: #dc2626;
+}
+
 .btn-primary.disabled,
 .btn-success.disabled,
-.btn-warning.disabled {
+.btn-warning.disabled,
+.btn-danger.disabled {
   background: #e5e7eb;
   color: #9ca3af;
   cursor: not-allowed;
