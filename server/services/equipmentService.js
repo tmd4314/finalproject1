@@ -37,10 +37,20 @@ const convertDates = (obj) => {
 
 const convertData = (obj) => convertDates(convertBigIntToString(obj));
 
+// 설비명에 자동 번호 부여 함수
+const generateEquipmentName = async (baseName) => {
+  // 기존 설비명에서 숫자 제거
+  const nameWithoutNumber = baseName.replace(/\d+$/, '');
+  
+  // 동일한 이름으로 시작하는 설비 수 조회
+  const [countRow] = await mariadb.query('countSameNameEquipments', [`${nameWithoutNumber}%`]);
+  
+  // 새로운 설비명 생성 (기존 개수 + 1)
+  return `${nameWithoutNumber}${Number(countRow.count) + 1}`;
+};
+
 const insertEquipment = async (formData, file) => {
-  const baseName = formData.name.replace(/\d+$/, '');
-  const [countRow] = await mariadb.query('countSameNameEquipments', [`${baseName}%`]);
-  const finalName = `${baseName}${Number(countRow.count) + 1}`;
+  const finalName = await generateEquipmentName(formData.name);
   const imageFileName = file?.filename || null;
   const lineId = formData.category === 'e3' ? formData.line : null;
   const manufactureDate = formData.manufactureDate ? new Date(formData.manufactureDate).toISOString().split('T')[0] : null;
@@ -86,12 +96,15 @@ const updateEquipment = async (equipmentId, formData) => {
     imageFileName = formData.eq_image;
   }
 
+  // 수정 시에도 설비명에 자동 번호 부여
+  const finalName = await generateEquipmentName(formData.name);
+  
   const lineId = formData.category === 'e3' ? formData.line : null;
   const manufactureDate = formData.manufactureDate ? new Date(formData.manufactureDate).toISOString().split('T')[0] : null;
   const registerDate = new Date().toISOString().split('T')[0];
 
   const values = [
-    formData.name, formData.category, formData.type, formData.installType,
+    finalName, formData.category, formData.type, formData.installType,
     formData.factory, formData.floor, formData.room, lineId,
     manufactureDate, registerDate, formData.maker, formData.model,
     formData.serial, formData.power, parseInt(formData.maxRuntime) || 0,
@@ -100,7 +113,7 @@ const updateEquipment = async (equipmentId, formData) => {
   ];
 
   const result = await mariadb.query('updateEquipment', values);
-  return convertData({ ...result, imageFileName });
+  return convertData({ ...result, imageFileName, name: finalName });
 };
 
 const deleteEquipmentWithRelatedData = async (equipmentId) => {
