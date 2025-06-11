@@ -13,6 +13,11 @@
       <div class="header-section">
         <h1>포장 라인 선택</h1>
         <p>작업할 포장 유형을 선택해주세요</p>
+        
+        <!-- 🔥 내포장 완료 알림 추가 -->
+        <div v-if="showInnerCompletedMessage" class="completion-alert">
+          🎉 내포장이 완료되었습니다! 이제 외포장을 진행해주세요.
+        </div>
       </div>
       
       <div class="package-type-cards">
@@ -35,7 +40,11 @@
         
         <!-- 외포장 카드 -->
         <div class="package-type-card"
-            :class="{ completed: completedSteps.includes('OUTER'), disabled: !completedSteps.includes('INNER') }"
+            :class="{ 
+              completed: completedSteps.includes('OUTER'), 
+              disabled: !completedSteps.includes('INNER'),
+              highlighted: completedSteps.includes('INNER') && !completedSteps.includes('OUTER')
+            }"
             @click="selectPackageType('OUTER')">
           <div class="card-icon">
             <span class="material-icons">inventory_2</span>
@@ -45,8 +54,8 @@
           <div v-if="completedSteps.includes('OUTER')" class="completion-badge">
             ✅ 작업완료
           </div>
-          <button v-else-if="completedSteps.includes('INNER')" class="selection-button available">
-            선택 가능
+          <button v-else-if="completedSteps.includes('INNER')" class="selection-button available highlighted">
+            ✨ 선택 가능 ✨
           </button>
           <button v-else class="selection-button disabled">
             내포장 완료 후 선택 가능
@@ -267,6 +276,7 @@ const selectedPackageType = ref(null)
 const completedSteps = ref([])
 const innerCompletionTime = ref(null)
 const outerCompletionTime = ref(null)
+const showInnerCompletedMessage = ref(false)
 
 // 필터 상태
 const lineTypeFilter = ref('')
@@ -282,23 +292,61 @@ const error = ref('')
 const showStartModal = ref(false)
 const selectedLineForStart = ref(null)
 
-// URL 파라미터에서 작업 완료 정보 확인
+// 🔥 수정된 URL 파라미터 처리
 onBeforeMount(() => {
-  // 작업 완료 후 돌아온 경우 처리
+  console.log('🔥 포장 라인 페이지 로드, URL 파라미터 확인:', route.query);
+  
+  // 🔥 수정: 내포장 완료 파라미터 확인
+  if (route.query.inner_completed === 'true') {
+    console.log('✅ 내포장 완료 감지!');
+    
+    if (!completedSteps.value.includes('INNER')) {
+      completedSteps.value.push('INNER');
+      innerCompletionTime.value = new Date();
+      showInnerCompletedMessage.value = true;
+      console.log('✅ 내포장 완료 상태 업데이트 완료');
+      
+      // 3초 후 메시지 숨기기
+      setTimeout(() => {
+        showInnerCompletedMessage.value = false;
+      }, 3000);
+    }
+    
+    // 🔥 자동 외포장 이동 기능 제거 - 사용자가 직접 선택하도록 함
+    
+    // URL 파라미터 정리
+    router.replace({ query: {} });
+  }
+  
+  // 🔥 수정: 외포장 완료 파라미터 확인
+  if (route.query.outer_completed === 'true' || route.query.all_completed === 'true') {
+    console.log('✅ 외포장 완료 감지!');
+    
+    if (!completedSteps.value.includes('OUTER')) {
+      completedSteps.value.push('OUTER');
+      outerCompletionTime.value = new Date();
+      console.log('✅ 외포장 완료 상태 업데이트 완료');
+    }
+    
+    // URL 파라미터 정리
+    router.replace({ query: {} });
+  }
+  
+  // 🔥 기존 코드도 유지 (호환성)
   if (route.query.work_completed) {
-    const completedType = route.query.completed_type
+    const completedType = route.query.completed_type;
     if (completedType && !completedSteps.value.includes(completedType)) {
-      completedSteps.value.push(completedType)
+      completedSteps.value.push(completedType);
       
       if (completedType === 'INNER') {
-        innerCompletionTime.value = new Date()
+        innerCompletionTime.value = new Date();
       } else if (completedType === 'OUTER') {
-        outerCompletionTime.value = new Date()
+        outerCompletionTime.value = new Date();
       }
     }
     
     // URL 파라미터 정리
-    router.replace({ query: {} })
+    router.replace({ query: {} });
   }
 })
 
@@ -310,9 +358,6 @@ async function fetchLines() {
     // 실제 API 호출 (예시 URL: /lines/list)
     const res = await axios.get('/lines/list')
     packageLines.value = res.data // 서버에서 받은 라인 목록으로 교체
-
-    // 혹시 서버 응답이 배열이 아닐 경우 확인 필요
-    // ex: packageLines.value = res.data.lines
   } catch (err) {
     error.value = '라인 목록을 불러오지 못했습니다.'
     console.error('Error fetching lines:', err)
@@ -334,27 +379,34 @@ const filteredLines = computed(() => {
   })
 })
 
-// 포장 타입 선택
+// 🔥 포장 타입 선택 함수 개선
 function selectPackageType(type) {
+  console.log('🎯 포장 타입 선택:', type);
+  console.log('🔍 현재 완료된 단계:', completedSteps.value);
+  
   if (type === 'OUTER' && !completedSteps.value.includes('INNER')) {
-    alert('내포장 작업을 먼저 완료해주세요.')
-    return
+    alert('내포장 작업을 먼저 완료해주세요.');
+    return;
   }
   
-  selectedPackageType.value = type
-  currentStep.value = 'line-selection'
+  selectedPackageType.value = type;
+  currentStep.value = 'line-selection';
   
   // 선택한 타입으로 필터 자동 설정
-  lineTypeFilter.value = type
-  lineStatusFilter.value = ''
-  searchText.value = ''
+  lineTypeFilter.value = type;
+  lineStatusFilter.value = '';
+  searchText.value = '';
+  
+  console.log(`✅ ${type === 'INNER' ? '내포장' : '외포장'} 라인 선택 화면으로 이동`);
 }
 
 // 포장 타입 선택으로 돌아가기
 function goBackToPackageTypeSelection() {
   currentStep.value = 'package-type-selection'
-  selectedPackageType.value = null
-  clearAllFilters()
+  // 필터를 완전히 초기화 (포장 타입도 초기화)
+  lineTypeFilter.value = ''
+  lineStatusFilter.value = ''
+  searchText.value = ''
 }
 
 // 모든 단계 초기화
@@ -363,11 +415,12 @@ function resetAllSteps() {
   innerCompletionTime.value = null
   outerCompletionTime.value = null
   currentStep.value = 'package-type-selection'
+  showInnerCompletedMessage.value = false
   selectedPackageType.value = null
   clearAllFilters()
 }
 
-// 필터 초기화
+// 필터 초기화 (현재 선택된 포장 타입 유지)
 function clearAllFilters() {
   lineTypeFilter.value = selectedPackageType.value || ''
   lineStatusFilter.value = ''
@@ -391,6 +444,8 @@ async function confirmStartWork() {
   if (!selectedLineForStart.value) return
   
   try {
+    console.log('🚀 작업 시작 처리 중...', selectedLineForStart.value);
+    
     // 라인 상태를 WORKING으로 변경하는 API 호출 (실제로는 서버에서 처리)
     // await axios.post(`/api/lines/${selectedLineForStart.value.line_id}/start`)
     
@@ -398,8 +453,27 @@ async function confirmStartWork() {
     navigateToWorkPage(selectedLineForStart.value)
     
   } catch (err) {
-    console.error('Error starting work:', err)
-    alert('작업 시작 중 오류가 발생했습니다.')
+    console.error('❌ 작업 시작 중 오류:', err)
+    
+    // 🔥 상세한 에러 메시지 제공
+    let errorMessage = '작업 시작 중 오류가 발생했습니다.';
+    
+    if (err.message?.includes('No match for')) {
+      errorMessage = '페이지 이동 중 오류가 발생했습니다. 직접 이동을 시도합니다.';
+      // 🔥 에러 발생시 강제로 직접 이동
+      const params = new URLSearchParams({
+        line_id: selectedLineForStart.value.line_id,
+        line_name: selectedLineForStart.value.line_name,
+        line_type: selectedLineForStart.value.line_type,
+        work_no: selectedLineForStart.value.work_no || '',
+        return_to: 'package_line',
+        current_package_type: selectedPackageType.value
+      })
+      window.location.href = `/packaging/work?${params.toString()}`;
+      return;
+    }
+    
+    alert(errorMessage)
   } finally {
     closeStartModal()
   }
@@ -415,35 +489,41 @@ function navigateToWorkPage(line) {
     selectedPackageType: selectedPackageType.value
   }))
   
-  // Vue Router를 사용하는 경우
+  console.log('🚀 작업 페이지로 이동:', line);
+  
+  // 🔥 수정: 올바른 라우터 이름 사용
   if (router) {
-    // 같은 SPA 내에서 라우팅
-    router.push({
-      name: 'package_work', // 라우터에 정의된 이름
-      query: {
-        line_id: line.line_id,
-        line_name: line.line_name,
-        line_type: line.line_type,
-        work_no: line.work_no || '',
-        // 돌아올 때 필요한 정보
-        return_to: 'package_line',
-        current_package_type: selectedPackageType.value
-      }
-    })
-  } else {
-    // 일반 페이지 이동 (HTML 기반)
-    const params = new URLSearchParams({
-      line_id: line.line_id,
-      line_name: line.line_name,
-      line_type: line.line_type,
-      work_no: line.work_no || '',
-      return_to: 'package_line',
-      current_package_type: selectedPackageType.value
-    })
-    
-    // 포장 작업 수행 페이지로 이동
-    window.location.href = `/packaging/work?${params.toString()}`
+    try {
+      router.push({
+        name: 'package_work', // ✅ 올바른 라우터 이름
+        query: {
+          line_id: line.line_id,
+          line_name: line.line_name,
+          line_type: line.line_type,
+          work_no: line.work_no || '',
+          return_to: 'package_line',
+          current_package_type: selectedPackageType.value
+        }
+      })
+      console.log('✅ Vue Router로 이동 성공');
+      return;
+    } catch (routerError) {
+      console.error('❌ Vue Router 이동 실패:', routerError);
+    }
   }
+  
+  // 🔥 라우터 실패시 직접 URL로 이동
+  const params = new URLSearchParams({
+    line_id: line.line_id,
+    line_name: line.line_name,
+    line_type: line.line_type,
+    work_no: line.work_no || '',
+    return_to: 'package_line',
+    current_package_type: selectedPackageType.value
+  })
+  
+  console.log('🔄 직접 URL로 이동:', `/packaging/work?${params.toString()}`);
+  window.location.href = `/packaging/work?${params.toString()}`
 }
 
 // 작업 완료 후 돌아오는 함수 (PackageWork에서 호출)
@@ -513,6 +593,32 @@ defineOptions({
   min-height: 100vh;
   background-color: #f8fafc;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* 🔥 내포장 완료 알림 추가 */
+.completion-alert {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+  padding: 16px 24px;
+  border-radius: 12px;
+  margin: 20px auto;
+  max-width: 600px;
+  text-align: center;
+  font-size: 16px;
+  font-weight: 600;
+  box-shadow: 0 8px 25px rgba(16, 185, 129, 0.3);
+  animation: fadeInScale 0.5s ease-out;
+}
+
+@keyframes fadeInScale {
+  0% {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 /* 브레드크럼 */
@@ -602,6 +708,24 @@ defineOptions({
   border-color: #e2e8f0;
 }
 
+/* 🔥 외포장 활성화 시 강조 */
+.package-type-card.highlighted {
+  border-color: #10b981;
+  box-shadow: 0 8px 25px rgba(16, 185, 129, 0.15);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 8px 25px rgba(16, 185, 129, 0.15);
+  }
+  50% {
+    transform: scale(1.02);
+    box-shadow: 0 12px 30px rgba(16, 185, 129, 0.25);
+  }
+}
+
 .card-icon {
   margin-bottom: 24px;
 }
@@ -618,6 +742,10 @@ defineOptions({
 
 .package-type-card.disabled .card-icon .material-icons {
   color: #94a3b8;
+}
+
+.package-type-card.highlighted .card-icon .material-icons {
+  color: #10b981;
 }
 
 .package-type-card h3 {
@@ -650,6 +778,22 @@ defineOptions({
 
 .selection-button.available:hover {
   background: #2563eb;
+}
+
+/* 🔥 외포장 활성화 시 강조 버튼 */
+.selection-button.highlighted {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0%, 100% {
+    background: linear-gradient(135deg, #10b981, #059669);
+  }
+  50% {
+    background: linear-gradient(135deg, #059669, #047857);
+  }
 }
 
 .selection-button.disabled {
@@ -755,7 +899,7 @@ defineOptions({
 .filter-row {
   display: flex;
   gap: 20px;
-  align-items: flex-end;   /* ← 이렇게 수정 */
+  align-items: flex-end;
   background: white;
   padding: 20px;
   border-radius: 12px;

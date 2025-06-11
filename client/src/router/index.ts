@@ -44,6 +44,43 @@ const routes: Array<RouteRecordRaw> = [
         ],
       },
       {
+        name: 'production',
+        path: 'production',
+        component: RouteViewComponent,
+        children: [
+          {
+            name: 'work_order_manager',
+            path: 'work_order_manager',
+            component: ()=> import('../pages/workorder/WorkOrderManager.vue'),
+          },
+          {
+            name: 'work_order_check',
+            path: 'work_order_check',
+            component: ()=> import('../pages/workorder/WorkOrderCheck.vue'),
+          },
+          {
+            name: 'work_order_manager',
+            path: 'work_order_manager',
+            component: ()=> import('../pages/workorder/WorkOrderManager.vue'),
+          },
+          {
+            name: 'work_order_manager',
+            path: 'work_order_manager',
+            component: ()=> import('../pages/workorder/WorkOrderManager.vue'),
+          },
+          {
+            name: 'work_order_manager',
+            path: 'work_order_manager',
+            component: ()=> import('../pages/workorder/WorkOrderManager.vue'),
+          },
+          {
+            name: 'work_order_manager',
+            path: 'work_order_manager',
+            component: ()=> import('../pages/workorder/WorkOrderManager.vue'),
+          },
+        ],
+      },
+      {
         name: 'packaging',
         path: 'packaging',  
         component: RouteViewComponent,
@@ -116,6 +153,38 @@ const routes: Array<RouteRecordRaw> = [
         name: 'distribution',
         path: 'distribution',
         component: () => import('../pages/preferences/Preferences.vue'),
+      },
+      {
+        name: 'business',
+        path: 'business',
+        component: () => import('../pages/users/UsersPage.vue'),
+      },
+      {
+        name: 'facility',
+        path: 'facility',
+        component: RouteViewComponent,
+        children: [
+          {
+            name: 'equipment-inquiry',
+            path: 'inquiry',
+            component: () => import('../pages/equipment/EquipmentInquiry.vue'),
+          },
+          {
+            name: 'equipment-register',
+            path: 'register',
+            component: () => import('../pages/equipment/EquipmentForm.vue'),
+          },
+          {
+            name: 'equipment-management',
+            path: 'management',
+            component: () => import('../pages/equipment/EquipmentManagement.vue'),
+          },
+          {
+            name: 'equipment-inspection',
+            path: 'inspection',
+            component: () => import('../pages/equipment/EquipmentInspection.vue')
+          },
+        ],
       },
       {
         name: 'material',
@@ -223,7 +292,7 @@ const routes: Array<RouteRecordRaw> = [
     ],
   },
   {
-    path: '/production',
+    path: '/login',
     component: AuthLayout,
     children: [
       {

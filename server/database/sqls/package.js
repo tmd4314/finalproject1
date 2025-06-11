@@ -5,7 +5,7 @@ module.exports = {
     INSERT INTO package_work (
       work_no, line_id, work_line, work_step, step_name, step_status,
       input_qty, output_qty, eq_code, start_time, end_time,
-      employee_no, employee_name, reg_date, upd_date
+      employee_id, employee_name, reg_date, upd_date
     ) VALUES (?, ?, ?, ?, ?, 'READY', ?, 0, ?, NOW(), NULL, ?, ?, NOW(), NOW())
   `,
 
@@ -24,7 +24,7 @@ module.exports = {
       IF(input_qty > 0, ROUND((output_qty / input_qty * 100), 1), 0) AS progress_rate,
       IF(input_qty > 0, ROUND(((input_qty - output_qty) / input_qty * 100), 2), 0) AS defect_rate,
       eq_code,
-      employee_no,
+      employee_id,
       employee_name,
       start_time,
       end_time,
@@ -49,10 +49,10 @@ module.exports = {
       employee_name,
       DATE_FORMAT(reg_date, '%Y-%m-%d %H:%i') as reg_date
     FROM package_work 
-    WHERE step_status IN ('READY', 'IN_PROGRESS', 'PAUSED')
+    WHERE step_status IN ('READY', 'WORKING', 'PAUSED')
     ORDER BY 
       CASE step_status 
-        WHEN 'IN_PROGRESS' THEN 1 
+        WHEN 'WORKING' THEN 1 
         WHEN 'PAUSED' THEN 2 
         WHEN 'READY' THEN 3 
         ELSE 4 
@@ -73,34 +73,24 @@ module.exports = {
       TIMESTAMPDIFF(MINUTE, start_time, IFNULL(end_time, NOW())) AS work_duration,
       DATE_FORMAT(start_time, '%H:%i') as start_time_formatted
     FROM package_work 
-    WHERE step_status = 'IN_PROGRESS'
+    WHERE step_status = 'WORKING'
     ORDER BY start_time DESC
   `,
 
   // 🔥 작업번호 선택 옵션 (셀렉트박스용)
   selectWorkOptions: `
     SELECT 
-      work_no as value,
-      CONCAT(work_no, ' - ', step_name, ' (', 
-             IF(input_qty > 0, ROUND((output_qty / input_qty * 100), 1), 0), 
-             '%)') as label,
       work_no,
+      CONCAT(work_no, ' - ', step_name, ' (', 
+            IF(input_qty > 0, ROUND((output_qty / input_qty * 100), 1), 0), 
+            '%)') as label,
       step_name,
       step_status,
       input_qty,
       output_qty,
       IF(input_qty > 0, ROUND((output_qty / input_qty * 100), 1), 0) AS progress_rate,
       employee_name
-    FROM package_work 
-    WHERE step_status IN ('READY', 'IN_PROGRESS', 'PAUSED')
-    ORDER BY 
-      CASE step_status 
-        WHEN 'IN_PROGRESS' THEN 1 
-        WHEN 'PAUSED' THEN 2 
-        WHEN 'READY' THEN 3 
-        ELSE 4 
-      END,
-      reg_date DESC
+    FROM package_work
   `,
 
   // 🔥 라인별 작업 조회
@@ -117,7 +107,7 @@ module.exports = {
       employee_name,
       DATE_FORMAT(reg_date, '%Y-%m-%d %H:%i') as reg_date
     FROM package_work 
-    WHERE line_id = ? AND step_status IN ('READY', 'IN_PROGRESS', 'PAUSED')
+    WHERE line_id = ? AND step_status IN ('READY', 'WORKING', 'PAUSED')
     ORDER BY reg_date DESC
   `,
 
@@ -125,7 +115,7 @@ module.exports = {
   startWork: `
     UPDATE package_work
     SET 
-      step_status = 'IN_PROGRESS',
+      step_status = 'WORKING',
       start_time = NOW(),
       upd_date = NOW()
     WHERE work_no = ? AND step_status = 'READY'

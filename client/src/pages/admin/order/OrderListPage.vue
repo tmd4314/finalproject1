@@ -342,6 +342,71 @@ onMounted(async () => {
   await fetchFilterOptions() // 필터 옵션 가져오기
 })
 
+// 🔸 Mock 데이터 함수 (개발용)
+function useMockData() {
+  // 주문 목록 설정
+  orders.value = [
+    {
+      order_id: 'ORD001',
+      customer_name: '셀트리온',
+      customer_id: 'CUS001',
+      order_date: '2024-01-15',
+      delivery_date: '2024-01-20',
+      status: '진행중',
+      phone: '02-1234-5678',
+      address: '인천광역시 연수구 아카데미로 23',
+      manager_name: '홍길동',
+      created_by: '김철수'
+    },
+    {
+      order_id: 'ORD002',
+      customer_name: '한미약품',
+      customer_id: 'CUS002',
+      order_date: '2024-01-16',
+      delivery_date: '2024-01-22',
+      status: '완료',
+      phone: '02-9876-5432',
+      address: '서울특별시 송파구 위례성대로 14',
+      manager_name: '이영희',
+      created_by: '박지민'
+    },
+    {
+      order_id: 'ORD003',
+      customer_name: '종근당',
+      customer_id: 'CUS003',
+      order_date: '2024-01-17',
+      delivery_date: '2024-01-25',
+      status: '지연',
+      phone: '02-5555-1234',
+      address: '서울특별시 용산구 청파로 383',
+      manager_name: '홍길동',
+      created_by: '김철수'
+    },
+    {
+      order_id: 'ORD004',
+      customer_name: '대웅제약',
+      customer_id: 'CUS004',
+      order_date: '2024-01-18',
+      delivery_date: '2024-01-28',
+      status: '대기',
+      phone: '02-3333-4444',
+      address: '서울시 강남구 봉은사로 114길 12',
+      manager_name: '박지민',
+      created_by: '이영희'
+    }
+  ]
+  
+  // 필터 옵션 설정
+  customerOptions.value = ['셀트리온', '한미약품', '종근당', '대웅제약', '유한양행']
+  managerOptions.value = ['홍길동', '김철수', '이영희', '박지민']
+  businessNoOptions.value = ['111-11-11111', '222-22-22222', '333-33-33333']
+  
+  // 첫 번째 주문 자동 선택
+  if (orders.value.length > 0) {
+    selectOrder(orders.value[0])
+  }
+}
+
 // 🔹 API 함수들
 // async/await: 비동기 작업을 동기적으로 처리합니다
 async function fetchOrders() {
@@ -349,7 +414,23 @@ async function fetchOrders() {
     loading.value = true
     // GET 요청: 서버에서 주문 목록을 가져옵니다
     const response = await axios.get('/api/orders')
-    orders.value = response.data
+    
+    // 🔸 디버깅: 받은 데이터 확인
+    console.log('API 응답 데이터:', response.data)
+    
+    // 🔸 데이터가 배열인지 확인하고 처리
+    if (Array.isArray(response.data)) {
+      orders.value = response.data
+    } else if (response.data && Array.isArray(response.data.data)) {
+      // 만약 { data: [...] } 형태로 왔다면
+      orders.value = response.data.data
+    } else if (response.data && Array.isArray(response.data.orders)) {
+      // 만약 { orders: [...] } 형태로 왔다면
+      orders.value = response.data.orders
+    } else {
+      console.error('예상치 못한 데이터 형식:', response.data)
+      orders.value = []
+    }
     
     // 첫 주문 자동 선택
     if (orders.value.length > 0) {
@@ -357,8 +438,33 @@ async function fetchOrders() {
     }
   } catch (error) {
     console.error('주문 목록 로드 실패:', error)
-    // 사용자에게 에러 메시지 표시 (실제로는 toast나 modal 사용)
-    alert('주문 목록을 불러오는데 실패했습니다.')
+    // API가 아직 없으면 임시 데이터 사용
+    orders.value = [
+      {
+        order_id: 'ORD001',
+        customer_name: '셀트리온',
+        customer_id: 'CUS001',
+        order_date: '2024-01-15',
+        delivery_date: '2024-01-20',
+        status: '진행중',
+        phone: '02-1234-5678',
+        address: '인천광역시 연수구 아카데미로 23',
+        manager_name: '홍길동',
+        created_by: '김철수'
+      },
+      {
+        order_id: 'ORD002',
+        customer_name: '한미약품',
+        customer_id: 'CUS002',
+        order_date: '2024-01-16',
+        delivery_date: '2024-01-22',
+        status: '완료',
+        phone: '02-9876-5432',
+        address: '서울특별시 송파구 위례성대로 14',
+        manager_name: '이영희',
+        created_by: '박지민'
+      }
+    ]
   } finally {
     loading.value = false
   }
@@ -376,6 +482,11 @@ async function fetchFilterOptions() {
     managerOptions.value = managersRes.data
   } catch (error) {
     console.error('필터 옵션 로드 실패:', error)
+    
+    // 🔸 API가 없을 때 임시 데이터 사용
+    customerOptions.value = ['셀트리온', '한미약품', '종근당', '대웅제약', '유한양행']
+    managerOptions.value = ['홍길동', '김철수', '이영희', '박지민']
+    businessNoOptions.value = ['111-11-11111', '222-22-22222', '333-33-33333']
   }
 }
 
@@ -384,12 +495,48 @@ async function selectOrder(order: Order) {
   try {
     selectedOrder.value = order
     
-    // 주문 품목 정보 가져오기
-    const response = await axios.get(`/api/orders/${order.order_id}/items`)
-    orderItems.value = response.data
+    // 🔸 백엔드 API 경로에 맞게 수정 (/details)
+    const response = await axios.get(`/api/orders/${order.order_id}/details`)
+    console.log('주문 상세 응답:', response.data)
+    
+    // 🔸 백엔드 응답 구조에 맞게 데이터 처리
+    if (response.data) {
+      // order와 items가 분리되어 있을 경우
+      if (response.data.items) {
+        orderItems.value = response.data.items
+      } 
+      // 또는 다른 구조일 경우 (백엔드 응답 확인 필요)
+      else if (Array.isArray(response.data)) {
+        orderItems.value = response.data
+      } else {
+        console.log('예상치 못한 상세 데이터 구조:', response.data)
+        orderItems.value = []
+      }
+    }
   } catch (error) {
     console.error('주문 상세 정보 로드 실패:', error)
-    orderItems.value = []
+    
+    // 🔸 임시 데이터 사용
+    orderItems.value = [
+      {
+        product_id: 'PRD001',
+        product_name: '타이레놀 500mg',
+        product_code: 'TYL-500',
+        spec: '500mg x 10정',
+        order_qty: 100,
+        stock_qty: 50,
+        note: '긴급 배송 요청'
+      },
+      {
+        product_id: 'PRD002',
+        product_name: '아스피린 100mg',
+        product_code: 'ASP-100',
+        spec: '100mg x 30정',
+        order_qty: 200,
+        stock_qty: 150,
+        note: ''
+      }
+    ]
   }
 }
 

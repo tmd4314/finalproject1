@@ -1,143 +1,213 @@
 <template>
-  <div class="grid grid-cols-2 gap-4 p-4">
-    <!-- 좌측: BOM 리스트 -->
-    <div class="border rounded p-4">
-      <label class="block font-semibold mb-2">제품명</label>
-      <select v-model="selectedProduct" @change="filterBomList" class="w-full border p-1 rounded mb-4">
-        <option value="">제품명 선택</option>
-        <option v-for="prod in uniqueProductOptions" :key="prod.product_name" :value="prod.product_name">
-          {{ prod.product_name }}
-        </option>
-      </select>
-
-      <table class="w-full border text-sm">
-        <thead class="bg-gray-100">
-          <tr>
-            <th class="border p-1">BOM코드</th>
-            <th class="border p-1">제품코드</th>
-            <th class="border p-1">제품명</th>
-            <th class="border p-1">규격</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="bom in filteredBoms" :key="bom.bom_code" @click="selectBom(bom)" class="hover:bg-gray-50 cursor-pointer">
-            <td class="border p-1">{{ bom.bom_code }}</td>
-            <td class="border p-1">{{ bom.product_code }}</td>
-            <td class="border p-1">{{ bom.product_name }}</td>
-            <td class="border p-1">{{ bom.product_stand }}</td>
-          </tr>
-        </tbody>
-      </table>
+  <div class="max-w-[1060px] h-[739px] mx-auto p-4 bg-gray-50 overflow-hidden">
+    <!-- 상단 타이틀 -->
+    <div class="mb-4">
+      <h1 class="text-2xl font-bold text-gray-800 mb-2">BOM 관리</h1>
     </div>
 
-    <!-- 우측: BOM 상세 -->
-    <div class="border rounded p-4">
-      <div class="grid grid-cols-3 gap-2 mb-4">
-        <div>
-          <label class="block text-sm font-medium">제품명</label>
-          <div class="relative">
-            <!-- 편집 모드가 아닐 때는 직접 입력 가능한 텍스트 필드 -->
+    <div class="grid grid-cols-2 gap-4 h-[calc(100%-80px)]">
+      <!-- 좌측: BOM 리스트 -->
+      <div class="flex flex-col bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        <div class="mb-4">
+          <label class="block text-xs font-medium text-blue-600 mb-2">제품명</label>
+          <select 
+            v-model="selectedProduct" 
+            @change="filterBomList" 
+            class="w-full px-2 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white text-xs"
+          >
+            <option value="">제품명 선택</option>
+            <option v-for="prod in uniqueProductOptions" :key="prod.product_name" :value="prod.product_name">
+              {{ prod.product_name }}
+            </option>
+          </select>
+        </div>
+
+        <div class="h-[550px] overflow-auto border border-gray-200 rounded">
+          <table class="w-full text-sm border-collapse bg-white">
+            <thead class="bg-gray-50 sticky top-0">
+              <tr>
+                <th class="border border-gray-200 px-3 py-2 text-left font-medium text-gray-700 text-xs">BOM코드</th>
+                <th class="border border-gray-200 px-3 py-2 text-left font-medium text-gray-700 text-xs">제품코드</th>
+                <th class="border border-gray-200 px-3 py-2 text-left font-medium text-gray-700 text-xs">제품명</th>
+                <th class="border border-gray-200 px-3 py-2 text-left font-medium text-gray-700 text-xs">규격</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr 
+                v-for="bom in filteredBoms" 
+                :key="bom.bom_code" 
+                @click="selectBom(bom)" 
+                class="hover:bg-blue-50 cursor-pointer transition-colors duration-150"
+              >
+                <td class="border border-gray-200 px-3 py-2 text-xs">{{ bom.bom_code }}</td>
+                <td class="border border-gray-200 px-3 py-2 text-xs">{{ bom.product_code }}</td>
+                <td class="border border-gray-200 px-3 py-2 text-xs">{{ bom.product_name }}</td>
+                <td class="border border-gray-200 px-3 py-2 text-xs">{{ bom.product_stand }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 우측: BOM 상세 -->
+      <div class="flex flex-col bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        <!-- 기본 정보 -->
+        <div class="grid grid-cols-3 gap-3 mb-4">
+          <div>
+            <label class="block text-xs font-medium text-blue-600 mb-2">제품명</label>
+            <div class="relative">
+              <select 
+                v-if="!isEditMode"
+                v-model="form.product_name" 
+                class="w-full px-2 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white text-xs"
+                @change="onProductNameChange"
+              >
+                <option value="">제품명 선택</option>
+                <option v-for="product in uniqueProductNames" :key="product" :value="product">
+                  {{ product }}
+                </option>
+              </select>
+              <input 
+                v-else
+                v-model="form.product_name" 
+                class="w-full px-2 py-1.5 border border-gray-300 rounded-md bg-gray-100 text-gray-600 text-xs"
+                readonly
+              />
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-blue-600 mb-2">BOM 코드</label>
             <input 
-              v-if="!isEditMode"
-              v-model="form.product_name" 
-              placeholder="제품명을 입력하세요"
-              class="w-full border p-1 rounded"
-              @input="onProductNameInput"
-            />
-            <!-- 편집 모드일 때는 읽기 전용 텍스트 필드 -->
-            <input 
-              v-else
-              v-model="form.product_name" 
-              class="w-full border p-1 rounded bg-gray-100"
-              readonly
+              v-model="form.bom_code" 
+              class="w-full px-2 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-xs" 
             />
           </div>
+          <div>
+            <label class="block text-xs font-medium text-blue-600 mb-2">규격</label>
+            <select 
+              v-model="form.product_stand" 
+              class="w-full px-2 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white text-xs"
+              @change="updateProductCode"
+              :disabled="!form.product_name"
+            >
+              <option value="">규격 선택</option>
+              <option v-for="spec in availableSpecs" :key="spec" :value="spec">
+                {{ spec }}
+              </option>
+            </select>
+          </div>
         </div>
-        <div>
-          <label class="block text-sm font-medium">BOM 코드</label>
-          <input v-model="form.bom_code" class="w-full border p-1 rounded" />
-        </div>
-        <div>
-          <label class="block text-sm font-medium">규격</label>
-          <input 
-            v-model="form.product_stand" 
-            placeholder="규격을 입력하세요"
-            class="w-full border p-1 rounded"
-          />
-        </div>
-      </div>
 
-      <!-- 투입 자재 -->
-      <div class="mb-4">
-        <label class="font-semibold mb-1 block">투입 자재</label>
-        <table class="w-full text-sm border">
-          <thead class="bg-gray-100">
-            <tr>
-              <th class="border px-2">#</th>
-              <th class="border px-2">자재코드</th>
-              <th class="border px-2">자재명</th>
-              <th class="border px-2">분류</th>
-              <th class="border px-2">단위</th>
-              <th class="border px-2">규격</th>
-              <th class="border px-2">투입량</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="(mat, index) in form.materials" :key="mat.material_code || index">
-              <td class="border px-2"><input type="checkbox" v-model="mat.selected" /></td>
-              <td class="border px-2">{{ mat.material_code }}</td>
-              <td class="border px-2">{{ mat.material_name }}</td>
-              <td class="border px-2">{{ mat.material_type || '-' }}</td>
-              <td class="border px-2">{{ mat.material_unit }}</td>
-              <td class="border px-2">{{ mat.material_stand }}</td>
-              <td class="border px-2">
-                <input v-model.number="mat.usage_qty" type="number" step="0.01" class="w-20 border p-1 rounded" />
-              </td>
-            </tr>
-          </tbody>
-        </table>
-        <button @click="removeSelectedMaterials" class="mt-2 bg-red-500 text-white px-3 py-1 rounded" :disabled="!hasSelectedMaterials">
-          제거
-        </button>
-      </div>
-
-      <!-- 자재 검색 및 추가 -->
-      <div class="mb-4">
-        <label class="font-semibold mb-1 block">자재 검색 및 추가</label>
-        <div class="flex gap-2 mb-2">
-          <input v-model="searchMaterial" placeholder="자재코드 또는 자재명" class="flex-1 border p-1 rounded" @keyup.enter="searchMaterials" />
-          <button @click="addMaterialsToBom" class="bg-green-600 text-white px-3 py-1 rounded">추가</button>
+        <!-- 투입 자재 -->
+        <div class="mb-3 flex flex-col h-60">
+          <div class="flex justify-between items-center mb-2">
+            <label class="text-xs font-medium text-blue-600">투입 자재</label>
+            <button 
+              @click="removeSelectedMaterials" 
+              class="px-3 py-1.5 bg-red-500 text-white text-xs rounded hover:bg-red-600 transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed" 
+              :disabled="!hasSelectedMaterials"
+            >
+              제거
+            </button>
+          </div>
+          <div class="flex-1 overflow-auto border border-gray-200 rounded">
+            <table class="w-full text-xs border-collapse bg-white">
+              <thead class="bg-gray-50 sticky top-0">
+                <tr>
+                  <th class="border border-gray-200 px-2 py-0.5 text-center font-medium text-gray-700">#</th>
+                  <th class="border border-gray-200 px-2 py-0.5 text-left font-medium text-gray-700">자재코드</th>
+                  <th class="border border-gray-200 px-2 py-0.5 text-left font-medium text-gray-700">자재명</th>
+                  <th class="border border-gray-200 px-2 py-0.5 text-left font-medium text-gray-700">분류</th>
+                  <th class="border border-gray-200 px-2 py-0.5 text-left font-medium text-gray-700">단위</th>
+                  <th class="border border-gray-200 px-2 py-0.5 text-left font-medium text-gray-700">규격</th>
+                  <th class="border border-gray-200 px-2 py-0.5 text-left font-medium text-gray-700">투입량</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(mat, index) in form.materials" :key="mat.material_code || index" class="hover:bg-gray-50">
+                  <td class="border border-gray-200 px-2 py-0.5 text-center">
+                    <input type="checkbox" v-model="mat.selected" class="rounded w-3 h-3" />
+                  </td>
+                  <td class="border border-gray-200 px-2 py-0.5">{{ mat.material_code }}</td>
+                  <td class="border border-gray-200 px-2 py-0.5">{{ mat.material_name }}</td>
+                  <td class="border border-gray-200 px-2 py-0.5">{{ mat.material_type || '-' }}</td>
+                  <td class="border border-gray-200 px-2 py-0.5">{{ mat.material_unit }}</td>
+                  <td class="border border-gray-200 px-2 py-0.5">{{ mat.material_stand }}</td>
+                  <td class="border border-gray-200 px-2 py-0.5">
+                    <input 
+                      v-model.number="mat.usage_qty" 
+                      type="number" 
+                      step="0.01" 
+                      class="w-14 px-1 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" 
+                    />
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
-        <table class="w-full text-sm border max-h-48 overflow-y-auto">
-          <thead class="bg-gray-100">
-            <tr>
-              <th class="border px-2">#</th>
-              <th class="border px-2">자재코드</th>
-              <th class="border px-2">자재명</th>
-              <th class="border px-2">분류</th>
-              <th class="border px-2">단위</th>
-              <th class="border px-2">규격</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="mat in filteredMaterials" :key="mat.material_code">
-              <td class="border px-2"><input type="checkbox" :value="mat" v-model="selectedMaterials" /></td>
-              <td class="border px-2">{{ mat.material_code }}</td>
-              <td class="border px-2">{{ mat.material_name }}</td>
-              <td class="border px-2">{{ mat.material_type }}</td>
-              <td class="border px-2">{{ mat.material_unit }}</td>
-              <td class="border px-2">{{ mat.material_stand }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
 
-      <!-- 저장/초기화 버튼 -->
-      <div class="flex gap-2">
-        <button @click="saveBom" class="bg-blue-600 text-white px-4 py-2 rounded" :disabled="!canSave">
-          {{ isEditMode ? '수정' : '저장' }}
-        </button>
-        <button @click="resetForm" class="bg-gray-500 text-white px-4 py-2 rounded">초기화</button>
+        <!-- 자재 검색 및 추가 -->
+        <div class="mb-3">
+          <label class="text-xs font-medium text-blue-600 mb-2 block">자재 검색 및 추가</label>
+          <div class="flex gap-2 mb-2">
+            <input 
+              v-model="searchMaterial" 
+              placeholder="자재코드 또는 자재명" 
+              class="flex-1 px-2 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-xs" 
+              @keyup.enter="searchMaterials" 
+            />
+            <button 
+              @click="addMaterialsToBom" 
+              class="px-3 py-1.5 bg-green-600 text-white rounded text-xs hover:bg-green-700 transition-colors duration-150"
+            >
+              추가
+            </button>
+          </div>
+          <div class="h-[200px] overflow-y-auto border border-gray-200 rounded">
+            <table class="w-full text-xs border-collapse bg-white">
+              <thead class="bg-gray-50 sticky top-0">
+                <tr>
+                  <th class="border border-gray-200 px-2 py-0.5 text-center font-medium text-gray-700">#</th>
+                  <th class="border border-gray-200 px-2 py-0.5 text-left font-medium text-gray-700">자재코드</th>
+                  <th class="border border-gray-200 px-2 py-0.5 text-left font-medium text-gray-700">자재명</th>
+                  <th class="border border-gray-200 px-2 py-0.5 text-left font-medium text-gray-700">분류</th>
+                  <th class="border border-gray-200 px-2 py-0.5 text-left font-medium text-gray-700">단위</th>
+                  <th class="border border-gray-200 px-2 py-0.5 text-left font-medium text-gray-700">규격</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="mat in filteredMaterials" :key="mat.material_code" class="hover:bg-gray-50">
+                  <td class="border border-gray-200 px-2 py-0.5 text-center">
+                    <input type="checkbox" :value="mat" v-model="selectedMaterials" class="rounded w-3 h-3" />
+                  </td>
+                  <td class="border border-gray-200 px-2 py-0.5">{{ mat.material_code }}</td>
+                  <td class="border border-gray-200 px-2 py-0.5">{{ mat.material_name }}</td>
+                  <td class="border border-gray-200 px-2 py-0.5">{{ mat.material_type }}</td>
+                  <td class="border border-gray-200 px-2 py-0.5">{{ mat.material_unit }}</td>
+                  <td class="border border-gray-200 px-2 py-0.5">{{ mat.material_stand }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 저장/초기화 버튼 -->
+        <div class="flex gap-3 justify-center mt-2">
+          <button 
+            @click="saveBom" 
+            class="px-5 py-1.5 bg-blue-600 text-white rounded text-xs hover:bg-blue-700 transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed font-medium" 
+            :disabled="!canSave"
+          >
+            {{ isEditMode ? '수정' : '저장' }}
+          </button>
+          <button 
+            @click="resetForm" 
+            class="px-5 py-1.5 bg-gray-500 text-white rounded text-xs hover:bg-gray-600 transition-colors duration-150 font-medium"
+          >
+            초기화
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -198,30 +268,36 @@ const uniqueProductOptions = computed(() => {
   return uniqueProducts
 })
 
-// 우측 폼에서 사용할 제품 옵션 (중복 제거된 상태로 표시)
-const availableProductOptions = computed(() => {
-  const productMap = new Map()
-  
-  productOptions.value.forEach(prod => {
-    if (!productMap.has(prod.product_name)) {
-      productMap.set(prod.product_name, prod)
+// 중복 제거된 제품명 목록 (드롭다운용)
+const uniqueProductNames = computed(() => {
+  const productNames = new Set()
+  productOptions.value.forEach(product => {
+    if (product.product_name) {
+      productNames.add(product.product_name)
     }
   })
-  
-  return Array.from(productMap.values())
+  return Array.from(productNames).sort()
 })
 
-// 규격 옵션 (DB에서 가져온 데이터만 사용)
-const availableStandOptions = computed(() => {
-  const standSet = new Set()
+// 선택된 제품명에 따른 사용 가능한 규격 목록
+const availableSpecs = computed(() => {
+  if (!form.value.product_name) return []
   
-  productOptions.value.forEach(prod => {
-    if (prod.product_stand) {
-      standSet.add(prod.product_stand)
-    }
-  })
+  const specs = new Set()
+  productOptions.value
+    .filter(product => product.product_name === form.value.product_name)
+    .forEach(product => {
+      if (product.product_stand) {
+        specs.add(product.product_stand)
+      }
+    })
   
-  return Array.from(standSet).sort()
+  return Array.from(specs).sort()
+})
+
+// 우측 폼에서 사용할 제품 옵션 (중복 제거 없이 모든 제품 표시)
+const availableProductOptions = computed(() => {
+  return productOptions.value
 })
 
 // 선택된 제품명으로 BOM 목록 필터링
@@ -251,11 +327,32 @@ const canSave = computed(() => {
   return form.value.bom_code && form.value.product_name && form.value.product_stand && form.value.materials.length > 0
 })
 
-// 제품명 입력 시 처리 (신규 등록 모드에서만)
-const onProductNameInput = () => {
-  if (!isEditMode.value) {
-    // 신규 등록 모드에서는 제품코드를 임시로 생성하거나 비워둠
-    form.value.product_code = ''
+// 제품명 선택 시 처리
+const onProductNameChange = () => {
+  // 제품명이 변경되면 규격 초기화
+  form.value.product_stand = ''
+  form.value.product_code = ''
+  updateProductCode()
+}
+
+// 제품명과 규격 기반으로 제품코드 업데이트
+const updateProductCode = () => {
+  if (!isEditMode.value && form.value.product_name && form.value.product_stand) {
+    console.log('매칭 시도:', form.value.product_name, form.value.product_stand)
+    
+    // 제품명과 규격이 일치하는 제품 찾기
+    const matchingProduct = productOptions.value.find(product => 
+      product.product_name === form.value.product_name && 
+      product.product_stand === form.value.product_stand
+    )
+    
+    if (matchingProduct) {
+      form.value.product_code = matchingProduct.product_code
+      console.log(`✅ 매칭된 제품: ${form.value.product_name} ${form.value.product_stand} -> ${matchingProduct.product_code}`)
+    } else {
+      form.value.product_code = ''
+      console.log(`❌ 매칭되는 제품을 찾을 수 없습니다: ${form.value.product_name} ${form.value.product_stand}`)
+    }
   }
 }
 
@@ -289,7 +386,8 @@ const selectBom = async (bom) => {
             selected: false,
             status: 'existing'
           }
-        })
+        }),
+        deletedMaterials: []
       }
       isEditMode.value = true
     }
@@ -349,9 +447,26 @@ const saveBom = async () => {
   }
 
   try {
+    let finalProductCode = form.value.product_code
+
+    // 신규 등록 시 제품코드가 없으면 제품명과 규격으로 찾기
+    if (!isEditMode.value && !finalProductCode) {
+      const matchingProduct = productOptions.value.find(product => 
+        product.product_name === form.value.product_name && 
+        product.product_stand === form.value.product_stand
+      )
+      
+      if (matchingProduct) {
+        finalProductCode = matchingProduct.product_code
+      } else {
+        alert('선택한 제품명과 규격에 해당하는 제품을 찾을 수 없습니다.')
+        return
+      }
+    }
+
     const payload = {
       bom_code: form.value.bom_code,
-      product_code: form.value.product_code || form.value.bom_code,
+      product_code: finalProductCode,
       product_name: form.value.product_name,
       product_stand: form.value.product_stand,
       materials: form.value.materials.map(mat => ({
@@ -406,6 +521,7 @@ const fetchProductList = async () => {
   try {
     const res = await axios.get('/bom/products')
     productOptions.value = res.data || []
+    console.log('불러온 제품 목록:', productOptions.value)
   } catch (err) {
     console.error('제품 목록 조회 오류:', err)
   }
@@ -433,8 +549,30 @@ onMounted(() => {
 
 <style scoped>
 input, select {
-  border: 1px solid #ccc;
-  padding: 4px;
-  border-radius: 4px;
+  transition: all 0.15s ease-in-out;
+}
+
+input:focus, select:focus {
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* 스크롤바 스타일링 */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f8fafc;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
 </style>
