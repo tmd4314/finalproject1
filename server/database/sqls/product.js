@@ -10,7 +10,6 @@ const selectProductList =
            product_gred,
            product_stand,
            product_perdt,
-           product_pt,
            product_unit,
            product_safty
   FROM     product
@@ -25,25 +24,17 @@ const productInsert =
                       product_gred,
                       product_unit,
                       product_stand,
-                      product_pt,
                       product_perdt,
                       product_safty,
                       product_img)
-VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 ;
 const productUpdate = `
   UPDATE product 
   SET 
-    product_name = ?,
-    product_pay = ?,
-    product_atc = ?,
-    product_gred = ?,
-    product_unit = ?,
-    product_stand = ?,
-    product_pt = ?,
-    product_perdt = ?,
-    product_safty = ?,
-    product_img = ?
+    product_name = ?,product_pay = ?,product_atc = ?,
+    product_gred = ?,product_unit = ?, product_stand = ?,
+    product_perdt = ?,product_safty = ?,product_img = ?
   WHERE product_code = ?
 `;
  const productDelete = 

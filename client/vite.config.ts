@@ -19,7 +19,10 @@ const proxyPaths = [
   'lines',
   'packages',
   'account',
-  'order'
+  'order',
+  'materialLot',
+  'materialLotList',
+  'orderCheck'
 ]
 
 // ✅ 공통 proxy 설정 생성 함수

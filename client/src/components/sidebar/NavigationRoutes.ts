@@ -20,11 +20,11 @@ export default {
       children: [
         {
           name: 'order-list',
-          displayName: '주문 조회',
+          displayName: 'menu.주문 조회',
         },
         {
           name: 'order-management',
-          displayName: '주문 관리',
+          displayName: 'menu.주문 관리',
         },
       ],
     },
@@ -67,16 +67,36 @@ export default {
       },
       children: [
         {
-          name: 'payment-methods',
-          displayName: 'menu.payment-methods',
+          name: 'material-check',
+          displayName: 'menu.자재 조회',
         },
         {
-          name: 'pricing-plans',
-          displayName: 'menu.pricing-plans',
+          name: 'mrp-calculation',
+          displayName: 'menu.MRP 계산',
         },
         {
-          name: 'billing',
-          displayName: 'menu.billing',
+          name: 'receiving-management',
+          displayName: 'menu.입고 관리',
+        },
+        {
+          name: 'receiving-check',
+          displayName: 'menu.입고 조회',
+        },
+        {
+          name: 'order-management',
+          displayName: 'menu.발주 관리',
+        },
+        {
+          name: 'order-check',
+          displayName: 'menu.발주 조회',
+        },
+        {
+          name: 'delivery-management',
+          displayName: 'menu.출고 관리',
+        },
+        {
+          name: 'delivery-check',
+          displayName: 'menu.출고 조회',
         },
       ],
     },
@@ -127,15 +147,15 @@ export default {
       children: [
         {
           name: 'package_line',     
-          displayName: '포장 라인 선택/조회',
+          displayName: 'menu.포장 라인 선택/조회',
         },
         {
           name: 'package_work',   
-          displayName: '포장 작업 수행',
+          displayName: 'menu.포장 작업 수행',
         },
         {
           name: 'package_status',         
-          displayName: '포장 작업 현황',
+          displayName: 'menu.포장 작업 현황',
         },
       ],
     },
@@ -205,18 +225,9 @@ export default {
           displayName: 'menu.설비 등록',
         },
         {
-          name: 'account-management',
-          displayName: 'menu.거래처 관리',
-        },
-        {
-          name: 'staff-management',
-          displayName: 'menu.사원 관리',
-        },
-        {
           name: 'bom-manager',
           displayName: 'menu.BOM 관리',
-        },
-        {
+        }
           name: 'account-management',
           displayName: 'menu.거래처 관리',
         },
