@@ -165,27 +165,32 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('../pages/users/UsersPage.vue'),
       },
       {
-      name: 'facility',
-      path: 'facility',
-      component: RouteViewComponent,
-      children: [
-        {
-          name: 'equipment-inquiry',
-          path: 'inquiry',
-          component: () => import('../pages/equipment/EquipmentInquiry.vue'),
-        },
-        {
-          name: 'equipment-management',
-          path: 'management',
-          component: () => import('../pages/equipment/EquipmentManagement.vue'),
-        },
-        {
-          name: 'equipment-edit',
-          path: 'edit/:id',
-          component: () => import('../pages/equipment/EquipmentForm.vue'),
-        },
-      ],
-    },
+        name: 'facility',
+        path: 'facility',
+        component: RouteViewComponent,
+        children: [
+          {
+            name: 'equipment-inquiry',
+            path: 'inquiry',
+            component: () => import('../pages/equipment/EquipmentInquiry.vue'),
+          },
+          {
+            name: 'equipment-register',
+            path: 'register',
+            component: () => import('../pages/equipment/EquipmentForm.vue'),
+          },
+          {
+            name: 'equipment-management',
+            path: 'management',
+            component: () => import('../pages/equipment/EquipmentManagement.vue'),
+          },
+          {
+            name: 'equipment-inspection',
+            path: 'inspection',
+            component: () => import('../pages/equipment/EquipmentInspection.vue')
+          },
+        ],
+      },
       {
         name: 'material',
         path: 'material',

@@ -86,7 +86,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { useRouter } from 'vue-router'
 import axios from 'axios'
 
 interface Equipment {
@@ -107,7 +107,6 @@ interface CodeOption {
 }
 
 const router = useRouter()
-const route = useRoute()
 const equipments = ref<Equipment[]>([])
 const selectedRows = ref<Equipment[]>([])
 
@@ -158,7 +157,7 @@ const handleEdit = async () => {
 
   const id = selectedRows.value[0].eq_id
   router.push({
-    path: '/settings/equipment-register',
+    path: '/facility/register',
     query: {
       mode: 'edit',
       eq_id: id
@@ -195,7 +194,7 @@ const loadCommonCodes = async () => {
 const loadEquipments = async () => {
   const res = await axios.get('/equipments')
   if (res.data.isSuccessed) {
-    equipments.value = res.data.data.map(eq => ({
+    equipments.value = res.data.data.map((eq: any) => ({
       ...eq,
       eq_id: eq.eq_id?.toString()
     }))

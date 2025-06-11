@@ -50,6 +50,13 @@ export default {
           icon: 'build',
           },
         },
+        {
+        name: 'equipment-inspection', 
+        displayName: 'menu.설비 점검',
+        meta: {
+        icon: 'build',
+        },
+      },
       ],
     },
     {

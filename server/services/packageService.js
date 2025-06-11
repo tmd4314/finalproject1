@@ -106,7 +106,7 @@ const createWork = async (workData) => {
       step_name,
       input_qty,
       eq_code,
-      employee_no,
+      employee_id,
       employee_name
     } = workData;
 
@@ -114,7 +114,7 @@ const createWork = async (workData) => {
     console.log('작업 데이터:', workData);
 
     // 필수 데이터 검증
-    if (!work_no || !input_qty || !employee_no) {
+    if (!work_no || !input_qty || !employee_id) {
       throw new Error('필수 데이터가 누락되었습니다. (작업번호, 투입수량, 작업자번호)');
     }
 
@@ -137,7 +137,7 @@ const createWork = async (workData) => {
       step_name || work_no,
       parseInt(input_qty),
       eq_code || 'PKG001',
-      employee_no,
+      employee_id,
       employee_name || '작업자'
     ]);
 
