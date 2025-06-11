@@ -66,55 +66,55 @@ const routes: Array<RouteRecordRaw> = [
         ],
       },
       {
-        name: 'Standard information',
-        path: 'settings',
+        name: 'standard-information',
+        path: 'standard-information',
         component: RouteViewComponent,
         children: [
-          {
-            name: 'product management',
-            path: 'product management',
-            component: () => import('../pages/product/ProductPage.vue'),
+          { 
+            name: 'product management', 
+            path: 'product', 
+            component: () => import('../pages/product/ProductPage.vue') 
           },
-          {
-            name: 'bom-manager',
-            path: 'bom-manager',
-            component: () => import('../pages/bom/BomManager.vue'),
+          { 
+            name: 'material management', 
+            path: 'material', 
+            component: () => import('../pages/material/MaterialPage.vue') 
           },
-          {
-            name: 'material management',
-            path: 'material management',
-            component: () => import('../pages/material/MaterialPage.vue'),
+          { 
+            name: 'process flow chart management', 
+            path: 'process-flow', 
+            component: () => import('../pages/process/processPage.vue') 
           },
-          {
-            name: 'process flow chart management',
-            path: 'process flow chart management',
-            component: () => import('../pages/process/processPage.vue'),
+          { 
+            name: 'account-management', 
+            path: 'account', 
+            component: () => import('../pages/admin/account/AccountManagePage.vue') 
           },
-          {
-            name: 'material management',
-            path: 'material management',
-            component: () => import('../pages/material/MaterialPage.vue'),
+          { 
+            name: 'equipment-register', 
+            path: 'register', 
+            component: () => import('../pages/equipment/EquipmentForm.vue') 
           },
-          {
-            name: 'pricing-plans',
-            path: 'pricing-plans',
-            component: () => import('../pages/pricing-plans/PricingPlans.vue'),
+          { 
+            name: 'bom-manager', 
+            path: 'bom', 
+            component: () => import('../pages/bom/BomManager.vue') 
           },
-            {
-            name: 'equipment-register',
-            path: 'equipment-register',
-            component: () => import('../pages/equipment/EquipmentForm.vue'),
-            },
-             {
-            name: 'InspectionManagement',
-            path: 'InspectionManagement',
-            component: () => import('../pages/quality/InspectionManager.vue'),
-            },
-                         {
-            name: 'defectManagement',
-            path: 'defectManagement',
-            component: () => import('../pages/quality/defectManager.vue'),
-            },
+          { 
+            name: 'InspectionManagement', 
+            path: 'inspection', 
+            component: () => import('../pages/quality/InspectionManager.vue') 
+          },
+          { 
+            name: 'defectManagement', 
+            path: 'defect', 
+            component: () => import('../pages/quality/defectManager.vue') 
+          },
+          { 
+            name: 'pricing-plans', 
+            path: 'pricing-plans', 
+            component: () => import('../pages/pricing-plans/PricingPlans.vue') 
+          },
         ],
       },
       {
@@ -156,7 +156,7 @@ const routes: Array<RouteRecordRaw> = [
       },
       {
         name: 'material',
-        path: 'material',
+        path: '/faq',
         component: RouteViewComponent,
         children: [
           {
@@ -224,11 +224,6 @@ const routes: Array<RouteRecordRaw> = [
             component: () => import('../pages/admin/order/OrderListPage.vue'),
           },
         ],
-      },
-      {
-        name: 'faq',
-        path: 'faq',
-        component: () => import('../pages/faq/FaqPage.vue'),
       },
     ],
   },
