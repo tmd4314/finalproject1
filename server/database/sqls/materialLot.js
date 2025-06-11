@@ -66,10 +66,18 @@ const orderCheck =
   `
 ;
 
+const orderCheckUpdate =
+  ` UPDATE purchase_order
+    SET    stock_status = "수령"
+    WHERE  purchase_order_id = ?
+  `
+;
+
 module.exports ={
   selectOrderList,
   insertMaterialLOT,
   updateOrder,
   selectLotList,
-  orderCheck
+  orderCheck,
+  orderCheckUpdate
 }

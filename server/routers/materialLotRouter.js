@@ -23,6 +23,19 @@ let orderCheck = await materialLotService.findOrderCheck()
 res.send(orderCheck);
 });
 
+router.put('/orderCheck/:purchase_order_id', async (req, res) => {
+  try {
+    const materialOrderCode = req.params.purchase_order_id;
+
+    const result = await materialLotService.updateMaterialOrderCheck(materialOrderCode);
+    res.send(result);
+  } catch (err) {
+    console.error('❌ 발주 수정 실패:', err);
+    res.status(500).send({ isSuccessed: false, message: '서버 오류' });
+  }
+});
+
+
 router.post('/materialLot', async (req, res) => {
   try {
     const MaterialLOTInfo = req.body;
@@ -30,7 +43,7 @@ router.post('/materialLot', async (req, res) => {
     const result = await materialLotService.addMaterialLOT(MaterialLOTInfo);
     res.send(result);
   } catch (err) {
-    console.error('❌ 제품 등록 실패:', err);
+    console.error('❌ LOT 등록 실패:', err);
     res.status(500).send({ isSuccessed: false, message: '서버 오류' });
   }
 });
@@ -42,7 +55,7 @@ router.put('/materialLot/:purchase_order_id', async (req, res) => {
     const result = await materialLotService.updateMaterialOrder(materialOrderCode);
     res.send(result);
   } catch (err) {
-    console.error('❌ 제품 등록 실패:', err);
+    console.error('❌발주 수정 실패:', err);
     res.status(500).send({ isSuccessed: false, message: '서버 오류' });
   }
 });

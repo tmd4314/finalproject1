@@ -129,10 +129,20 @@ const saveMaterialLot = async (item: MaterialReceipt): Promise<void> => {
  
 }
 
-const handleReceive = (item: MaterialReceipt) => {
-  alert(`${item.material_name} (${item.material_code}) 수령 완료`)
-  // 수령된 항목은 리스트에서 제거하고 싶다면 아래 코드 사용
-  // receiveOrderList.value = receiveOrderList.value.filter(el => el.purchase_order_id !== item.purchase_order_id)
+const handleReceive = async (item: MaterialReceipt): Promise<void> => {
+  try {
+    const res = await axios.put(`/orderCheck/${item.purchase_order_id}`);
+    console.log(res.data.isUpdated);
+    if (res.data.isUpdated) {
+      alert('수령 완료!')
+      await fetchOrder()
+    } else {
+      alert('등록 실패')
+    }
+  } catch(err){
+    console.error('등록 실패:', err)
+    alert('서버 오류 발생!')
+  }
 }
 onMounted(() =>{
   fetchMaterialsOrder()

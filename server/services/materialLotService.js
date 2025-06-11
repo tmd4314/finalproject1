@@ -62,10 +62,35 @@ const updateMaterialOrder = async(materialOrderCode) => {
   return result;
 }
 
+const updateMaterialOrderCheck = async(materialOrderCode) => {
+
+  const data = [materialOrderCode]; // WHERE 조건 맨 뒤에
+
+  let resInfo = await mariadb.query("orderCheckUpdate", data)
+  .catch(err => {
+    console.error(err);
+    return null; // 또는 throw err;
+  });
+
+  let result = null;
+  if (resInfo.affectedRows > 0) {
+    result = {
+      isUpdated: true
+    };
+  } else {
+    result = {
+      isUpdated: false,
+    };
+  }
+  return result;
+}
+
+
 module.exports = {
   findOrderAll,
   addMaterialLOT,
   updateMaterialOrder,
   findListAll,
-  findOrderCheck
+  findOrderCheck,
+  updateMaterialOrderCheck
 };
