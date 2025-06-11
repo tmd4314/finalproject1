@@ -289,10 +289,20 @@
             </p>
           </div>
         </div>
-        <div class="modal-actions">
+        <div class="modal-actions" :class="{ 'inner-completed': workInfo.lineType === 'INNER' }">
           <button @click="closeCompleteModal" class="btn-cancel">취소</button>
+          
+          <!-- 내포장 완료시 외포장 라인으로 바로 가기 버튼 추가 -->
+          <button 
+            v-if="workInfo.lineType === 'INNER'" 
+            @click="goDirectToOuterPackaging" 
+            class="btn-outer-direct"
+          >
+            🚀 외포장 라인으로 바로 가기
+          </button>
+          
           <button @click="confirmCompleteWork" class="btn-confirm">
-            {{ workInfo.lineType === 'INNER' ? '내포장 완료 → 외포장 진행' : '외포장 완료' }}
+            {{ workInfo.lineType === 'INNER' ? '내포장 완료' : '외포장 완료' }}
           </button>
         </div>
       </div>
@@ -302,6 +312,23 @@
     <div v-if="loading" class="loading-overlay">
       <div class="loading-spinner"></div>
       <div class="loading-text">{{ loadingMessage }}</div>
+    </div>
+
+    <!-- 에러 메시지 -->
+    <div v-if="showError" class="error-overlay">
+      <div class="error-modal">
+        <div class="error-header">
+          <h3>⚠️ 연결 오류</h3>
+        </div>
+        <div class="error-body">
+          <p>{{ errorMessage }}</p>
+          <p class="error-help">서버 상태를 확인하고 다시 시도해주세요.</p>
+        </div>
+        <div class="error-actions">
+          <button @click="hideError" class="btn-error-close">확인</button>
+          <button @click="retryConnection" class="btn-retry">다시 시도</button>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -326,13 +353,15 @@ const workInfo = ref({
   currentPackageType: route.query.current_package_type || ''
 })
 
-// 🔥 수정된 API 기본 설정 (백엔드 구조에 맞게)
+// API 설정
 const PACKAGES_API_URL = 'http://localhost:3000/packages'
 const LINES_API_URL = 'http://localhost:3000/api/lines'
 
-// 로딩 상태
+// 로딩 및 에러 상태
 const loading = ref(false)
 const loadingMessage = ref('')
+const showError = ref(false)
+const errorMessage = ref('')
 
 // 작업 상태
 const workStatus = ref('READY') // READY, WORKING, PAUSED, COMPLETED
@@ -340,10 +369,10 @@ const isWorking = ref(false)
 const workStartTime = ref(null)
 const workElapsedTime = ref('00:00:00')
 
-// 🔥 수정: 작업 선택 (셀렉트박스용)
+// 작업 선택
 const selectedWorkOrder = ref('')
 const inputQuantity = ref(500)
-const availableWorkOrders = ref([]) // 작업번호 목록
+const availableWorkOrders = ref([])
 
 // 현재 작업 정보
 const currentWork = ref({
@@ -357,6 +386,7 @@ const currentWork = ref({
   progressRate: 0,
   passRate: 0,
   defectRate: 0,
+  employee_id: 2,
   employee_name: '김포장',
   start_time: null
 })
@@ -371,7 +401,7 @@ const showCompleteModal = ref(false)
 let workTimer = null
 let productionTimer = null
 
-// 🔥 생산 시뮬레이션 설정
+// 생산 시뮬레이션 설정
 const productionSettings = ref({
   productionSpeed: 10, // 초당 생산량
   defectRate: 0.02, // 2% 불량률
@@ -384,7 +414,7 @@ const canStartWork = computed(() => {
   return selectedWorkOrder.value && inputQuantity.value > 0 && !isWorking.value
 })
 
-// 🔥 새로 추가: 데이터 계산 헬퍼 함수들
+// 헬퍼 함수들
 function calculatePassRate(outputQty, inputQty) {
   if (!inputQty || inputQty === 0) return 0
   return Math.round((outputQty / inputQty) * 100)
@@ -395,7 +425,6 @@ function calculateDefectRate(defectQty, inputQty) {
   return Math.round((defectQty / inputQty) * 100)
 }
 
-// 🔥 수정된 상태 업데이트 함수 (한글 상태값 지원)
 function updateWorkStatusFromData(workData) {
   switch (workData.step_status) {
     case '진행중':
@@ -406,7 +435,6 @@ function updateWorkStatusFromData(workData) {
         workStartTime.value = new Date(workData.start_time)
         startWorkTimer()
       }
-      // 🔥 진행중 상태일 때 자동으로 생산 시뮬레이션 시작
       setTimeout(() => {
         if (isWorking.value && !productionTimer) {
           startProductionSimulation()
@@ -456,19 +484,25 @@ function resetCurrentWork() {
     progressRate: 0,
     passRate: 0,
     defectRate: 0,
+    employee_id: 2,
     employee_name: '김포장',
     start_time: null
   }
 }
 
-// 컴포넌트 마운트 (수정된 버전)
+// 컴포넌트 마운트
 onMounted(() => {
+  console.log('PackageWork 컴포넌트 마운트 시작');
+  console.log('현재 라인 정보:', workInfo.value);
+  
   nextTick(async () => {
     try {
+      console.log('페이지 초기화 시작...');
       await initializeWorkPage()
+      console.log('페이지 초기화 완료');
     } catch (error) {
       console.error('페이지 초기화 오류:', error)
-      addLog('페이지 초기화에 실패했습니다.', 'error')
+      showErrorMessage('페이지 초기화에 실패했습니다.')
     }
   })
 })
@@ -478,14 +512,13 @@ onUnmounted(() => {
     clearInterval(workTimer)
     workTimer = null
   }
-  // 🔥 생산 타이머도 정리
   if (productionTimer) {
     clearInterval(productionTimer)
     productionTimer = null
   }
 })
 
-// 🔥 수정된 페이지 초기화 함수
+// 페이지 초기화
 async function initializeWorkPage() {
   try {
     loading.value = true
@@ -493,104 +526,94 @@ async function initializeWorkPage() {
     
     addLog(`${workInfo.value.lineName || '선택된 라인'}에서 작업을 시작합니다.`, 'info')
     
-    // 1. 작업번호 목록 먼저 로드
+    // 1. 작업번호 목록 로드
+    loadingMessage.value = '작업 목록을 불러오는 중...'
     await loadAvailableWorkOrders()
     
     // 2. URL에서 전달된 작업번호가 있으면 설정
     if (route.query.work_no) {
       selectedWorkOrder.value = route.query.work_no
+      loadingMessage.value = '작업 상세 정보를 불러오는 중...'
       await onWorkOrderChange()
       addLog(`작업번호 ${route.query.work_no}가 선택되었습니다.`, 'info')
-    } else {
-      // 기본적으로 101번 작업을 선택 (백엔드 로그에서 보이는 대로)
-      selectedWorkOrder.value = '101'
-      await onWorkOrderChange()
-      addLog('작업번호 101이 자동으로 선택되었습니다.', 'info')
     }
     
     addLog('페이지 초기화가 완료되었습니다.', 'success')
     
   } catch (error) {
     console.error('페이지 초기화 실패:', error)
-    addLog('페이지 초기화에 실패했지만 수동으로 작업번호를 입력할 수 있습니다.', 'warning')
-    
-    // 🔥 임시 테스트: 백엔드에서 조회되는 101번 작업 데이터 직접 설정
-    selectedWorkOrder.value = '101'
-    
-    // 백엔드 로그에서 보이는 데이터를 직접 설정
-    currentWork.value = {
-      work_no: '101',
-      product_name: '1차포장',
-      package_type: 'A라인 내포장',
-      order_quantity: 3000,
-      input_qty: 3000,
-      output_qty: 0,
-      defect_qty: 0, // 🔥 수정: 초기값 0으로 설정
-      progressRate: 0,
-      passRate: 0,
-      defectRate: 0, // 🔥 수정: 초기값 0으로 설정
-      employee_name: '김내포',
-      start_time: null,
-      step_status: '진행중' // 🔥 한글 상태값으로 설정
-    }
-    
-    inputQuantity.value = 500
-    
-    // 🔥 생산 시뮬레이션 초기 설정
-    productionSettings.value.targetQty = 500
-    productionSettings.value.currentProgress = 0
-    
-    // 🔥 상태 업데이트 및 자동 시작
-    updateWorkStatusFromData({ step_status: '진행중' })
-    
-    addLog('작업번호 101 데이터를 임시로 설정했습니다.', 'info')
-    addLog('생산 시뮬레이션이 자동으로 시작됩니다.', 'info')
-    
+    showErrorMessage(`페이지 초기화에 실패했습니다: ${error.message}`)
   } finally {
     loading.value = false
   }
 }
 
-// 🔥 수정된 작업번호 목록 조회
+// 작업번호 목록 조회
 async function loadAvailableWorkOrders() {
   try {
-    loadingMessage.value = '작업 목록을 불러오는 중...'
+    console.log('작업번호 목록 조회 시작...');
+    console.log('현재 라인 타입:', workInfo.value.lineType);
     
-    // 백엔드 API에 맞게 수정
-    const res = await axios.get(`${PACKAGES_API_URL}/works/options`)
+    const apiUrl = `${PACKAGES_API_URL}/works/options`;
+    console.log('요청 URL:', apiUrl);
+    
+    const res = await axios.get(apiUrl, {
+      params: {
+        line_type: workInfo.value.lineType
+      }
+    })
+    
+    console.log('API 응답 상태:', res.status, res.statusText);
+    console.log('응답 데이터:', res.data);
     
     if (res.data.success) {
-      availableWorkOrders.value = res.data.data
-      addLog(`${res.data.count}개의 작업을 불러왔습니다.`, 'info')
+      let workOrders = res.data.data || [];
+      
+      // 클라이언트 사이드 필터링
+      if (workOrders.length > 0) {
+        const beforeFilter = workOrders.length;
+        
+        workOrders = workOrders.filter(work => {
+          if (workInfo.value.lineType === 'INNER') {
+            return work.line_type === 'INNER' || 
+                   work.step_name?.includes('1차') ||
+                   work.step_name?.includes('내포장') ||
+                   work.work_step === '내포장' ||
+                   work.work_step === '1차포장';
+          } else if (workInfo.value.lineType === 'OUTER') {
+            return work.line_type === 'OUTER' || 
+                   work.step_name?.includes('2차') ||
+                   work.step_name?.includes('외포장') ||
+                   work.work_step === '외포장' ||
+                   work.work_step === '2차포장';
+          }
+          return true;
+        });
+        
+        console.log(`필터링 결과: ${beforeFilter}개 → ${workOrders.length}개`);
+      }
+      
+      availableWorkOrders.value = workOrders;
+      
+      if (availableWorkOrders.value.length === 0) {
+        const packageType = workInfo.value.lineType === 'INNER' ? '1차(내포장)' : '2차(외포장)';
+        addLog(`⚠️ ${packageType} 작업이 없습니다.`, 'warning');
+        showErrorMessage(`사용 가능한 ${packageType} 작업이 없습니다.`);
+      } else {
+        const packageType = workInfo.value.lineType === 'INNER' ? '1차(내포장)' : '2차(외포장)';
+        addLog(`${availableWorkOrders.value.length}개의 ${packageType} 작업을 불러왔습니다.`, 'success');
+      }
     } else {
-      throw new Error(res.data.message || '작업 목록 조회 실패')
+      throw new Error(res.data.message || '작업 목록 조회 실패');
     }
     
   } catch (error) {
-    console.error('작업 목록 조회 실패:', error)
-    
-    if (error.code === 'ERR_NETWORK' || error.code === 'ECONNREFUSED') {
-      addLog('서버에 연결할 수 없습니다. 패키지 API 서버 확인이 필요합니다.', 'error')
-      addLog('API 주소: http://localhost:3000/packages', 'info')
-    } else if (error.response) {
-      addLog(`API 오류: ${error.response.status} - ${error.response.statusText}`, 'error')
-    } else {
-      addLog('작업 목록 로드에 실패했습니다. 수동으로 작업번호를 입력해주세요.', 'warning')
-    }
-    
-    // 🔥 오프라인 모드용 기본 작업 목록
-    availableWorkOrders.value = [
-      { work_no: '101', step_name: '1차포장', progress_rate: '0.0', step_status: '진행중' },
-      { work_no: 'PM1001', step_name: '타이레놀정500mg 포장', progress_rate: '99.0', step_status: '진행중' },
-      { work_no: 'PM1002', step_name: '타이레놀정500mg 포장', progress_rate: '99.0', step_status: '진행중' },
-      { work_no: 'PM1003', step_name: '타이레놀정500mg 포장', progress_rate: '97.0', step_status: '진행중' }
-    ]
-    
-    addLog('오프라인 모드: 기본 작업 목록을 표시합니다.', 'warning')
+    console.error('작업 목록 조회 실패:', error);
+    throw error;
   }
 }
 
-// 🔥 수정된 작업 선택시 상세 조회
+// 작업 선택시 상세 조회
 async function onWorkOrderChange() {
   if (!selectedWorkOrder.value) {
     resetCurrentWork()
@@ -601,213 +624,350 @@ async function onWorkOrderChange() {
     loading.value = true
     loadingMessage.value = '작업 상세 정보를 불러오는 중...'
     
-    // 백엔드에서 조회되는 데이터 구조에 맞게 수정
-    const res = await axios.get(`${PACKAGES_API_URL}/${selectedWorkOrder.value}`)
+    console.log('작업 상세 조회 시작...');
+    console.log('작업번호:', selectedWorkOrder.value);
     
-    if (res.data.success) {
-      const workData = res.data.data
-      
-      currentWork.value = {
-        work_no: workData.work_no,
-        product_name: workData.step_name || '제품명',
-        package_type: workData.line_type || '포장형태',
-        order_quantity: workData.input_qty || 0,
-        input_qty: workData.input_qty || 0,
-        output_qty: workData.output_qty || 0,
-        defect_qty: workData.defect_qty || 0,
-        progressRate: parseFloat(workData.progress_rate) || 0,
-        passRate: calculatePassRate(workData.output_qty, workData.input_qty),
-        defectRate: calculateDefectRate(workData.defect_qty, workData.input_qty),
-        employee_name: workData.employee_name || '김포장',
-        start_time: workData.start_time,
-        step_status: workData.step_status
-      }
-      
-      // 투입수량을 기존 투입수량으로 설정
-      inputQuantity.value = workData.input_qty || 500
-      
-      // 🔥 생산 시뮬레이션 초기 설정 (진행중 작업인 경우)
-      if (workData.step_status === '진행중' || workData.step_status === 'IN_PROGRESS') {
-        productionSettings.value.targetQty = workData.input_qty || inputQuantity.value
-        productionSettings.value.currentProgress = workData.output_qty || 0
-        addLog(`진행 중인 작업을 발견했습니다. 현재 생산량: ${workData.output_qty || 0}개`, 'info')
-      }
-      
-      // 작업 상태 업데이트
-      updateWorkStatusFromData(workData)
-      
-      addLog(`작업번호 ${selectedWorkOrder.value} 정보를 불러왔습니다.`, 'success')
-      
-    } else {
+    const detailApiUrl = `${PACKAGES_API_URL}/${selectedWorkOrder.value}`;
+    console.log('요청 URL:', detailApiUrl);
+    
+    const res = await axios.get(detailApiUrl)
+    
+    console.log('작업 상세 응답:', res.status, res.statusText);
+    console.log('작업 상세 데이터:', res.data);
+    
+    if (!res.data.success) {
       throw new Error(res.data.message || '작업 정보 조회 실패')
     }
     
-  } catch (err) {
-    console.error('작업 상세 정보 조회 실패:', err)
-    addLog(`작업번호 ${selectedWorkOrder.value} 정보를 찾을 수 없습니다.`, 'error')
+    const workData = res.data.data;
     
-    // 🔥 오프라인 모드: 101번 작업은 백엔드 데이터로 설정
-    if (selectedWorkOrder.value === '101') {
-      currentWork.value = {
-        work_no: '101',
-        product_name: '1차포장',
-        package_type: 'A라인 내포장',
-        order_quantity: 3000,
-        input_qty: 3000,
-        output_qty: 0,
-        defect_qty: 0, // 🔥 수정: 초기값 0으로 설정
-        progressRate: 0,
-        passRate: 0,
-        defectRate: 0, // 🔥 수정: 초기값 0으로 설정
-        employee_name: '김내포',
-        start_time: null,
-        step_status: '진행중' // 🔥 한글 상태값으로 설정
-      }
-      
-      inputQuantity.value = 500
-      
-      // 🔥 생산 시뮬레이션 초기 설정
-      productionSettings.value.targetQty = 500
-      productionSettings.value.currentProgress = 0
-      
-      // 🔥 상태 업데이트 및 자동 시작
-      updateWorkStatusFromData({ step_status: '진행중' })
-      
-      addLog('오프라인 모드: 101번 작업 데이터를 설정했습니다.', 'warning')
-      addLog('생산 시뮬레이션이 자동으로 시작됩니다.', 'info')
-    } else {
-      resetCurrentWork()
+    // 받은 데이터 검증
+    if (!workData) {
+      throw new Error('작업 데이터가 없습니다.')
     }
     
+    console.log('작업 데이터 검증:', {
+      work_no: workData.work_no,
+      step_name: workData.step_name,
+      input_qty: workData.input_qty,
+      output_qty: workData.output_qty,
+      step_status: workData.step_status
+    });
+    
+    currentWork.value = {
+      work_no: workData.work_no || selectedWorkOrder.value,
+      product_name: workData.step_name || '제품명',
+      package_type: workData.line_type || '포장형태',
+      order_quantity: workData.input_qty || 0,
+      input_qty: workData.input_qty || 0,
+      output_qty: workData.output_qty || 0,
+      defect_qty: workData.defect_qty || 0,
+      progressRate: parseFloat(workData.progress_rate) || 0,
+      passRate: calculatePassRate(workData.output_qty, workData.input_qty),
+      defectRate: calculateDefectRate(workData.defect_qty, workData.input_qty),
+      employee_id: 2,
+      employee_name: workData.employee_name || '김포장',
+      start_time: workData.start_time,
+      step_status: workData.step_status
+    }
+    
+    inputQuantity.value = workData.input_qty || 500
+    
+    // 진행 중인 작업인 경우 설정
+    if (workData.step_status === '진행중' || workData.step_status === 'IN_PROGRESS' || workData.step_status === 'WORKING') {
+      productionSettings.value.targetQty = workData.input_qty || inputQuantity.value
+      productionSettings.value.currentProgress = workData.output_qty || 0
+      addLog(`진행 중인 작업을 발견했습니다. 현재 생산량: ${workData.output_qty || 0}개`, 'info')
+    }
+    
+    updateWorkStatusFromData(workData)
+    addLog(`작업번호 ${selectedWorkOrder.value} 정보를 불러왔습니다.`, 'success')
+    
+  } catch (error) {
+    console.error('작업 상세 조회 실패:', error);
+    
+    if (error.response?.status === 404) {
+      showErrorMessage(`작업번호 ${selectedWorkOrder.value}을(를) 찾을 수 없습니다.`)
+    } else {
+      showErrorMessage(`작업번호 ${selectedWorkOrder.value} 정보를 불러올 수 없습니다: ${error.message}`)
+    }
+    
+    resetCurrentWork()
   } finally {
     loading.value = false
   }
 }
 
-// 라인 정보 및 현재 작업번호 조회
-async function loadLineInfo() {
+// 기존 작업 강제 재시작 함수
+async function forceRestartExistingWork() {
   try {
-    if (!workInfo.value.lineId) {
-      addLog('라인 ID가 없습니다. 라인 선택 페이지로 돌아가주세요.', 'error')
-      return
-    }
+    loading.value = true
+    loadingMessage.value = '기존 작업을 재시작하는 중...'
     
-    // 서버 연결 확인
-    const response = await axios.get(`${LINES_API_URL}/${workInfo.value.lineId}`)
-    const lineData = response.data
+    console.log('기존 작업 강제 재시작 시도');
+    console.log('작업번호:', selectedWorkOrder.value);
     
-    // 라인 정보 업데이트
-    workInfo.value = {
-      ...workInfo.value,
-      lineName: lineData.line_name || workInfo.value.lineName,
-      lineType: lineData.line_type || workInfo.value.lineType,
-      currWorkNo: lineData.curr_work_no || null,  // 현재 작업번호
-      lineStatus: lineData.line_status || 'READY'
-    }
+    // PUT 요청으로 기존 작업 상태 업데이트 (시작으로 변경)
+    const updateApiUrl = `${PACKAGES_API_URL}/${selectedWorkOrder.value}`;
+    const updateData = {
+      step_status: '진행중',
+      input_qty: inputQuantity.value,
+      employee_id: 2,
+      start_time: new Date().toISOString()
+    };
     
-    addLog(`라인 정보를 불러왔습니다: ${workInfo.value.lineName}`, 'info')
+    console.log('PUT 요청으로 기존 작업 업데이트:', updateApiUrl);
+    console.log('업데이트 데이터:', updateData);
     
-    if (workInfo.value.currWorkNo) {
-      addLog(`현재 진행 중인 작업: ${workInfo.value.currWorkNo}`, 'info')
+    const response = await axios.put(updateApiUrl, updateData);
+    
+    console.log('작업 업데이트 응답:', response.data);
+    
+    if (response.data && (response.data.success !== false)) {
+      addLog('기존 작업을 성공적으로 재시작했습니다.', 'success');
+      
+      // 로컬 상태 업데이트
+      await proceedWithWorkStart();
+      
     } else {
-      addLog('현재 진행 중인 작업이 없습니다.', 'info')
+      throw new Error(response.data?.message || '작업 업데이트 실패');
     }
     
-  } catch (error) {
-    console.error('라인 정보 조회 실패:', error)
+  } catch (updateError) {
+    console.error('PUT 요청 실패:', updateError);
     
-    // 네트워크 연결 오류인 경우
-    if (error.code === 'ERR_NETWORK' || error.code === 'ECONNREFUSED') {
-      addLog('서버에 연결할 수 없습니다. 서버가 실행 중인지 확인해주세요.', 'error')
-      addLog('서버 주소: http://localhost:3000', 'info')
-    } else if (error.response) {
-      // 서버에서 응답은 왔지만 오류인 경우
-      addLog(`서버 오류: ${error.response.status} - ${error.response.statusText}`, 'error')
-    } else {
-      addLog('라인 정보를 불러오는데 실패했습니다.', 'error')
+    // PUT도 실패하면 PATCH 시도
+    try {
+      addLog('PUT 실패, PATCH로 재시도...', 'warning');
+      
+      const patchApiUrl = `${PACKAGES_API_URL}/${selectedWorkOrder.value}/start`;
+      const patchData = {
+        input_qty: inputQuantity.value,
+        employee_id: 2
+      };
+      
+      console.log('PATCH 요청으로 작업 시작:', patchApiUrl);
+      
+      const patchResponse = await axios.patch(patchApiUrl, patchData);
+      
+      console.log('PATCH 응답:', patchResponse.data);
+      
+      if (patchResponse.data && (patchResponse.data.success !== false)) {
+        addLog('PATCH로 작업 시작에 성공했습니다.', 'success');
+        await proceedWithWorkStart();
+      } else {
+        throw new Error('PATCH도 실패');
+      }
+      
+    } catch (patchError) {
+      console.error('PATCH도 실패:', patchError);
+      
+      // 모든 API 실패시 로컬에서만 시작
+      addLog('⚠️ 서버 업데이트 실패, 로컬에서만 작업을 시작합니다.', 'warning');
+      await proceedWithWorkStart();
     }
-    
-    // 기본값으로 설정하여 계속 진행할 수 있도록 함
-    workInfo.value = {
-      ...workInfo.value,
-      currWorkNo: null,
-      lineStatus: 'READY'
-    }
+  } finally {
+    loading.value = false
   }
 }
 
-// 3. 작업 시작(등록) - 🔥 생산 시뮬레이션 추가
+// 실제 작업 시작 진행 (로컬 상태 업데이트)
+async function proceedWithWorkStart() {
+  try {
+    // 생산 초기 설정
+    productionSettings.value.targetQty = inputQuantity.value
+    productionSettings.value.currentProgress = 0
+    
+    // 작업 정보 초기화
+    currentWork.value.input_qty = inputQuantity.value
+    currentWork.value.output_qty = 0
+    currentWork.value.defect_qty = 0
+    currentWork.value.progressRate = 0
+    currentWork.value.passRate = 0
+    currentWork.value.defectRate = 0
+    
+    workStatus.value = 'WORKING'
+    isWorking.value = true
+    workStartTime.value = new Date()
+    currentWork.value.start_time = workStartTime.value
+    
+    updateWorkProgress()
+    startWorkTimer()
+    startProductionSimulation()
+    
+    addLog(`작업을 시작했습니다. (목표수량: ${inputQuantity.value}개)`, 'success')
+    addLog(`생산 속도: ${productionSettings.value.productionSpeed}개/초`, 'info')
+    addLog('생산을 시작합니다...', 'info')
+    
+  } catch (error) {
+    console.error('로컬 작업 시작 실패:', error);
+    showErrorMessage('작업 시작 중 오류가 발생했습니다.');
+  }
+}
+
 async function startWork() {
   if (!isWorking.value) {
     try {
       loading.value = true
       loadingMessage.value = '작업을 시작하는 중...'
       
+      console.log('작업 시작 요청');
+      
       const workData = {
         work_no: selectedWorkOrder.value,
-        line_id: workInfo.value.lineId,
-        work_line: workInfo.value.lineName,
-        work_step: workInfo.value.lineType === 'INNER' ? '내포장' : '외포장',
-        step_name: currentWork.value.product_name,
         input_qty: inputQuantity.value,
-        eq_code: 'PKG001',
-        employee_no: 'EMP001',
-        employee_name: currentWork.value.employee_name
+        employee_id: 2
       }
       
-      // 작업 시작 API 호출 (오프라인 모드에서는 스킵)
+      console.log('작업 시작 요청 데이터:', workData);
+      
       try {
-        const response = await axios.post(`${PACKAGES_API_URL}/work`, workData)
+        // POST 요청으로 작업 시작 시도 (새 작업 등록)
+        const response = await axios.post(`${PACKAGES_API_URL}/works`, workData)
         
-        // 라인의 curr_work_no 업데이트
-        await axios.put(`${LINES_API_URL}/${workInfo.value.lineId}`, {
-          curr_work_no: selectedWorkOrder.value,
-          line_status: 'WORKING'
-        })
+        console.log('작업 시작 응답:', response.data);
         
-        addLog('백엔드 연동 성공: 작업이 등록되었습니다.', 'success')
-      } catch (apiError) {
-        addLog('오프라인 모드: 로컬에서 작업을 시작합니다.', 'warning')
+        if (response.data && response.data.success) {
+          addLog('새 작업을 성공적으로 시작했습니다.', 'success');
+          await proceedWithWorkStart();
+        } else {
+          throw new Error(response.data?.message || '작업 시작 실패')
+        }
+        
+      } catch (postError) {
+        console.error('POST 요청 실패:', postError);
+        
+        // 409 에러 (이미 존재하는 작업번호)인 경우 기존 작업 재시작
+        if (postError.response?.status === 409) {
+          const errorMsg = postError.response.data?.message || '';
+          console.log('409 에러 감지:', errorMsg);
+          
+          if (errorMsg.includes('이미 존재하는 작업번호') || errorMsg.includes('already exists')) {
+            addLog('⚠️ 이미 존재하는 작업번호입니다. 기존 작업을 재시작합니다...', 'warning');
+            
+            // 기존 작업 강제 재시작
+            await forceRestartExistingWork();
+            return; // 여기서 함수 종료
+          }
+        }
+        
+        // 다른 에러들은 기존 로직으로 처리
+        throw postError;
       }
-      
-      // 🔥 생산 초기 설정
-      productionSettings.value.targetQty = inputQuantity.value
-      productionSettings.value.currentProgress = 0
-      
-      // 작업 정보 초기화
-      currentWork.value.input_qty = inputQuantity.value
-      currentWork.value.output_qty = 0
-      currentWork.value.defect_qty = 0
-      currentWork.value.progressRate = 0
-      currentWork.value.passRate = 0
-      currentWork.value.defectRate = 0
-      
-      workStatus.value = 'WORKING'
-      isWorking.value = true
-      workStartTime.value = new Date()
-      currentWork.value.start_time = workStartTime.value
-      
-      updateWorkProgress()
-      startWorkTimer()
-      startProductionSimulation() // 🔥 생산 시뮬레이션 시작
-      
-      addLog(`작업을 시작했습니다. (목표수량: ${inputQuantity.value}개)`, 'success')
-      addLog(`생산 속도: ${productionSettings.value.productionSpeed}개/초`, 'info')
-      addLog('생산을 시작합니다...', 'info')
       
     } catch (error) {
       console.error('작업 시작 실패:', error)
-      addLog('작업 시작에 실패했습니다.', 'error')
+      
+      let errorMsg = '작업 시작에 실패했습니다.';
+      if (error.response?.status === 409) {
+        errorMsg = '이미 진행 중인 작업입니다.';
+      } else if (error.code === 'ERR_NETWORK') {
+        errorMsg = 'API 서버 연결에 실패했습니다.';
+      } else {
+        errorMsg = `작업 시작 실패: ${error.message}`;
+      }
+      
+      showErrorMessage(errorMsg)
     } finally {
       loading.value = false
     }
   } else {
-    // 일시정지
     pauseProduction()
   }
 }
 
-// 🔥 새로 추가: 생산 시뮬레이션 시작
+// 작업 완료 처리 함수 (에러 발생해도 페이지 이동)
+async function confirmCompleteWork() {
+  let shouldNavigate = false; // 페이지 이동 여부 플래그
+  
+  try {
+    loading.value = true
+    loadingMessage.value = '작업을 완료하는 중...'
+    
+    console.log('작업 완료 처리');
+    
+    try {
+      const completeApiUrl = `${PACKAGES_API_URL}/${currentWork.value.work_no}/complete`;
+      console.log('작업 완료 API 호출:', completeApiUrl);
+      
+      const res = await axios.put(completeApiUrl, {
+        input_qty: currentWork.value.input_qty,
+        output_qty: currentWork.value.output_qty,
+        defect_qty: currentWork.value.defect_qty,
+        employee_id: currentWork.value.employee_id
+      })
+      
+      console.log('작업 완료 API 응답:', res.data);
+      
+      if (res.data && res.data.success) {
+        addLog('API로 작업을 완료했습니다.', 'success');
+        shouldNavigate = true; // API 성공시 페이지 이동
+      } else {
+        // API 응답이 실패여도 로컬에서는 완료 처리
+        console.warn('API 응답이 실패였지만 로컬에서 완료 처리합니다:', res.data?.message);
+        addLog('서버 응답이 실패였지만 로컬에서 작업을 완료했습니다.', 'warning');
+        shouldNavigate = true; // 실패해도 페이지 이동
+      }
+    } catch (apiError) {
+      // API 호출 실패해도 로컬에서는 완료 처리
+      console.error('API 호출 실패, 로컬에서 완료 처리:', apiError);
+      
+      if (apiError.response?.status === 404) {
+        addLog('완료 API 엔드포인트가 없어서 로컬에서만 완료 처리했습니다.', 'warning');
+      } else if (apiError.code === 'ERR_NETWORK') {
+        addLog('서버 연결 실패, 로컬에서만 완료 처리했습니다.', 'warning');
+      } else {
+        addLog(`서버 오류 발생, 로컬에서만 완료 처리했습니다: ${apiError.message}`, 'warning');
+      }
+      
+      shouldNavigate = true; // API 실패해도 페이지 이동
+    }
+    
+  } catch (error) {
+    console.error('전체 작업 완료 처리 실패:', error);
+    addLog(`작업 완료 처리 중 오류 발생: ${error.message}`, 'error');
+    shouldNavigate = true; // 에러 발생해도 페이지 이동 (사용자 경험 향상)
+  } finally {
+    loading.value = false
+  }
+  
+  // 성공/실패 관계없이 로컬 상태는 완료로 처리
+  try {
+    // 최종 결과 반영
+    currentWork.value.passRate = Math.round((currentWork.value.output_qty / currentWork.value.input_qty) * 100)
+    currentWork.value.defectRate = 100 - currentWork.value.passRate
+    
+    isWorking.value = false
+    workStatus.value = 'COMPLETED'
+    if (workTimer) clearInterval(workTimer)
+    
+    updateWorkProgress()
+    addLog(`${workInfo.value.lineType === 'INNER' ? '내포장' : '외포장'} 작업이 로컬에서 완료되었습니다.`, 'success')
+    closeCompleteModal()
+    
+    // 페이지 이동 (shouldNavigate 플래그와 관계없이 항상 이동)
+    if (shouldNavigate || true) { // 항상 이동하도록 수정
+      console.log('페이지 이동을 시작합니다...');
+      const moveDelay = workInfo.value.lineType === 'INNER' ? 1000 : 2000
+      setTimeout(async () => { 
+        console.log('실제 페이지 이동 실행...');
+        await goBackToLineSelectionWithCompletion() 
+      }, moveDelay)
+    } else {
+      console.log('페이지 이동 조건을 만족하지 않습니다.');
+    }
+    
+  } catch (finalError) {
+    console.error('최종 처리 실패:', finalError);
+    // 최종 처리 실패해도 페이지 이동은 시도
+    setTimeout(async () => { 
+      console.log('최종 처리 실패 후 강제 페이지 이동...');
+      await goBackToLineSelectionWithCompletion() 
+    }, 2000)
+  }
+}
+
+// 생산 시뮬레이션 시작
 function startProductionSimulation() {
   if (productionTimer) {
     clearInterval(productionTimer)
@@ -848,10 +1008,10 @@ function startProductionSimulation() {
       autoCompleteProduction()
     }
     
-  }, 1000) // 1초마다 업데이트
+  }, 1000)
 }
 
-// 🔥 새로 추가: 생산 일시정지
+// 생산 일시정지
 function pauseProduction() {
   isWorking.value = false
   workStatus.value = 'PAUSED'
@@ -870,7 +1030,7 @@ function pauseProduction() {
   addLog(`현재까지 생산: ${currentWork.value.output_qty}개 (진행률: ${currentWork.value.progressRate}%)`, 'info')
 }
 
-// 🔥 새로 추가: 생산 재시작 
+// 생산 재시작 
 function resumeProduction() {
   isWorking.value = true
   workStatus.value = 'WORKING'
@@ -881,7 +1041,7 @@ function resumeProduction() {
   addLog('작업을 재시작했습니다.', 'success')
 }
 
-// 🔥 새로 추가: 자동 완료
+// 자동 완료
 function autoCompleteProduction() {
   if (productionTimer) {
     clearInterval(productionTimer)
@@ -900,71 +1060,20 @@ function autoCompleteProduction() {
     addLog('외포장이 완료되어 모든 작업이 끝났습니다!', 'info')
   }
   
-  // 3초 후 완료 모달 자동 표시
-  setTimeout(() => {
-    showCompleteModal.value = true
-  }, 3000)
 }
 
-// 4. 생산 완료 버튼
+// 생산 완료 버튼
 function completeProduction() {
   showCompleteModal.value = true
 }
 
-// 5. 작업 완료 처리
-async function confirmCompleteWork() {
-  try {
-    loading.value = true
-    loadingMessage.value = '작업을 완료하는 중...'
-    
-    // 작업 완료 API 호출
-    const res = await axios.put(`${PACKAGES_API_URL}/${currentWork.value.work_no}/complete`, {
-      input_qty: currentWork.value.input_qty,
-      output_qty: currentWork.value.output_qty,
-      defect_qty: currentWork.value.defect_qty
-    })
-    
-    // 라인 상태 업데이트 (curr_work_no 초기화)
-    await axios.put(`${LINES_API_URL}/${workInfo.value.lineId}`, {
-      curr_work_no: null,
-      line_status: 'READY'
-    })
-    
-    // 최종 결과 반영
-    currentWork.value.output_qty = res.data.output_qty || currentWork.value.output_qty
-    currentWork.value.defect_qty = res.data.defect_qty || currentWork.value.defect_qty
-    currentWork.value.passRate = Math.round((currentWork.value.output_qty / currentWork.value.input_qty) * 100)
-    currentWork.value.defectRate = 100 - currentWork.value.passRate
-    
-    isWorking.value = false
-    workStatus.value = 'COMPLETED'
-    if (workTimer) clearInterval(workTimer)
-    
-    updateWorkProgress()
-    addLog(`${workInfo.value.lineType === 'INNER' ? '내포장' : '외포장'} 작업이 완료되었습니다.`, 'success')
-    closeCompleteModal()
-    
-    // 내포장 완료시 즉시 이동, 외포장 완료시 2초 후 이동
-    const moveDelay = workInfo.value.lineType === 'INNER' ? 1000 : 2000
-    setTimeout(() => { 
-      goBackToLineSelectionWithCompletion() 
-    }, moveDelay)
-    
-  } catch (error) {
-    console.error('작업 완료 처리 실패:', error)
-    addLog('작업 완료 처리에 실패했습니다.', 'error')
-  } finally {
-    loading.value = false
-  }
-}
-
-// 작업 종료 (강제) - 🔥 생산 타이머 정리 추가
+// 작업 종료 (강제)
 async function stopWork() {
   try {
     isWorking.value = false
     workStatus.value = 'COMPLETED'
     
-    // 🔥 모든 타이머 정리
+    // 모든 타이머 정리
     if (workTimer) {
       clearInterval(workTimer)
       workTimer = null
@@ -974,36 +1083,45 @@ async function stopWork() {
       productionTimer = null
     }
     
-    // 라인 상태 업데이트
-    try {
-      await axios.put(`${LINES_API_URL}/${workInfo.value.lineId}`, {
-        curr_work_no: null,
-        line_status: 'READY'
-      })
-      addLog('라인 상태를 초기화했습니다.', 'info')
-    } catch (error) {
-      addLog('오프라인 모드: 로컬에서 작업을 종료합니다.', 'warning')
-    }
-    
     addLog('작업을 강제 종료했습니다.', 'info')
     addLog(`최종 생산량: ${currentWork.value.output_qty}개 (${currentWork.value.progressRate}% 완료)`, 'info')
     
   } catch (error) {
     console.error('작업 종료 실패:', error)
-    addLog('작업 종료 처리에 실패했습니다.', 'error')
+    showErrorMessage('작업 종료 처리에 실패했습니다.')
   }
 }
 
 // 진행률/품질 업데이트
 function updateWorkProgress() {
   if (currentWork.value.input_qty > 0) {
-    currentWork.value.progressRate = 100 // 작업 시작하면 100%로 표시
+    currentWork.value.progressRate = 100
     currentWork.value.passRate = Math.round(
       (currentWork.value.output_qty / currentWork.value.input_qty) * 100
     )
     currentWork.value.defectRate = Math.round(
       (currentWork.value.defect_qty / currentWork.value.input_qty) * 100
     )
+  }
+}
+
+// 에러 처리
+function showErrorMessage(message) {
+  errorMessage.value = message
+  showError.value = true
+  addLog(message, 'error')
+}
+
+function hideError() {
+  showError.value = false
+}
+
+async function retryConnection() {
+  hideError()
+  try {
+    await initializeWorkPage()
+  } catch (error) {
+    showErrorMessage('재연결에 실패했습니다.')
   }
 }
 
@@ -1023,52 +1141,166 @@ function closeCompleteModal() {
   showCompleteModal.value = false 
 }
 
-// 라인 선택으로 돌아가기 (작업 완료시)
-function goBackToLineSelectionWithCompletion() {
+// 외포장 라인으로 바로 가기
+function goDirectToOuterPackaging() {
+  addLog('외포장 라인으로 바로 이동합니다...', 'info')
+  closeCompleteModal()
+  
+  if (router) {
+    try {
+      router.push({
+        name: 'package_line',
+        query: {
+          inner_completed: 'true',
+          next_step: 'outer',
+          auto_select: 'outer',
+          message: '내포장 완료! 외포장을 선택해주세요.'
+        }
+      })
+      console.log('외포장 라인 페이지로 직접 이동 성공');
+      return;
+    } catch (routerError) {
+      console.error('외포장 라인 페이지 이동 실패:', routerError);
+    }
+  }
+  
+  window.location.href = '/packaging/line?inner_completed=true&next_step=outer&auto_select=outer';
+}
+
+// 라인 선택으로 돌아가기 (작업 완료시) - 개선된 버전
+async function goBackToLineSelectionWithCompletion() {
+  console.log('goBackToLineSelectionWithCompletion 함수 호출됨');
+  console.log('현재 라인 타입:', workInfo.value.lineType);
+  
   if (workInfo.value.lineType === 'INNER') {
-    // 🔥 내포장 완료 → 외포장 라인 선택으로 이동
     addLog('내포장이 완료되었습니다! 이제 외포장 작업을 진행해주세요.', 'success')
     
+    // 전역 함수 호출 (있다면)
     if (window.handleInnerPackageCompleted) {
-      window.handleInnerPackageCompleted()
+      try {
+        window.handleInnerPackageCompleted()
+        console.log('window.handleInnerPackageCompleted 호출 성공');
+      } catch (globalError) {
+        console.warn('window.handleInnerPackageCompleted 호출 실패:', globalError);
+      }
     }
     
+    // Vue Router로 이동 시도
     if (router) {
-      router.push({
-        name: 'package_line_selection', // 포장 라인 선택 페이지
+      console.log('Vue Router로 외포장 라인 페이지 이동 시도...');
+      
+      const routeOptions = {
         query: {
           inner_completed: 'true',
           next_step: 'outer',
           message: '내포장 완료! 외포장을 진행해주세요.'
         }
-      })
+      };
+      
+      // 여러 라우터 이름으로 시도
+      const routeNames = ['PackageLine', 'package_line', 'package-line', 'PackageLineSelection'];
+      let routerSuccess = false;
+      
+      for (const routeName of routeNames) {
+        try {
+          console.log(`라우터 이름 "${routeName}"으로 이동 시도...`);
+          await router.push({
+            name: routeName,
+            ...routeOptions
+          });
+          console.log(`라우터 이름 "${routeName}"으로 이동 성공!`);
+          routerSuccess = true;
+          break;
+        } catch (routerError) {
+          console.warn(`라우터 이름 "${routeName}" 이동 실패:`, routerError.message);
+        }
+      }
+      
+      // 라우터 이름으로 안되면 경로로 시도
+      if (!routerSuccess) {
+        const routePaths = ['/packaging/line', '/package/line', '/line', '/packaging'];
+        
+        for (const routePath of routePaths) {
+          try {
+            console.log(`라우터 경로 "${routePath}"로 이동 시도...`);
+            await router.push({
+              path: routePath,
+              ...routeOptions
+            });
+            console.log(`라우터 경로 "${routePath}"로 이동 성공!`);
+            routerSuccess = true;
+            break;
+          } catch (routerError) {
+            console.warn(`라우터 경로 "${routePath}" 이동 실패:`, routerError.message);
+          }
+        }
+      }
+      
+      // Vue Router로 이동 실패시 직접 URL 이동
+      if (!routerSuccess) {
+        console.log('Vue Router 이동 모두 실패, 직접 URL로 이동...');
+        const targetUrl = '/packaging/line?inner_completed=true&next_step=outer&message=' + 
+                         encodeURIComponent('내포장 완료! 외포장을 진행해주세요.');
+        console.log('URL 이동:', targetUrl);
+        window.location.href = targetUrl;
+      }
     } else {
-      // 라인 선택 페이지로 이동하여 외포장 선택하도록 안내
-      window.location.href = '/packaging/line?inner_completed=true&next_step=outer'
+      // 라우터 없으면 바로 URL로 이동
+      console.log('Vue Router 없음, 직접 URL로 이동...');
+      const targetUrl = '/packaging/line?inner_completed=true&next_step=outer&message=' + 
+                       encodeURIComponent('내포장 완료! 외포장을 진행해주세요.');
+      console.log('URL 이동:', targetUrl);
+      window.location.href = targetUrl;
     }
   } else {
-    // 🔥 외포장 완료 → 모든 작업 완료
+    // 외포장 완료 (모든 작업 완료)
     addLog('🎉 모든 포장 작업이 완료되었습니다!', 'success')
     
+    // 전역 함수 호출 (있다면)
     if (window.handleAllPackageCompleted) {
-      window.handleAllPackageCompleted()
+      try {
+        window.handleAllPackageCompleted()
+        console.log('window.handleAllPackageCompleted 호출 성공');
+      } catch (globalError) {
+        console.warn('window.handleAllPackageCompleted 호출 실패:', globalError);
+      }
     }
     
+    // 대시보드 또는 메인 페이지로 이동
     if (router) {
-      router.push({
-        name: 'package_dashboard', // 대시보드나 메인으로
-        query: {
-          all_completed: 'true',
-          message: '모든 포장 작업이 완료되었습니다!'
+      const dashboardRoutes = ['PackageDashboard', 'package_dashboard', 'dashboard', 'PackageMain'];
+      let routerSuccess = false;
+      
+      for (const routeName of dashboardRoutes) {
+        try {
+          console.log(`대시보드 라우터 "${routeName}"으로 이동 시도...`);
+          await router.push({
+            name: routeName,
+            query: {
+              all_completed: 'true',
+              message: '모든 포장 작업이 완료되었습니다!'
+            }
+          });
+          console.log(`대시보드 라우터 "${routeName}"으로 이동 성공!`);
+          routerSuccess = true;
+          break;
+        } catch (routerError) {
+          console.warn(`대시보드 라우터 "${routeName}" 이동 실패:`, routerError.message);
         }
-      })
+      }
+      
+      if (!routerSuccess) {
+        console.log('대시보드 라우터 이동 실패, URL로 이동...');
+        window.location.href = '/packaging/dashboard?all_completed=true';
+      }
     } else {
-      window.location.href = '/packaging/dashboard?all_completed=true'
+      console.log('Vue Router 없음, 대시보드 URL로 이동...');
+      window.location.href = '/packaging/dashboard?all_completed=true';
     }
   }
 }
 
-// 라인 선택으로 돌아가기 (작업 완료 없이)
+// 라인 선택으로 돌아가기 (작업 완료 없이) - 간단한 버전
 function goBackToLineSelection() {
   if (isWorking.value) {
     const workType = workInfo.value.lineType === 'INNER' ? '내포장' : '외포장'
@@ -1076,14 +1308,26 @@ function goBackToLineSelection() {
       return
     }
   }
-  if (router) {
-    router.push({ name: 'package_line' })
-  } else {
+  
+  console.log('라인 선택으로 돌아가기...');
+  
+  // 간단한 URL 이동
+  try {
+    if (router && router.push) {
+      router.push({ name: 'package_line' }).catch(() => {
+        // 라우터 실패시 URL 직접 이동
+        window.location.href = '/packaging/line'
+      })
+    } else {
+      window.location.href = '/packaging/line'
+    }
+  } catch (error) {
+    console.error('라우터 이동 실패, URL로 이동:', error);
     window.location.href = '/packaging/line'
   }
 }
 
-// 🔥 새로 추가: 작업 버튼 핸들러
+// 작업 버튼 핸들러
 function handleWorkButton() {
   if (workStatus.value === 'READY') {
     startWork()
@@ -1094,7 +1338,7 @@ function handleWorkButton() {
   }
 }
 
-// 🔥 새로 추가: 작업 버튼 텍스트
+// 작업 버튼 텍스트
 function getWorkButtonText() {
   switch (workStatus.value) {
     case 'READY':
@@ -1110,7 +1354,7 @@ function getWorkButtonText() {
   }
 }
 
-// 헬퍼 함수들
+// 유틸리티 함수들
 function formatNumber(num) { 
   return num ? num.toLocaleString() : '0' 
 }
@@ -1148,7 +1392,6 @@ function formatElapsedTime(ms) {
   return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
 }
 
-// 🔥 수정된 상태 텍스트 변환 (한글-영어 양방향 지원)
 function getWorkStatusText(status) {
   const map = {
     'READY': '준비',
@@ -1179,6 +1422,7 @@ function startWorkTimer() {
     }
   }, 1000)
 }
+
 
 defineOptions({
   name: 'PackageWork'
@@ -1226,6 +1470,95 @@ defineOptions({
   color: white;
   font-size: 16px;
   font-weight: 500;
+}
+
+/* 에러 오버레이 */
+.error-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2100;
+}
+
+.error-modal {
+  background: white;
+  border-radius: 12px;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 20px 25px rgba(0, 0, 0, 0.25);
+}
+
+.error-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid #fee2e2;
+  background: #fef2f2;
+  border-radius: 12px 12px 0 0;
+}
+
+.error-header h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #dc2626;
+  margin: 0;
+}
+
+.error-body {
+  padding: 24px;
+}
+
+.error-body p {
+  font-size: 14px;
+  color: #1e293b;
+  margin: 0 0 12px 0;
+  line-height: 1.5;
+}
+
+.error-help {
+  color: #64748b;
+  font-size: 13px;
+}
+
+.error-actions {
+  display: flex;
+  gap: 12px;
+  padding: 20px 24px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.btn-error-close,
+.btn-retry {
+  flex: 1;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-error-close {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.btn-error-close:hover {
+  background: #e2e8f0;
+}
+
+.btn-retry {
+  background: #3b82f6;
+  color: white;
+}
+
+.btn-retry:hover {
+  background: #2563eb;
 }
 
 /* 헤더 */
@@ -1661,7 +1994,6 @@ defineOptions({
   color: #ef4444;
 }
 
-/* 라인 변경 패널 */
 .line-change-panel {
   text-align: center;
 }
@@ -1690,6 +2022,29 @@ defineOptions({
   color: #6b7280;
   line-height: 1.4;
   margin: 0;
+}
+
+.debug-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.btn-debug {
+  padding: 8px 12px;
+  background: #e0e7ff;
+  color: #3730a3;
+  border: 1px solid #c7d2fe;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-debug:hover {
+  background: #c7d2fe;
+  transform: translateY(-1px);
 }
 
 /* 모달 */
@@ -1819,8 +2174,31 @@ defineOptions({
   border-top: 1px solid #e2e8f0;
 }
 
+.modal-actions.inner-completed {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: auto auto;
+  gap: 12px;
+}
+
+.modal-actions.inner-completed .btn-cancel {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.modal-actions.inner-completed .btn-confirm {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.modal-actions.inner-completed .btn-outer-direct {
+  grid-column: 1 / -1;
+  grid-row: 2;
+}
+
 .btn-cancel,
-.btn-confirm {
+.btn-confirm,
+.btn-outer-direct {
   flex: 1;
   padding: 12px 20px;
   border: none;
@@ -1847,6 +2225,18 @@ defineOptions({
 
 .btn-confirm:hover {
   background: #2563eb;
+}
+
+.btn-outer-direct {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.btn-outer-direct:hover {
+  background: linear-gradient(135deg, #059669, #047857);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
 }
 
 @media (max-width: 1024px) {
@@ -1889,6 +2279,11 @@ defineOptions({
   }
   
   .modal-actions {
+    flex-direction: column;
+  }
+  
+  .modal-actions.inner-completed {
+    display: flex;
     flex-direction: column;
   }
 }

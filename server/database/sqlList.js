@@ -10,6 +10,9 @@ const bom = require('./sqls/bom.js');
 const package =  require('./sqls/package.js');
 const account = require('./sqls/account.js');
 const defect = require('./sqls/defect.js');
+const materialLot = require('./sqls/materialLot.js');
+const workOrder = require('./sqls/workOrder.js');
+
 
 
 
@@ -24,10 +27,10 @@ const defect = require('./sqls/defect.js');
      ...processFlowChart,
      ...line,
      ...inspection,
-    ...processFlowChart,
-    ...package,
-     ...processFlowChart,
+     ...package,
      ...account,
-     ...defect
+     ...defect,
+     ...materialLot
+     ...workOrder
  }
 

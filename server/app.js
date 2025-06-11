@@ -3,6 +3,17 @@ require("dotenv").config({ path: "./database/configs/dbConfig.env" });
 const express = require("express");
 const app = express();
 
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  
+  if (req.method === 'OPTIONS') {
+    return res.status(200).send('OK');
+  }
+  next();
+});
+
 // 미들웨어 등록 영역
 // 1. body parser
 // 라우팅 등록 영역
@@ -47,7 +58,9 @@ const packageRouter = require('./routers/packageRouter.js');
 
 const accountRouter = require('./routers/accountRouter.js');
 
-const defectRouter = require('./routers/defectRouter.js')
+const defectRouter = require('./routers/defectRouter.js');
+
+const materialLotRouter = require('./routers/materialLotRouter.js')
 
  // 기본 라우팅
 app.get('/', (req, res)=>{
@@ -63,15 +76,16 @@ app.get('/', (req, res)=>{
 app.use('/api/orders', orderRouter);
 app.use('/', accountRouter);
 
-//현석
-app.use('/api/lines', lineRouter);
 //다산
 app.use('/bom', bomRouter);
- //라우터 모듈 등록
-app.use('/', productRouter);
 
+ //승민
+app.use('/', productRouter);
 app.use('/', materialRouter);
 app.use('/', processRouter);
+app.use('/', materialLotRouter);
+
+
 
 //열림
 app.use('/equipments', equipmentRouter);

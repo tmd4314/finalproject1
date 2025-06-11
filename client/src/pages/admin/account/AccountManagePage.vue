@@ -103,7 +103,27 @@
               :class="{ 'selected': selectedAccount?.account_id === account.account_id }"
             >
               <td @click.stop>
-                <va-checkbox v-model="selectedIds" :array-value="account.account_id" />
+                <!-- in_use면 툴팁+비활성, 아니면 일반 체크박스 -->
+                <va-tooltip
+                  v-if="account.in_use"
+                  text="주문 또는 발주에서 사용된 거래처는 삭제할 수 없습니다"
+                  placement="top"
+                >
+                  <template #activator>
+                    <span>
+                      <va-checkbox
+                        v-model="selectedIds"
+                        :array-value="account.account_id"
+                        :disabled="!!account.in_use"
+                      />
+                    </span>
+                  </template>
+                </va-tooltip>
+                <va-checkbox
+                  v-else
+                  v-model="selectedIds"
+                  :array-value="account.account_id"
+                />
               </td>
               <td>{{ startIndex + index + 1 }}</td>
               <td>{{ account.account_name }}</td>
@@ -112,7 +132,8 @@
               <td>{{ account.phone }}</td>
               <td class="address-cell">{{ account.address }}</td>
             </tr>
-          </tbody>
+</tbody>
+
         </table>
         
         <!-- 데이터 없을 때 표시 -->
@@ -330,6 +351,7 @@ interface Account {
   use_yn: 'Y' | 'N'
   email?: string
   remarks?: string
+  in_use: number
 }
 
 interface Form {
@@ -435,36 +457,6 @@ async function fetchAccounts() {
     console.error('거래처 목록 로드 실패:', error)
     // Mock 데이터
     accounts.value = [
-      {
-        account_id: 'ACC001',
-        account_name: '셀트리온',
-        business_no: '111-11-11111',
-        charger_name: '홍길동',
-        phone: '02-1234-5678',
-        address: '인천광역시 연수구 아카데미로 23',
-        account_type: 'customer',
-        use_yn: 'Y'
-      },
-      {
-        account_id: 'ACC002',
-        account_name: '한미약품',
-        business_no: '222-22-22222',
-        charger_name: '김철수',
-        phone: '02-9876-5432',
-        address: '서울특별시 송파구 위례성대로 14',
-        account_type: 'customer',
-        use_yn: 'Y'
-      },
-      {
-        account_id: 'ACC003',
-        account_name: '종근당',
-        business_no: '333-33-33333',
-        charger_name: '이영희',
-        phone: '02-5555-1234',
-        address: '서울특별시 용산구 청파로 383',
-        account_type: 'supplier',
-        use_yn: 'Y'
-      }
     ]
   } finally {
     loading.value = false
@@ -618,6 +610,7 @@ async function saveAccount() {
 
 // 선택 삭제
 async function deleteSelected() {
+  console.log('삭제할 selectedIds:', selectedIds.value);
   if (selectedIds.value.length === 0) return
   
   if (!confirm(`선택한 ${selectedIds.value.length}개의 거래처를 삭제하시겠습니까?`)) {
@@ -705,19 +698,22 @@ watch(itemsPerPage, () => {
   display: flex;
   gap: 20px;
   padding: 20px;
-  height: calc(100vh - 80px);
+  min-height: calc(100vh - 100px);
   background-color: #f5f5f5;
 }
 
 /* 좌측 패널 */
 .account-list-panel {
-  flex: 1.5;
+  flex: 1;
+  min-width: 600px;
   background: white;
   border-radius: 8px;
   padding: 24px;
   display: flex;
   flex-direction: column;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  height: fit-content;
+  max-height: calc(100vh - 140px);
 }
 
 .page-title {
@@ -850,12 +846,14 @@ watch(itemsPerPage, () => {
 
 /* 우측 패널 */
 .account-detail-panel {
-  flex: 1;
+  flex: 0 0 450px;
   background: white;
   border-radius: 8px;
   padding: 24px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  overflow-y: auto;
+  height: fit-content;
+  position: sticky;
+  top: 20px;
 }
 
 .detail-header {
@@ -932,6 +930,10 @@ watch(itemsPerPage, () => {
   .filter-row {
     grid-template-columns: repeat(2, 1fr);
   }
+  
+  .account-detail-panel {
+    flex: 0 0 400px;
+  }
 }
 
 @media (max-width: 1200px) {
@@ -939,10 +941,15 @@ watch(itemsPerPage, () => {
     flex-direction: column;
   }
   
-  .account-list-panel,
+  .account-list-panel {
+    min-width: unset;
+    max-height: unset;
+  }
+  
   .account-detail-panel {
     flex: 1;
-    max-width: none;
+    width: 100%;
+    position: static;
   }
 }
 
