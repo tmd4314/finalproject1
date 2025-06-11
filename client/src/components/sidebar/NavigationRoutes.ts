@@ -232,10 +232,10 @@ export default {
           name: 'account-management',
           displayName: 'menu.거래처 관리',
         },
-        {
-          name: 'staff-management',
-          displayName: 'menu.사원 관리',
-        },
+        // {
+        //   name: 'staff-management',
+        //   displayName: 'menu.사원 관리',
+        // },
         {
           name: 'InspectionManagement',
           displayName: 'menu.검사항목 관리',

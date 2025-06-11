@@ -160,7 +160,7 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('../pages/users/UsersPage.vue'),
       },
       {
-        name: 'facility',
+         name: 'facility',
         path: 'facility',
         component: RouteViewComponent,
         children: [
@@ -169,11 +169,11 @@ const routes: Array<RouteRecordRaw> = [
             path: 'inquiry',
             component: () => import('../pages/equipment/EquipmentInquiry.vue'),
           },
-          {
-            name: 'equipment-register',
-            path: 'register',
-            component: () => import('../pages/equipment/EquipmentForm.vue'),
-          },
+          // {
+          //   name: 'equipment-register',
+          //   path: 'register',
+          //   component: () => import('../pages/equipment/EquipmentForm.vue'),
+          // },
           {
             name: 'equipment-management',
             path: 'management',
