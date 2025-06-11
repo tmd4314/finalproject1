@@ -45,6 +45,12 @@ const processDetail =
    VALUES (?, ?, ?, ? ,NOW())`
 ;
 
+// 상세추가시 전부 삭제후 저장(수정)
+const processUpdateDetail = 
+  `DELETE FROM process_detail
+   WHERE process_code = ?`
+;
+
 const processDetailSelect =
   `SELECT 
       pd.material_code,
@@ -78,5 +84,6 @@ module.exports ={
   processDetailSelect,
   processDELETE,
   processDetailDELETE,
-  processUpdate
+  processUpdate,
+  processUpdateDetail
 }

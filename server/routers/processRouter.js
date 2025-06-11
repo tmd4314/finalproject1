@@ -59,6 +59,13 @@ router.post('/process/:process_code', async (req, res) => {
   }
 });
 
+ router.delete('/processDetail/:process_code', async(req, res)=>{
+    let processCode =req.params.process_code;
+    let resInfo =await processService.updateProcessDetailInfo(processCode)
+                                     .catch(err =>console.log(err));
+    res.send(resInfo);
+ })
+
 
 
 // 삭제    : 자원(데이터) -> product / 삭제 -> DELETE
