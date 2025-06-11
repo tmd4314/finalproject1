@@ -45,6 +45,8 @@ const inspectionRouter = require('./routers/inspectionRouter.js');
 
 const packageRouter = require('./routers/packageRouter.js');
 
+const defectRouter = require('./routers/defectRouter.js');
+
  // 기본 라우팅
 app.get('/', (req, res)=>{
   res.send('Welcome!!...');
@@ -77,4 +79,4 @@ app.use('/packages', packageRouter);
 
 //현기
 app.use('/inspections', inspectionRouter);
-
+app.use('/defects', defectRouter);
