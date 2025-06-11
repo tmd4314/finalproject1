@@ -76,11 +76,14 @@ app.use('/', accountRouter);
 
 //다산
 app.use('/bom', bomRouter);
+
  //라우터 모듈 등록
 app.use('/', productRouter);
 
 app.use('/', materialRouter);
 app.use('/', processRouter);
+
+
 
 //열림
 app.use('/equipments', equipmentRouter);
