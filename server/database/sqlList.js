@@ -25,9 +25,7 @@ const materialLot = require('./sqls/materialLot.js');
      ...processFlowChart,
      ...line,
      ...inspection,
-    ...processFlowChart,
-    ...package,
-     ...processFlowChart,
+     ...package,
      ...account,
      ...defect,
      ...materialLot

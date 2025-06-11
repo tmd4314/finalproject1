@@ -12,7 +12,7 @@ const selectOrderList =
           pt.mat_qual_test_status
   FROM    purchase_order po
   JOIN    material_quality_test pt
-    ON    po.material_qual_num = pt.material_qual_num
+    ON    po.purchase_order_id = pt.purchase_order_id
   JOIN    material pd
     ON    po.material_code = pd.material_code
   WHERE   pt.mat_qual_test_status = "합격"
