@@ -30,7 +30,7 @@ const workOrder = require('./sqls/workOrder.js');
      ...package,
      ...account,
      ...defect,
-     ...materialLot
+     ...materialLot,
      ...workOrder
  }
 
