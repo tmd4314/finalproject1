@@ -19,7 +19,8 @@ const proxyPaths = [
   'lines',
   'packages',
   'account',
-  'order'
+  'order',
+  'defects'
 ]
 
 // ✅ 공통 proxy 설정 생성 함수

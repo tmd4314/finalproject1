@@ -153,6 +153,7 @@ const registerProduct = async () => {
         if(res.data.success) {
           alert('등록 성공');
           inspectionList.value.push({ ...newInspection });
+          await fetchInspectionList();
           resetForm();
         }
       }
