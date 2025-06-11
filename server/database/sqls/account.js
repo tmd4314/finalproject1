@@ -58,6 +58,29 @@ const accountUpdate = `
     WHERE account_id = ?
 `;
 
+// 전체 거래처+in_use(사용중) 여부 한꺼번에 조회
+const getAccountListWithUsage = `
+SELECT
+  a.*,
+  CASE
+    WHEN EXISTS (SELECT 1 FROM order_master WHERE account_id = a.account_id)
+      OR EXISTS (SELECT 1 FROM purchase_order WHERE account_id = a.account_id)
+    THEN 1 ELSE 0
+  END AS in_use
+FROM account a
+ORDER BY a.account_id
+`;
+
+// 단일 거래처가 사용중인지 체크 (삭제 방어용)
+const getAccountInUse = `
+SELECT
+  CASE
+    WHEN EXISTS (SELECT 1 FROM order_master WHERE account_id = ?)
+      OR EXISTS (SELECT 1 FROM purchase_order WHERE account_id = ?)
+    THEN 1 ELSE 0
+  END AS in_use
+`;
+
 // 거래처 삭제
 const accountDelete = `
     DELETE FROM account WHERE account_id = ?
@@ -69,5 +92,7 @@ module.exports = {
   getAccountById,
   accountInsert,
   accountUpdate,
-  accountDelete
+  accountDelete,
+  getAccountListWithUsage,
+  getAccountInUse
 };

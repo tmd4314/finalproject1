@@ -89,6 +89,21 @@ const updateAccount = async (accountId, accountInfo) => {
   return result;
 }
 
+// 1) 전체 거래처+in_use 목록 조회 (거래처 리스트 화면용)
+const findAllWithUsage = async () => {
+  let list = await mariadb.query("getAccountListWithUsage")
+    .catch(err => { console.error(err); return []; });
+  return list;
+}
+
+// 2) 특정 거래처가 사용중인지 개별 확인 (삭제 API 서버 방어용)
+const isAccountInUse = async (accountId) => {
+  // getAccountInUse는 ? 파라미터 2개 받음!
+  let [result] = await mariadb.query("getAccountInUse", [accountId, accountId]);
+  return result?.in_use === 1; // true면 사용중, false면 사용 안함
+}
+
+
 // 거래처 삭제
 const removeAccount = async (accountId) => {
   let result = await mariadb.query("accountDelete", [accountId])
@@ -121,5 +136,7 @@ module.exports = {
   addAccount,
   updateAccount,
   removeAccount,
-  removeMultiple
+  removeMultiple,
+  isAccountInUse,
+  findAllWithUsage
 };
