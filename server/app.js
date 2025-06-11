@@ -63,15 +63,14 @@ app.get('/', (req, res)=>{
 app.use('/api/orders', orderRouter);
 app.use('/', accountRouter);
 
-//현석
-app.use('/api/lines', lineRouter);
-//다산
-app.use('/bom', bomRouter);
- //라우터 모듈 등록
+//라우터 모듈 등록
 app.use('/', productRouter);
 
 app.use('/', materialRouter);
 app.use('/', processRouter);
+
+//다산
+app.use('/bom', bomRouter);
 
 //열림
 app.use('/equipments', equipmentRouter);

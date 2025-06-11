@@ -28,7 +28,7 @@ export default {
         },
       ],
     },
-       {
+    {
     name: 'facility',
     displayName: 'menu.설비',
     meta: {
@@ -74,8 +74,8 @@ export default {
       ],
     },
     {
-      name: 'production',
-      displayName: 'menu.생산',
+      name: 'login',
+      displayName: 'menu.로그인',
       meta: {
         icon: 'login',
       },
@@ -91,6 +91,23 @@ export default {
         {
           name: 'recover-password',
           displayName: 'menu.recover-password',
+        },
+      ],
+    },
+    {
+      name: 'production',
+      displayName: 'menu.생산',
+      meta: {
+        icon: 'login',
+      },
+      children: [
+        {
+          name: 'work_order_manager',
+          displayName: 'menu.작업지시 관리',
+        },
+        {
+          name: 'work_order_check',
+          displayName: 'menu.작업지시 조회',
         },
       ],
     },
@@ -187,10 +204,6 @@ export default {
         {
           name: 'staff-management',
           displayName: 'menu.사원 관리',
-        },
-        {
-          name: 'bom-manager',
-          displayName: 'menu.BOM 관리',
         },
         {
           name: 'bom-manager',

@@ -44,6 +44,43 @@ const routes: Array<RouteRecordRaw> = [
         ],
       },
       {
+        name: 'production',
+        path: 'production',
+        component: RouteViewComponent,
+        children: [
+          {
+            name: 'work_order_manager',
+            path: 'work_order_manager',
+            component: ()=> import('../pages/workorder/WorkOrderManager.vue'),
+          },
+          {
+            name: 'work_order_check',
+            path: 'work_order_check',
+            component: ()=> import('../pages/workorder/WorkOrderCheck.vue'),
+          },
+          {
+            name: 'work_order_manager',
+            path: 'work_order_manager',
+            component: ()=> import('../pages/workorder/WorkOrderManager.vue'),
+          },
+          {
+            name: 'work_order_manager',
+            path: 'work_order_manager',
+            component: ()=> import('../pages/workorder/WorkOrderManager.vue'),
+          },
+          {
+            name: 'work_order_manager',
+            path: 'work_order_manager',
+            component: ()=> import('../pages/workorder/WorkOrderManager.vue'),
+          },
+          {
+            name: 'work_order_manager',
+            path: 'work_order_manager',
+            component: ()=> import('../pages/workorder/WorkOrderManager.vue'),
+          },
+        ],
+      },
+      {
         name: 'packaging',
         path: 'packaging',  
         component: RouteViewComponent,
@@ -228,7 +265,7 @@ const routes: Array<RouteRecordRaw> = [
     ],
   },
   {
-    path: '/production',
+    path: '/login',
     component: AuthLayout,
     children: [
       {
