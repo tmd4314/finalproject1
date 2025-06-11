@@ -47,6 +47,8 @@ const packageRouter = require('./routers/packageRouter.js');
 
 const accountRouter = require('./routers/accountRouter.js');
 
+const defectRouter = require('./routers/defectRouter.js')
+
  // 기본 라우팅
 app.get('/', (req, res)=>{
   res.send('Welcome!!...');
