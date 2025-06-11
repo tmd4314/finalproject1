@@ -31,6 +31,21 @@ router.post('/process', async (req, res) => {
   }
 });
 
+router.put('/process/:process_code', async (req, res) => {
+  try {
+    const processCode = req.params.process_code;
+    const detailList = req.body;
+
+    const result = await processService.modifyProcess(processCode, detailList);
+    res.send(result);
+  } catch (err) {
+    console.error('❌ 수정 중 오류:', err);
+    res.status(500).send({ isUpdated: false, message: '서버 오류' });
+  }
+});
+
+
+//process_detail
 router.post('/process/:process_code', async (req, res) => {
   try {
     const processCode = req.params.process_code;
@@ -43,6 +58,8 @@ router.post('/process/:process_code', async (req, res) => {
     res.status(500).send({ isSuccessed: false, message: '서버 오류' });
   }
 });
+
+
 
 // 삭제    : 자원(데이터) -> product / 삭제 -> DELETE
  router.delete('/process/:process_code', async(req, res)=>{
