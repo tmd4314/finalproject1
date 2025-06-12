@@ -1,7 +1,8 @@
 <template>
 
 <div class="defect-form">
-  <h3 class="form-title">검사항목 등록</h3>
+  <h3 class="form-title">불량항목 등록</h3>
+  <br>  
 
   <!-- 상단 입력박스 -->
   <div class="form-section">
@@ -36,7 +37,6 @@
     </table>
   </div>
 </div>
-
 </template>
 
 <script lang="ts" setup>
@@ -136,52 +136,8 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.product-page {
-  padding: 1.5rem;
-  display: flex;
-  justify-content: center;
-   height: 739px;
-}
-
-.product-container {
-  width: 1060px;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-}
-
-.product-title {
-  font-size: 1.25rem;
-  font-weight: bold;
-  margin-bottom: 1rem;
-}
-
-.product-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  column-gap: 2.5rem;
-}
-
-.product-table {
-  grid-column: span 2 / span 2;
-}
-
-.product-filters {
-  display: flex;
-  gap: 1rem;
-  margin-bottom: 1rem;
-}
-
-.filter-input {
-  width: 33.333%;
-}
-
-.filter-spec-input {
-  width: 25%;
-}
-
 .defect-form {
-  background-color: white;
+  background-color: transparent;
   border-radius: 0.5rem;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);
   padding: 1rem;
@@ -194,9 +150,17 @@ onMounted(() => {
   margin-bottom: 1rem;
 }
 
+.form-section {
+  border: 1px solid #ccc;       /* 테두리는 유지 */
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  background-color: white;      /* 배경을 흰색으로 바꿈 */
+}
+
 .input-row {
   display: flex;
-  gap: 1rem; /* 두 박스 간 여백 */
+  gap: 1rem;
   margin-bottom: 0.5rem;
 }
 
@@ -205,36 +169,27 @@ onMounted(() => {
 }
 
 .quarter-width {
-  flex: 1; /* 전체 너비를 4등분 */
+  flex: 1;
 }
 
 .half-width {
-  flex: 2; /* 전체 너비를 2칸 차지 */
-}
-
-.half-width {
+  flex: 2;
   width: 50%;
 }
 
 .form-buttons {
   display: flex;
-  justify-content: space-between;
-  margin-top: 0.5rem;
-}
-
-.form-buttons {
-  display: flex;
-  justify-content: flex-end; /* ← 이 부분을 변경 */
-  gap: 0.5rem; /* 버튼 사이 간격 추가 (선택 사항) */
+  justify-content: flex-end;
+  gap: 0.5rem;
   margin-top: 0.5rem;
 }
 
 .custom-table {
   width: 100%;
   border-collapse: collapse;
-  background-color: white;
   border-radius: 0.5rem;
   overflow: hidden;
+  background-color: transparent;
 }
 
 .custom-table th,
@@ -242,34 +197,11 @@ onMounted(() => {
   padding: 0.75rem;
   border-bottom: 1px solid #e0e0e0;
   text-align: center;
-  background-color: #ffffff;
+  background-color: transparent;
 }
 
 .custom-table th {
-  background-color: #ffffff;
   font-weight: bold;
-} 
-
-.form-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.5rem;
 }
 
-.image-preview {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  margin-bottom: 1rem;
-}
-
-.image-preview img {
-  max-width: 100%;
-  max-height: 150px;
-  object-fit: contain;
-  border: 1px solid #ccc;
-  padding: 4px;
-  border-radius: 4px;
-}
 </style>

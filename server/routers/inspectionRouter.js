@@ -48,4 +48,20 @@ router.post('/update', async (req, res) => {
   }
 });
 
+//단일삭제
+router.delete('/:id', async (req, res) => {
+  try{
+    const result = await inspectionService.deleteInspection(req.params.id);
+
+    if(result.affectedRows === 1) {
+      console.log("검사항목 삭제 성공");
+      res.status(200).json({ success: true });
+    } else {
+      cres.status(500).json({ success: false, message: "삭제실패"});
+    }
+  } catch(err) {
+    console.log("검사항목 삭제 실패", err);
+  }
+});
+
 module.exports = router;

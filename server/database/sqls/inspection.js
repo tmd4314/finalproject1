@@ -35,9 +35,15 @@ const updateInspection = `
   WHERE insp_code = ?
 `;
 
+  const deleteInspection = `
+    DELETE FROM inspection_item
+    WHERE insp_code = ?
+  `
+  ;
 
 module.exports ={
   selectInspectionList,
   insertInspectionList,
-  updateInspection
+  updateInspection,
+  deleteInspection
 }
