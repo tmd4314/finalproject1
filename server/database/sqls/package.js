@@ -5,34 +5,37 @@ module.exports = {
     INSERT INTO package_work (
       work_no, line_id, work_line, work_step, step_name, step_status,
       input_qty, output_qty, eq_code, start_time, end_time,
-      employee_id, employee_name, reg_date, upd_date
-    ) VALUES (?, ?, ?, ?, ?, 'READY', ?, 0, ?, NOW(), NULL, ?, ?, NOW(), NOW())
+      employee_id, employee_name, reg_date, upd_date, product_code
+    ) VALUES (?, ?, ?, ?, ?, 'READY', ?, 0, ?, NOW(), NULL, ?, ?, NOW(), NOW(), ?)
   `,
 
   // 🔥 작업 상세 조회 (계산 필드 포함)
   selectWorkDetail: `
     SELECT 
-      work_no,
-      line_id,
-      work_line,
-      work_step,
-      step_name,
-      step_status,
-      input_qty,
-      output_qty,
-      (input_qty - output_qty) as defect_qty,
-      IF(input_qty > 0, ROUND((output_qty / input_qty * 100), 1), 0) AS progress_rate,
-      IF(input_qty > 0, ROUND(((input_qty - output_qty) / input_qty * 100), 2), 0) AS defect_rate,
-      eq_code,
-      employee_id,
-      employee_name,
-      start_time,
-      end_time,
-      TIMESTAMPDIFF(MINUTE, start_time, IFNULL(end_time, NOW())) AS work_duration,
-      DATE_FORMAT(reg_date, '%Y-%m-%d %H:%i:%s') as reg_date,
-      DATE_FORMAT(upd_date, '%Y-%m-%d %H:%i:%s') as upd_date
-    FROM package_work 
-    WHERE work_no = ?
+      w.work_no,
+      w.line_id,
+      w.work_line,
+      w.work_step,
+      w.step_name,
+      w.step_status,
+      w.input_qty,
+      w.output_qty,
+      (w.input_qty - w.output_qty) as defect_qty,
+      IF(w.input_qty > 0, ROUND((w.output_qty / w.input_qty * 100), 1), 0) AS progress_rate,
+      IF(w.input_qty > 0, ROUND(((w.input_qty - w.output_qty) / w.input_qty * 100), 2), 0) AS defect_rate,
+      w.eq_code,
+      w.employee_id,
+      w.employee_name,
+      w.start_time,
+      w.end_time,
+      TIMESTAMPDIFF(MINUTE, w.start_time, IFNULL(w.end_time, NOW())) AS work_duration,
+      DATE_FORMAT(w.reg_date, '%Y-%m-%d %H:%i:%s') as reg_date,
+      DATE_FORMAT(w.upd_date, '%Y-%m-%d %H:%i:%s') as upd_date,
+      w.product_code,
+      p.product_name         
+    FROM package_work w
+    LEFT JOIN product p ON w.product_code = p.product_code
+    WHERE w.work_no = ?
   `,
 
   // 🔥 작업번호 목록 조회 (포장 작업 수행 페이지용)
@@ -47,7 +50,8 @@ module.exports = {
       output_qty,
       IF(input_qty > 0, ROUND((output_qty / input_qty * 100), 1), 0) AS progress_rate,
       employee_name,
-      DATE_FORMAT(reg_date, '%Y-%m-%d %H:%i') as reg_date
+      DATE_FORMAT(reg_date, '%Y-%m-%d %H:%i') as reg_date,
+      product_code
     FROM package_work 
     WHERE step_status IN ('READY', 'WORKING', 'PAUSED')
     ORDER BY 
@@ -71,7 +75,8 @@ module.exports = {
       IF(input_qty > 0, ROUND((output_qty / input_qty * 100), 1), 0) AS progress_rate,
       employee_name,
       TIMESTAMPDIFF(MINUTE, start_time, IFNULL(end_time, NOW())) AS work_duration,
-      DATE_FORMAT(start_time, '%H:%i') as start_time_formatted
+      DATE_FORMAT(start_time, '%H:%i') as start_time_formatted,
+      product_code
     FROM package_work 
     WHERE step_status = 'WORKING'
     ORDER BY start_time DESC
@@ -80,36 +85,41 @@ module.exports = {
   // 🔥 작업번호 선택 옵션 (셀렉트박스용)
   selectWorkOptions: `
     SELECT 
-      work_no,
-      CONCAT(work_no, ' - ', step_name, ' (', 
-            IF(input_qty > 0, ROUND((output_qty / input_qty * 100), 1), 0), 
-            '%)') as label,
-      step_name,
-      step_status,
-      input_qty,
-      output_qty,
-      IF(input_qty > 0, ROUND((output_qty / input_qty * 100), 1), 0) AS progress_rate,
-      employee_name
-    FROM package_work
+      w.work_no,
+      CONCAT(
+        w.work_no, ' - ', p.product_name, ' - ', w.step_name, ' (',
+        IF(w.input_qty > 0, ROUND((w.output_qty / w.input_qty * 100), 1), 0), '%)'
+      ) as label,
+      w.step_name,
+      w.step_status,
+      w.input_qty,
+      w.output_qty,
+      IF(w.input_qty > 0, ROUND((w.output_qty / w.input_qty * 100), 1), 0) AS progress_rate,
+      w.employee_name
+    FROM package_work w
+    LEFT JOIN product p ON w.product_code = p.product_code
   `,
 
   // 🔥 라인별 작업 조회
   selectWorksByLine: `
     SELECT 
-      work_no,
-      line_id,
-      work_line,
-      step_name,
-      step_status,
-      input_qty,
-      output_qty,
-      IF(input_qty > 0, ROUND((output_qty / input_qty * 100), 1), 0) AS progress_rate,
-      employee_name,
-      DATE_FORMAT(reg_date, '%Y-%m-%d %H:%i') as reg_date
-    FROM package_work 
-    WHERE line_id = ? AND step_status IN ('READY', 'WORKING', 'PAUSED')
-    ORDER BY reg_date DESC
-  `,
+        w.work_no,
+        w.line_id,
+        w.work_line,
+        w.step_name,
+        w.step_status,
+        w.input_qty,
+        w.output_qty,
+        IF(w.input_qty > 0, ROUND((w.output_qty / w.input_qty * 100), 1), 0) AS progress_rate,
+        w.employee_name,
+        p.product_name,
+        DATE_FORMAT(w.reg_date, '%Y-%m-%d %H:%i') as reg_date
+      FROM package_work w
+      LEFT JOIN product p ON w.product_code = p.product_code
+      WHERE w.line_id = ?  
+        AND w.step_status IN ('완료', '진행', '준비')
+      ORDER BY w.reg_date DESC
+    `,
 
   // 🔥 작업 시작
   startWork: `
@@ -176,21 +186,24 @@ module.exports = {
   // 🔥 완료된 작업 목록
   selectCompletedWorks: `
     SELECT 
-      work_no,
-      step_name,
-      input_qty,
-      output_qty,
-      (input_qty - output_qty) as defect_qty,
-      IF(input_qty > 0, ROUND((output_qty / input_qty * 100), 1), 0) AS progress_rate,
-      IF(input_qty > 0, ROUND(((input_qty - output_qty) / input_qty * 100), 2), 0) AS defect_rate,
-      employee_name,
-      TIMESTAMPDIFF(MINUTE, start_time, end_time) AS total_duration,
-      DATE_FORMAT(end_time, '%Y-%m-%d %H:%i') as completed_at
-    FROM package_work 
-    WHERE step_status = 'COMPLETED'
-    ORDER BY end_time DESC
+      w.work_no,
+      w.product_code,
+      p.product_name,  
+      w.step_name,
+      w.input_qty,
+      w.output_qty,
+      (w.input_qty - w.output_qty) as defect_qty,
+      IF(w.input_qty > 0, ROUND((w.output_qty / w.input_qty * 100), 1), 0) AS progress_rate,
+      IF(w.input_qty > 0, ROUND(((w.input_qty - w.output_qty) / w.input_qty * 100), 2), 0) AS defect_rate,
+      w.employee_name,
+      TIMESTAMPDIFF(MINUTE, w.start_time, w.end_time) AS total_duration,
+      DATE_FORMAT(w.end_time, '%Y-%m-%d %H:%i') as completed_at
+    FROM package_work w
+    LEFT JOIN product p ON w.product_code = p.product_code
+    WHERE w.step_status = 'COMPLETED'
+    ORDER BY w.end_time 
     LIMIT 50
-  `,
+    `,
 
   // 🔥 오늘의 작업 통계
   selectTodayWorkStats: `
