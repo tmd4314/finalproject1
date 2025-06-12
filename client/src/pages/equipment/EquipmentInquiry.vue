@@ -223,7 +223,7 @@ const categoryOptions = ref<CodeOption[]>([])
 const statusOptions = ref<CodeOption[]>([])
 
 // 검색 디바운스용
-let searchTimeout: NodeJS.Timeout | null = null
+let searchTimeout: number | null = null
 
 // 테이블 컬럼 정의 (제조일자, 등록일자 제외)
 const columns = [
