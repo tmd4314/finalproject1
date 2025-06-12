@@ -127,7 +127,7 @@
               </td>
               <td>{{ startIndex + index + 1 }}</td>
               <td>{{ account.account_name }}</td>
-              <td>{{ formatBusinessNo(account.business_no) }}</td>
+              <td>{{ account.business_no }}</td>
               <td>{{ account.charger_name }}</td>
               <td>{{ account.phone }}</td>
               <td class="address-cell">{{ account.address }}</td>
@@ -200,8 +200,10 @@
             <label>사업자 번호 <span class="required">*</span></label>
             <va-input 
               v-model="form.businessNo" 
-              placeholder="123-45-67890"
-              @input="handleBusinessNoInput"
+              placeholder="10자리 숫자만 입력하세요"
+              inputmode="numeric"
+              pattern="[0-9]*"
+              @input="e => handleBusinessNoInput(e.target.value)"
               :error="errors.businessNo"
               :error-messages="errors.businessNo ? '올바른 사업자번호를 입력하세요' : ''"
               maxlength="12"
@@ -228,11 +230,13 @@
             <label>연락처 <span class="required">*</span></label>
             <va-input 
               v-model="form.phone" 
-              placeholder="010-1234-5678"
-              @input="handlePhoneInput"
+              placeholder="숫자만 입력하세요"
+              inputmode="numeric"
+              pattern="[0-9]*"
+              @input="e => handlePhoneInput(e.target.value)"
               :error="errors.phone"
               :error-messages="errors.phone ? '올바른 연락처를 입력하세요' : ''"
-              maxlength="13"
+              maxlength="15"
             />
           </div>
         </div>
@@ -565,7 +569,7 @@ function isValidBusinessNo(businessNo: string) {
 
 // 전화번호 유효성 검사
 function isValidPhone(phone: string) {
-  const regex = /^0\d{1,2}-\d{3,4}-\d{4}$/
+  const regex = /^\d{3}-\d{4}-\d{4}$|\d{2}-\d{3}-\d{4}|\d{3}-\d{3}-\d{4}|\d{4}-\d{4}/
   return regex.test(phone)
 }
 
@@ -612,25 +616,37 @@ async function saveAccount() {
 async function deleteSelected() {
   console.log('삭제할 selectedIds:', selectedIds.value);
   if (selectedIds.value.length === 0) return
-  
+
   if (!confirm(`선택한 ${selectedIds.value.length}개의 거래처를 삭제하시겠습니까?`)) {
     return
   }
-  
+
   try {
     // 여러 개 삭제 API 호출
-    await axios.post('/account/delete-multiple', {
+    const res = await axios.post('/account/delete-multiple', {
       ids: selectedIds.value
-    })
-    
-    alert('선택한 거래처가 삭제되었습니다.')
-    await fetchAccounts()
-    selectedIds.value = []
+    });
+
+    const { success, deletedCount, failedCount, failedIds, message } = res.data;
+
+    // 성공/실패 안내 분기
+    if (!success && failedCount > 0) {
+      alert(
+        `${message}\n\n삭제 실패한 거래처 ID: ${failedIds && failedIds.length ? failedIds.join(', ') : '없음'}`
+      );
+    } else {
+      alert(message);
+    }
+
+    // 목록 새로고침 & 선택 해제
+    await fetchAccounts();
+    selectedIds.value = [];
   } catch (error) {
-    console.error('거래처 삭제 실패:', error)
-    alert('거래처 삭제에 실패했습니다.')
+    console.error('거래처 삭제 실패:', error);
+    alert('거래처 삭제에 실패했습니다.');
   }
 }
+
 
 // 엑셀 내보내기
 function exportExcel() {
@@ -651,36 +667,31 @@ function handleBusinessNoInput(value: string) {
   // 숫자만 추출
   const numbers = value.replace(/[^0-9]/g, '')
   
-  // 포맷팅
-  if (numbers.length <= 3) {
-    form.value.businessNo = numbers
-  } else if (numbers.length <= 5) {
-    form.value.businessNo = `${numbers.slice(0, 3)}-${numbers.slice(3)}`
-  } else if (numbers.length <= 10) {
-    form.value.businessNo = `${numbers.slice(0, 3)}-${numbers.slice(3, 5)}-${numbers.slice(5)}`
-  }
+  // 사업자 포맷팅
+  form.value.businessNo = `${numbers.slice(0, 3)}-${numbers.slice(3, 5)}-${numbers.slice(5)}`
 }
 
 // 전화번호 자동 포맷팅
 function handlePhoneInput(value: string) {
+  // console.log(value)
   // 숫자만 추출
-  const numbers = value.replace(/[^0-9]/g, '')
+  const phonenumbers = value.replace(/[^0-9]/g, '')
   
   // 포맷팅
-  if (numbers.length <= 3) {
-    form.value.phone = numbers
-  } else if (numbers.length <= 7) {
-    form.value.phone = `${numbers.slice(0, 3)}-${numbers.slice(3)}`
-  } else if (numbers.length <= 11) {
-    form.value.phone = `${numbers.slice(0, 3)}-${numbers.slice(3, 7)}-${numbers.slice(7)}`
+  if (phonenumbers.length == 11) {
+    form.value.phone = `${phonenumbers.slice(0, 3)}-${phonenumbers.slice(3, 7)}-${phonenumbers.slice(7)}`// 010-0000-0000
+  } else if (phonenumbers.length == 9) {
+    form.value.phone = `${phonenumbers.slice(0,2)}-${phonenumbers.slice(2, 5)}-${phonenumbers.slice(5)}`// 02-000-0000
+  } else if (phonenumbers.length == 10) {
+    form.value.phone = `${phonenumbers.slice(0,3)}-${phonenumbers.slice(3, 6)}-${phonenumbers.slice(6)}`// 053-000-0000
   }
 }
 
 // 사업자번호 포맷팅 (표시용)
-function formatBusinessNo(businessNo: string) {
-  if (!businessNo) return '-'
-  return businessNo
-}
+// function formatBusinessNo(businessNo: string) {
+//   if (!businessNo) return '-'
+//   return businessNo
+// }
 
 // 감시자
 watch(filters, () => {

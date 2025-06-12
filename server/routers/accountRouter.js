@@ -53,17 +53,19 @@ router.put('/account/:id', async (req, res) => {
   }
 });
 
+
+
 // 삭제
-router.delete('/account/:id', async (req, res) => {
-  try {
-    const id = req.params.id;
-    const result = await accountService.removeAccount(id);
-    res.json({ success: true, affectedRows: result.affectedRows });
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('거래처 삭제 실패');
-  }
-});
+// router.delete('/account/:id', async (req, res) => {
+//   try {
+//     const id = req.params.id;
+//     const result = await accountService.removeAccount(id);
+//     res.json({ success: true, affectedRows: result.affectedRows });
+//   } catch (err) {
+//     console.error(err);
+//     res.status(500).send('거래처 삭제 실패');
+//   }
+// });
 
 // 여러 거래처 삭제
 router.post('/account/delete-multiple', async (req, res) => {
@@ -78,32 +80,44 @@ router.post('/account/delete-multiple', async (req, res) => {
     }
 
     // 각 ID에 대해 삭제 실행
-    let deletedCount = 0;
-    let failedCount = 0;
-    let inUseIds = [];
+    // let deletedCount = 0;
+    // let failedCount = 0;
+    const deletedIds = [];
+    const failedIds = [];
 
     for (const id of ids) {
-      // DB에서 in_use 재확인 (방어코드, accountService.findInUse 참고)
-      const inUse = await accountService.isAccountInUse(id);
-      if (inUse) {
-        failedCount++;
-        inUseIds.push(id);
-        continue; // 삭제하지 않고 넘어감
-      }
+      try{
       const result = await accountService.removeAccount(id);
-      if (result.isDeleted) deletedCount++;
-      else failedCount++;
+      if (result.isDeleted) deletedIds.push(id);
+      else failedIds.push(id);
+      } catch (error) {
+        if(error.code === 'ER_ROW_IS_REFERENCED_2' || error.errno === 1451){
+          failedIds.push(id);
+        } else {
+          console.error('다중 삭제 실패:', error);
+          return res.status(500).json({
+            success: false,
+            message: '서버 오류로 거래처 삭제 실패.',
+            error: error.message
+          });
+        }
+      }
     }
+
     res.json({
-      success: true,
-      deletedCount,
-      failedCount,
-      inUseIds, // 삭제 불가 id 리스트도 같이 반환
+      success: failedIds.length === 0,
+      deletedCount: deletedIds.length,
+      failedCount: failedIds.length,
+      deletedIds,
+      failedIds,
+      message:
+        failedIds.length === 0 ? `${deletedIds.length}개 거래처가 삭제되었습니다.`
+                               : `사용중인 거래처는 삭제되지 않았습니다.`
     });
   } catch (err) {
     console.error('다중 삭제 실패:', err);
-    res.status(500).json({ success: false, message: '거래처 삭제 실패' });
+    res.status(500).json({ success: false, message: '거래처 삭제 실패'});
   }
-});
+  });
 
 module.exports = router;
