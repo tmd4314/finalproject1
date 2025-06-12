@@ -232,14 +232,14 @@ const routes: Array<RouteRecordRaw> = [
     component: AuthLayout,
     children: [
       {
-        name: 'login',
-        path: 'login',
-        component: () => import('../pages/auth/Login.vue'),
+        name: 'work_order_manager',
+        path: 'work_order_manager',
+        component: () => import('../pages/workorder/WorkOrderManager.vue'),
       },
       {
-        name: 'signup',
-        path: 'signup',
-        component: () => import('../pages/auth/Signup.vue'),
+        name: 'work_order_check',
+        path: 'work_order_check',
+        component: () => import('../pages/workorder/WorkOrderCheck.vue'),
       },
       {
         name: 'recover-password',

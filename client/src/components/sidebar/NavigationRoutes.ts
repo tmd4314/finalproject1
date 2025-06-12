@@ -84,12 +84,12 @@ export default {
       },
       children: [
         {
-          name: 'login',
-          displayName: 'menu.login',
+          name: 'work_order_manager',
+          displayName: 'menu.작업지시 관리',
         },
         {
-          name: 'signup',
-          displayName: 'menu.signup',
+          name: 'work_order_check',
+          displayName: 'menu.작업지시 조회',
         },
         {
           name: 'recover-password',

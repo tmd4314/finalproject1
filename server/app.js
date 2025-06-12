@@ -60,7 +60,9 @@ const accountRouter = require('./routers/accountRouter.js');
 
 const defectRouter = require('./routers/defectRouter.js');
 
-const materialLotRouter = require('./routers/materialLotRouter.js')
+const materialLotRouter = require('./routers/materialLotRouter.js');
+
+// const workOrderRouter = require('./routers/workOrderRouter.js');
 
  // 기본 라우팅
 app.get('/', (req, res)=>{
@@ -78,6 +80,7 @@ app.use('/', accountRouter);
 
 //다산
 app.use('/bom', bomRouter);
+// app.use('/workOrder', workOrderRouter);
 
  //승민
 app.use('/', productRouter);
