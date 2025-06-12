@@ -157,7 +157,7 @@ const handleEdit = async () => {
 
   const id = selectedRows.value[0].eq_id
   router.push({
-    path: '/facility/register',
+    path: '/faq/equipment-register',
     query: {
       mode: 'edit',
       eq_id: id

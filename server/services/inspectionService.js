@@ -43,9 +43,17 @@ const updateOne = async (data) => {
   return result;
 };
 
+//검사항목 삭제
+const deleteInspection = async (data) => {
+  const result = await mariadb.query("deleteInspection", data)
+  .catch(err => console.log(err));
+
+  return result;
+};
 
 module.exports ={
   selectAll,
   insertOne,
-  updateOne
+  updateOne,
+  deleteInspection
 };

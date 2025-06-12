@@ -22,134 +22,45 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('../pages/admin/dashboard/Dashboard.vue'),
       },
       {
-        name: 'quality',
-        path: 'quality',
-        component: RouteViewComponent,
-        children: [
-          { 
-            name: 'quality management',
-            path: 'quality management',
-            component: () => import('../pages/quality/QualityListPage.vue'),
-          },
-          {
-            name: 'faulty management',
-            path: 'faulty management',
-            component: () => import('../pages/quality/faultyInsertPage.vue'),
-          },
-          {
-            name: 'faultyDisuse management',
-            path: 'faultyDisuse management',
-            component: () => import('../pages/quality/faultyDisuseInsertPage.vue'),
-          },
-        ],
-      },
-      {
-        name: 'packaging',
-        path: 'packaging',  
-        component: RouteViewComponent,
-        children: [
-          { 
-            name: 'package_work',
-            path: 'work',
-            component: () => import('../pages/package/PackageWork.vue'),
-          },
-          {
-            name: 'package_line',
-            path: 'line',
-            component: () => import('../pages/package/PackageLine.vue'),
-          },
-          {
-            name: 'package_status',
-            path: 'status',
-            component: () => import('../pages/package/PackageStatus.vue'),
-          },
-        ],
-      },
-      {
-        name: 'standard-information',
-        path: 'standard-information',
-        component: RouteViewComponent,
-        children: [
-          { 
-            name: 'product management', 
-            path: 'product', 
-            component: () => import('../pages/product/ProductPage.vue') 
-          },
-          { 
-            name: 'material management', 
-            path: 'material', 
-            component: () => import('../pages/material/MaterialPage.vue') 
-          },
-          { 
-            name: 'process flow chart management', 
-            path: 'process-flow', 
-            component: () => import('../pages/process/processPage.vue') 
-          },
-          { 
-            name: 'account-management', 
-            path: 'account', 
-            component: () => import('../pages/admin/account/AccountManagePage.vue') 
-          },
-          { 
-            name: 'equipment-register', 
-            path: 'register', 
-            component: () => import('../pages/equipment/EquipmentForm.vue') 
-          },
-          { 
-            name: 'bom-manager', 
-            path: 'bom', 
-            component: () => import('../pages/bom/BomManager.vue') 
-          },
-          { 
-            name: 'InspectionManagement', 
-            path: 'inspection', 
-            component: () => import('../pages/quality/InspectionManager.vue') 
-          },
-          { 
-            name: 'defectManagement', 
-            path: 'defect', 
-            component: () => import('../pages/quality/defectManager.vue') 
-          },
-          { 
-            name: 'pricing-plans', 
-            path: 'pricing-plans', 
-            component: () => import('../pages/pricing-plans/PricingPlans.vue') 
-          },
-        ],
-      },
-      {
-        name: 'distribution',
-        path: 'distribution',
-        component: () => import('../pages/preferences/Preferences.vue'),
-      },
-      {
         name: 'business',
-        path: 'business',
-        component: () => import('../pages/users/UsersPage.vue'),
+        path: '/faq',
+        component: RouteViewComponent,
+        children: [
+          {
+            name: 'order-list',
+            path: 'order-list',
+            component: () => import('../pages/admin/order/OrderListPage.vue'),
+          },
+          {
+            name: 'order-management',
+            path: 'order-management',
+            component: () => import('../pages/admin/order/OrderManagePage.vue'),
+          },
+        ],
       },
       {
         name: 'facility',
-        path: 'facility',
+        path: '/faq',
         component: RouteViewComponent,
         children: [
           {
             name: 'equipment-inquiry',
-            path: 'inquiry',
+            path: 'equipment-inquiry',
             component: () => import('../pages/equipment/EquipmentInquiry.vue'),
           },
           {
             name: 'equipment-register',
-            path: 'register',
+            path: '/faq',
             component: () => import('../pages/equipment/EquipmentForm.vue'),
           },
           {
             name: 'equipment-management',
-            path: 'management',
+            path: 'equipment-management',
             component: () => import('../pages/equipment/EquipmentManagement.vue'),
           },
           {
             name: 'equipment-inspection',
-            path: 'inspection',
+            path: 'equipment-inspection',
             component: () => import('../pages/equipment/EquipmentInspection.vue')
           },
         ],
@@ -160,68 +71,92 @@ const routes: Array<RouteRecordRaw> = [
         component: RouteViewComponent,
         children: [
           {
-            name: 'receiving-check',
-            path: 'receiving-check',
-            component: () => import('../pages/material/LotCheckPage.vue'),
-          },
-          {
             name: 'receiving-management',
             path: 'receiving-management',
             component: () => import('../pages/material/receivingManagementPage.vue'),
           },
           {
-            name: 'order-management',
-            path: 'order-management',
-            component: () => import('../pages/admin/order/OrderManagePage.vue'),
+            name: 'receiving-check',
+            path: 'receiving-check',
+            component: () => import('../pages/material/LotCheckPage.vue'),
           },
           {
-            name: 'order-list',
-            path: 'order-list',
-            component: () => import('../pages/admin/order/OrderListPage.vue'),
+            name: 'mrp-calculate',
+            path:'mrp-calculate',
+            component: () => import('../pages/material/mrpCalculatePage.vue')
+          },
+        ],
+      },
+      {
+        name: 'production',
+        path: '/faq',  
+        component: RouteViewComponent,
+        children: [
+           {
+            name: 'login',
+            path: 'login',
+            component: () => import('../pages/auth/Login.vue'),
+          },
+        ],
+      },
+      {
+        name: 'packaging',
+        path: '/faq',  
+        component: RouteViewComponent,
+        children: [
+          {
+            name: 'package_line',
+            path: 'package_line',
+            component: () => import('../pages/package/PackageLine.vue'),
+          },
+          { 
+            name: 'package_work',
+            path: 'package_work',
+            component: () => import('../pages/package/PackageWork.vue'),
           },
           {
-            name: 'payment-methods',
-            path: 'payment-methods',
-            component: () => import('../pages/payments/PaymentsPage.vue'),
+            name: 'package_status',
+            path: 'package_status',
+            component: () => import('../pages/package/PackageStatus.vue'),
+          },
+        ],
+      },
+      {
+        name: 'quality',
+        path: '/faq',
+        component: RouteViewComponent,
+        children: [
+          { 
+            name: 'quality-management',
+            path: 'quality-management',
+            component: () => import('../pages/quality/QualityListPage.vue'),
           },
           {
-            name: 'material-billing',
-            path: 'billing',
-            component: () => import('../pages/billing/BillingPage.vue'),
+            name: 'faulty-management',
+            path: 'faulty-management',
+            component: () => import('../pages/quality/faultyInsertPage.vue'),
           },
           {
-            name: 'material-pricing-plans',
+            name: 'faultyDisuse-management',
+            path: 'faultyDisuse-management',
+            component: () => import('../pages/quality/faultyDisuseInsertPage.vue'),
+          },
+        ],
+      },
+      {
+        name: 'distribution',
+        path: 'distribution',
+        component: RouteViewComponent,
+        children: [
+          {
+            name: 'pricing-plans',
             path: 'pricing-plans',
             component: () => import('../pages/pricing-plans/PricingPlans.vue'),
           },
-        ],
-      },
-      {
-        path: 'account',
-        name: 'account',
-        component: RouteViewComponent,
-        children: [
           {
-            name: 'account-management',
-            path: 'account-management',
-            component: () => import('../pages/admin/account/AccountManagePage.vue'),
-          },
-        ],
-      },
-      {
-        name: 'order',
-        path: 'order',
-        component: RouteViewComponent,
-        children: [
-          {
-            name: 'order-management',
-            path: 'order-management',
-            component: () => import('../pages/admin/order/OrderManagePage.vue'),
-          },
-          {
-            name: 'order-list',
-            path: 'order-list',
-            component: () => import('../pages/admin/order/OrderListPage.vue'),
+            name: 'billing',
+            path: 'billing',
+            component: () => import('../pages/billing/BillingPage.vue'),
           },
         ],
       },
@@ -252,17 +187,55 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('../pages/auth/CheckTheEmail.vue'),
       },
       {
-        path: '',
-        redirect: { name: 'login' },
+        name: 'standardInformation',
+        path: '/faq',
+        component: RouteViewComponent,
+        children: [
+          { 
+            name: 'product-management', 
+            path: 'product-management', 
+            component: () => import('../pages/product/ProductPage.vue') 
+          },
+          { 
+            name: 'material-management', 
+            path: 'material-management', 
+            component: () => import('../pages/material/MaterialPage.vue') 
+          },
+          { 
+            name: 'process-flow-chart-management', 
+            path: 'process-flow-chart-management', 
+            component: () => import('../pages/process/processPage.vue') 
+          },
+          { 
+            name: 'equipment-register', 
+            path: 'equipment-register', 
+            component: () => import('../pages/equipment/EquipmentForm.vue') 
+          },
+          { 
+            name: 'account-management', 
+            path: 'account-management', 
+            component: () => import('../pages/admin/account/AccountManagePage.vue') 
+          },
+          //이 자리에 사원 관리 넣으세요!! 홍인씨!!
+          { 
+            name: 'bom-manager', 
+            path: 'bom-manager', 
+            component: () => import('../pages/bom/BomManager.vue') 
+          },
+          { 
+            name: 'InspectionManagement', 
+            path: 'InspectionManagement', 
+            component: () => import('../pages/quality/InspectionManager.vue') 
+          },
+          { 
+            name: 'defectManagement', 
+            path: 'defectManagement', 
+            component: () => import('../pages/quality/defectManager.vue') 
+          },
+        ],
       },
     ],
-  },
-  {
-    name: '404',
-    path: '/404',
-    component: () => import('../pages/404.vue'),
-  },
-
+  }
 ]
 
 const router = createRouter({

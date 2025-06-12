@@ -23,7 +23,9 @@ const proxyPaths = [
   'defects',
   'materialLot',
   'materialLotList',
-  'orderCheck'
+  'orderCheck',
+  'mrps',
+  'puOrder'
 ]
 
 // ✅ 공통 proxy 설정 생성 함수

@@ -21,13 +21,8 @@ router.post('/insert', async(req, res) => {
         res.status(400).json({ success: false, message: '중복' });
         return;
     }
-  } catch (err) { //여기 다시 수정하기
-        // if (err.code === 'ER_DUP_ENTRY') { // ER_DUP_ENTRY는 중복키 오류코드
-        // res.status(400).json({ success: false, message: '중복' });
-        // } else {
-        // console.error(err);
-        // res.status(500).json({ success: false, message: '서버오류' });
-        // }
+  } catch (err) { 
+    console.log('등록오류발생')
   }
 })
 

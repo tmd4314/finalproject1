@@ -50,8 +50,8 @@ module.exports = {
   // 라인(상태/실시간) 등록
   insertLine: `
     INSERT INTO package_line (
-      line_masterid, pkg_type, line_status, employee_name, curr_work_no, target_qty, reg_date
-    ) VALUES (?, ?, ?, ?, ?, ?, NOW())
+      line_masterid, pkg_type, line_status, employee_name, eq_name, curr_work_no, target_qty, reg_date
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
   `,
 
   // 라인 목록 (상태/실적) [마스터 join, 프론트에서 필요한 필드 모두 포함]
@@ -63,6 +63,7 @@ module.exports = {
       l.line_status,
       l.curr_work_no AS work_no,
       l.employee_name,
+      l.eq_name,
       l.target_qty,
       DATE_FORMAT(l.reg_date, '%Y-%m-%d') AS reg_date
     FROM package_line l
@@ -79,6 +80,7 @@ module.exports = {
       line_status,
       employee_name,
       curr_work_no,
+      eq_name,
       target_qty,
       DATE_FORMAT(reg_date, '%Y-%m-%d') as reg_date
     FROM package_line
@@ -91,6 +93,7 @@ module.exports = {
       pkg_type = ?,
       line_status = ?,
       employee_name = ?,
+      eq_name = ?,
       curr_work_no = ?,
       target_qty = ?
     WHERE line_id = ?

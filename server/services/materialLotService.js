@@ -41,7 +41,7 @@ const addMaterialLOT = async(MaterialLOTInfo) => {
 
 const updateMaterialOrder = async(materialOrderCode) => {
 
-  const data = [materialOrderCode]; // WHERE 조건 맨 뒤에
+  const data = [materialOrderCode]; 
 
   let resInfo = await mariadb.query("updateOrder", data)
   .catch(err => {

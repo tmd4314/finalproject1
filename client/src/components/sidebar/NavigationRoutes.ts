@@ -12,6 +12,51 @@ export default {
   },
   routes: [
     {
+      name: 'standardInformation',
+      displayName: 'menu.기준정보',
+      meta: {
+        icon: 'settings',
+      },
+      children: [
+        {
+          name: 'product-management',
+          displayName: 'menu.제품 관리',
+        },
+        {
+          name: 'material-management',
+          displayName: 'menu.자재 관리',
+        },
+        {
+          name: 'process-flow-chart-management',
+          displayName: 'menu.공정흐름도 관리',
+        },
+        {
+          name: 'equipment-register',
+          displayName: 'menu.설비 등록',
+        },
+        {
+          name: 'account-management',
+          displayName: 'menu.거래처 관리',
+        },
+        // {
+        //   name: 'staff-management',
+        //   displayName: 'menu.사원 관리',
+        // },
+        {
+          name: 'bom-manager',
+          displayName: 'menu.BOM 관리',
+        },
+        {
+          name: 'InspectionManagement',
+          displayName: 'menu.검사항목 관리',
+        },
+        {
+          name: 'defectManagement',
+          displayName: 'menu.불량유형 관리',
+        },
+      ],
+    },
+    {
       name: 'business',
       displayName: 'menu.영업',
       meta: {
@@ -20,11 +65,11 @@ export default {
       children: [
         {
           name: 'order-list',
-          displayName: '주문 조회',
+          displayName: 'menu.주문 조회',
         },
         {
           name: 'order-management',
-          displayName: '주문 관리',
+          displayName: 'menu.주문 관리',
         },
       ],
     },
@@ -34,7 +79,6 @@ export default {
     meta: {
       icon: 'settings',
     },
-    disabled: false,
     children: [
       {
         name: 'equipment-inquiry',
@@ -74,6 +118,10 @@ export default {
           name: 'receiving-check',
           displayName: 'menu.입고 조회'
         },
+        {
+          name: 'mrp-calculate',
+          displayName: 'menu.MRP 계산'
+        }
       ],
     },
     {
@@ -106,15 +154,15 @@ export default {
       children: [
         {
           name: 'package_line',     
-          displayName: '포장 라인 선택/조회',
+          displayName: 'menu.포장 라인 선택/조회',
         },
         {
           name: 'package_work',   
-          displayName: '포장 작업 수행',
+          displayName: 'menu.포장 작업 수행',
         },
         {
           name: 'package_status',         
-          displayName: '포장 작업 현황',
+          displayName: 'menu.포장 작업 현황',
         },
       ],
     },
@@ -126,15 +174,15 @@ export default {
       },
       children: [
         {
-          name: 'quality management',
+          name: 'quality-management',
           displayName: 'menu.품질관리',
         },
         {
-          name: 'faulty management',
+          name: 'faulty-management',
           displayName: 'menu.불량품검사 등록',
         },
-                {
-          name: 'faultyDisuse management',
+        {
+          name: 'faultyDisuse-management',
           displayName: 'menu.불량품폐기 등록',
         },
       ],
@@ -147,10 +195,6 @@ export default {
       },
       children: [
         {
-          name: 'payment-methods',
-          displayName: 'menu.payment-methods',
-        },
-        {
           name: 'pricing-plans',
           displayName: 'menu.pricing-plans',
         },
@@ -160,50 +204,6 @@ export default {
         },
       ],
     },
-    {
-      name: 'Standard information',
-      displayName: 'menu.기준정보',
-      meta: {
-        icon: 'settings',
-      },
-      children: [
-        {
-          name: 'product management',
-          displayName: 'menu.제품 관리',
-        },
-        {
-          name: 'material management',
-          displayName: 'menu.자재 관리',
-        },
-        {
-          name: 'process flow chart management',
-          displayName: 'menu.공정흐름도 관리',
-        },
-        {
-          name: 'equipment-register',
-          displayName: 'menu.설비 등록',
-        },
-        {
-          name: 'account-management',
-          displayName: 'menu.거래처 관리',
-        },
-        // {
-        //   name: 'staff-management',
-        //   displayName: 'menu.사원 관리',
-        // },
-        {
-          name: 'bom-manager',
-          displayName: 'menu.BOM 관리',
-        },
-        {
-          name: 'InspectionManagement',
-          displayName: 'menu.검사항목 관리',
-        },
-                {
-          name: 'defectManagement',
-          displayName: 'menu.불량유형 관리',
-        },
-      ],
-    },
+    
   ] as INavigationRoute[],
 }
