@@ -20,11 +20,11 @@ export default {
       children: [
         {
           name: 'order-list',
-          displayName: '주문 조회',
+          displayName: 'menu.주문 조회',
         },
         {
           name: 'order-management',
-          displayName: '주문 관리',
+          displayName: 'menu.주문 관리',
         },
       ],
     },
@@ -34,7 +34,6 @@ export default {
     meta: {
       icon: 'settings',
     },
-    disabled: false,
     children: [
       {
         name: 'equipment-inquiry',
@@ -85,16 +84,8 @@ export default {
       children: [
         {
           name: 'login',
-          displayName: 'menu.login',
-        },
-        {
-          name: 'signup',
-          displayName: 'menu.signup',
-        },
-        {
-          name: 'recover-password',
-          displayName: 'menu.recover-password',
-        },
+          displayName: 'menu.생산',
+        }
       ],
     },
     {
@@ -106,15 +97,15 @@ export default {
       children: [
         {
           name: 'package_line',     
-          displayName: '포장 라인 선택/조회',
+          displayName: 'menu.포장 라인 선택/조회',
         },
         {
           name: 'package_work',   
-          displayName: '포장 작업 수행',
+          displayName: 'menu.포장 작업 수행',
         },
         {
           name: 'package_status',         
-          displayName: '포장 작업 현황',
+          displayName: 'menu.포장 작업 현황',
         },
       ],
     },
@@ -126,15 +117,15 @@ export default {
       },
       children: [
         {
-          name: 'quality management',
+          name: 'quality-management',
           displayName: 'menu.품질관리',
         },
         {
-          name: 'faulty management',
+          name: 'faulty-management',
           displayName: 'menu.불량품검사 등록',
         },
-                {
-          name: 'faultyDisuse management',
+        {
+          name: 'faultyDisuse-management',
           displayName: 'menu.불량품폐기 등록',
         },
       ],
@@ -147,10 +138,6 @@ export default {
       },
       children: [
         {
-          name: 'payment-methods',
-          displayName: 'menu.payment-methods',
-        },
-        {
           name: 'pricing-plans',
           displayName: 'menu.pricing-plans',
         },
@@ -161,22 +148,22 @@ export default {
       ],
     },
     {
-      name: 'Standard information',
+      name: 'standardInformation',
       displayName: 'menu.기준정보',
       meta: {
         icon: 'settings',
       },
       children: [
         {
-          name: 'product management',
+          name: 'product-management',
           displayName: 'menu.제품 관리',
         },
         {
-          name: 'material management',
+          name: 'material-management',
           displayName: 'menu.자재 관리',
         },
         {
-          name: 'process flow chart management',
+          name: 'process-flow-chart-management',
           displayName: 'menu.공정흐름도 관리',
         },
         {
@@ -199,7 +186,7 @@ export default {
           name: 'InspectionManagement',
           displayName: 'menu.검사항목 관리',
         },
-                {
+        {
           name: 'defectManagement',
           displayName: 'menu.불량유형 관리',
         },
