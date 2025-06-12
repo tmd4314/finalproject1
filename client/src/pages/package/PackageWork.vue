@@ -55,7 +55,7 @@
                       :key="work.work_no" 
                       :value="work.work_no"
                     >
-                      {{ work.work_no }} - {{ work.step_name }} ({{ getProductName(work) }})
+                      {{ work.work_no }} - {{ work.step_name }} ({{ getWorkStatusText(work.step_status || 'READY') }} {{ work.progress_rate }}%)
                     </option>
                   </select>
                 </div>
@@ -76,10 +76,10 @@
                     class="control-select" 
                     :disabled="isWorking"
                   >
-                    <option value="10">느림 (10정/초)</option>
-                    <option value="30">보통 (30정/초)</option>
-                    <option value="60">빠름 (60정/초)</option>
-                    <option value="100">매우빠름 (100정/초)</option>
+                    <option value="5">느림 (5개/초)</option>
+                    <option value="10">보통 (10개/초)</option>
+                    <option value="20">빠름 (20개/초)</option>
+                    <option value="50">매우빠름 (50개/초)</option>
                   </select>
                 </div>
               </div>
@@ -418,41 +418,13 @@ const showCompleteModal = ref(false)
 let workTimer = null
 let productionTimer = null
 
-// 🔥 수정: localStorage로 변경하여 데이터 영속성 보장
-const completedInnerWorks = ref(new Map())
+// 내포장 완료 작업 추적 시스템
+const completedInnerWorks = ref(new Map()) // work_no -> 완료 정보 매핑
 
-// 🔥 추가: 내포장 데이터 강제 로드 함수
-function forceLoadInnerData() {
-  try {
-    const saved = localStorage.getItem('completed_inner_works') // sessionStorage → localStorage
-    console.log('🔍 강제 내포장 데이터 확인:', saved)
-    
-    if (saved) {
-      const data = JSON.parse(saved)
-      completedInnerWorks.value = new Map(Object.entries(data))
-      
-      addLog(`💾 내포장 완료 작업 ${completedInnerWorks.value.size}개 발견!`, 'success')
-      
-      for (const [workNo, info] of completedInnerWorks.value) {
-        addLog(`✅ ${workNo}: ${info.product_name} (완료수량: ${info.output_qty}개)`, 'info')
-      }
-      
-      return true
-    } else {
-      addLog('❌ 저장된 내포장 완료 작업이 없습니다.', 'warning')
-      return false
-    }
-  } catch (error) {
-    console.error('내포장 데이터 로드 실패:', error)
-    addLog(`❌ 내포장 데이터 로드 실패: ${error.message}`, 'error')
-    return false
-  }
-}
-
-// 🔥 수정: localStorage 사용으로 변경
+// 세션에서 완료된 내포장 작업 복원
 function loadCompletedInnerWorks() {
   try {
-    const saved = localStorage.getItem('completed_inner_works') // sessionStorage → localStorage
+    const saved = sessionStorage.getItem('completed_inner_works')
     if (saved) {
       const data = JSON.parse(saved)
       completedInnerWorks.value = new Map(Object.entries(data))
@@ -463,14 +435,14 @@ function loadCompletedInnerWorks() {
   }
 }
 
-// 🔥 수정: localStorage 사용으로 변경
+// 내포장 완료 작업 저장
 function saveCompletedInnerWork(workData) {
   const completionInfo = {
     work_no: workData.work_no,
     product_name: workData.product_name,
     product_code: workData.product_code,
     input_qty: workData.input_qty,
-    output_qty: workData.output_qty,
+    output_qty: workData.output_qty, // 🔥 내포장 완료수량 (외포장 투입수량으로 사용)
     defect_qty: workData.defect_qty,
     completed_at: new Date().toISOString(),
     step_name: workData.step_name || workData.product_name
@@ -478,56 +450,51 @@ function saveCompletedInnerWork(workData) {
   
   completedInnerWorks.value.set(workData.work_no, completionInfo)
   
+  // 세션에 저장
   try {
     const dataToSave = Object.fromEntries(completedInnerWorks.value)
-    localStorage.setItem('completed_inner_works', JSON.stringify(dataToSave)) // sessionStorage → localStorage
+    sessionStorage.setItem('completed_inner_works', JSON.stringify(dataToSave))
     console.log('💾 내포장 완료 작업 저장:', workData.work_no, '완료수량:', workData.output_qty)
   } catch (error) {
     console.error('완료 작업 저장 실패:', error)
   }
 }
 
-// 🔥 수정: 외포장 작업 필터링 개선
+// 외포장 작업 목록 필터링 (내포장 완료된 것만)
 function filterOuterWorksByInnerCompletion(workOrders) {
   if (workInfo.value.lineType !== 'OUTER') {
-    return workOrders
+    return workOrders // 외포장이 아니면 필터링 안함
   }
   
-  if (completedInnerWorks.value.size === 0) {
-    console.warn('⚠️ 완료된 내포장 작업이 없습니다.')
-    addLog('⚠️ 완료된 내포장 작업이 없습니다. 먼저 내포장을 완료해주세요.', 'warning')
-    return []
-  }
+  const completedWorkNos = Array.from(completedInnerWorks.value.keys())
+  console.log('🔍 내포장 완료 작업번호들:', completedWorkNos)
   
-  console.log('🔍 외포장 작업 매칭 시작...')
-  console.log('내포장 완료 작업들:', Array.from(completedInnerWorks.value.keys()))
-  console.log('외포장 대상 작업들:', workOrders.map(w => w.work_no))
-  
-  // 일단 모든 외포장 작업을 허용 (매칭은 나중에)
   const filtered = workOrders.filter(work => {
-    const isOuter = work.line_type === '외포장' || 
-                   work.step_name?.includes('2차') ||
-                   work.step_name?.includes('외포장') ||
-                   work.work_step === '외포장'
+    // 같은 제품코드나 작업번호로 매칭
+    const isMatched = completedWorkNos.includes(work.work_no) ||
+                     Array.from(completedInnerWorks.value.values()).some(completed => 
+                       completed.product_code === work.product_code ||
+                       completed.step_name === work.step_name
+                     )
     
-    if (isOuter) {
-      console.log('✅ 외포장 작업 허용:', work.work_no)
-      return true
+    if (isMatched) {
+      console.log('✅ 매칭된 외포장 작업:', work.work_no, work.step_name)
     }
     
-    return false
+    return isMatched
   })
   
-  console.log(`🎯 외포장 필터링 결과: ${workOrders.length}개 → ${filtered.length}개`)
+  console.log(`🎯 외포장 필터링 결과: 전체 ${workOrders.length}개 → 가능 ${filtered.length}개`)
   return filtered
 }
 
 // 외포장 투입수량 자동 설정
 function setOuterInputQuantityFromInner(workData) {
   if (workInfo.value.lineType !== 'OUTER') {
-    return workData
+    return workData // 외포장이 아니면 그대로 반환
   }
   
+  // 내포장 완료 정보 찾기
   let innerCompletionInfo = null
   
   // 1. 작업번호로 직접 매칭
@@ -548,8 +515,9 @@ function setOuterInputQuantityFromInner(workData) {
   }
   
   if (innerCompletionInfo) {
+    // 🔥 내포장 완료수량을 외포장 투입수량으로 설정
     const originalInputQty = workData.input_qty || 0
-    workData.input_qty = innerCompletionInfo.output_qty
+    workData.input_qty = innerCompletionInfo.output_qty // 내포장 완료수량
     
     console.log('🔄 외포장 투입수량 자동 설정:', {
       work_no: workData.work_no,
@@ -569,10 +537,10 @@ function setOuterInputQuantityFromInner(workData) {
 
 // 생산 시뮬레이션 설정
 const productionSettings = ref({
-  productionSpeed: 10,
-  defectRate: 0.02,
-  targetQty: 0,
-  currentProgress: 0
+  productionSpeed: 10, // 초당 생산량
+  defectRate: 0.02, // 2% 불량률
+  targetQty: 0, // 목표 생산량
+  currentProgress: 0 // 현재 진행 수량
 })
 
 // 계산된 값들
@@ -580,37 +548,22 @@ const canStartWork = computed(() => {
   return selectedWorkOrder.value && inputQuantity.value > 0 && !isWorking.value
 })
 
-
-
-// 🔥 추가: API 응답 데이터 디버깅 함수
-function debugWorkOrderData(workOrders) {
-  if (workOrders && workOrders.length > 0) {
-    console.log('=== 작업 주문 데이터 디버깅 ===')
-    console.log('총 작업 수:', workOrders.length)
+// 외포장 가능 작업 수 표시
+const outerWorkAvailabilityMessage = computed(() => {
+  if (workInfo.value.lineType === 'OUTER') {
+    const totalWorks = availableWorkOrders.value.length
+    const completedInnerCount = completedInnerWorks.value.size
     
-    // 첫 번째 작업 데이터 상세 분석
-    const firstWork = workOrders[0]
-    console.log('첫 번째 작업 데이터:', firstWork)
-    console.log('사용 가능한 필드들:', Object.keys(firstWork))
-    
-    // 제품명 관련 필드들 확인
-    const productFields = Object.keys(firstWork).filter(key => 
-      key.toLowerCase().includes('product') ||
-      key.toLowerCase().includes('item') ||
-      key.toLowerCase().includes('medicine') ||
-      key.toLowerCase().includes('drug') ||
-      key.toLowerCase().includes('name')
-    )
-    
-    console.log('제품명 관련 필드들:', productFields)
-    productFields.forEach(field => {
-      console.log(`${field}:`, firstWork[field])
-    })
-    
-    // 추출된 제품명 확인
-    console.log('추출된 제품명:', getProductName(firstWork))
+    if (completedInnerCount === 0) {
+      return '⚠️ 내포장이 완료된 작업이 없습니다. 먼저 내포장을 완료해주세요.'
+    } else if (totalWorks === 0) {
+      return `💡 내포장 완료: ${completedInnerCount}개 | 외포장 대기 작업이 없습니다.`
+    } else {
+      return `✅ 내포장 완료: ${completedInnerCount}개 | 외포장 가능: ${totalWorks}개`
+    }
   }
-}
+  return ''
+})
 
 // 헬퍼 함수들
 function calculatePassRate(outputQty, inputQty) {
@@ -618,58 +571,12 @@ function calculatePassRate(outputQty, inputQty) {
   return Math.round((outputQty / inputQty) * 100)
 }
 
-
 function calculateDefectRate(defectQty, inputQty) {
   if (!inputQty || inputQty === 0) return 0
   return Math.round((defectQty / inputQty) * 100)
 }
 
-// 🔥 통합된 제품명 추출 함수
-function getProductName(workData) {
-  if (!workData) return '제품명 없음'
-  
-  // 가능한 제품명 필드들을 순서대로 확인
-  const productNameFields = [
-    workData.product_name,
-    workData.productName,
-    workData.item_name,
-    workData.itemName,
-    workData.medicine_name,
-    workData.medicineName,
-    workData.drug_name,
-    workData.drugName,
-    workData.step_name,
-    workData.stepName,
-    workData.work_name,
-    workData.workName
-  ]
-  
-  // 첫 번째로 유효한 값을 반환
-  for (const field of productNameFields) {
-    if (field && typeof field === 'string' && field.trim().length > 0) {
-      // 특정 패턴 제거 (예: "1차포장", "2차포장" 등)
-      let cleanName = field.trim()
-      cleanName = cleanName.replace(/\s*(1차|2차|내|외)?\s*포장\s*/g, '')
-      cleanName = cleanName.replace(/\s*(INNER|OUTER)\s*/gi, '')
-      
-      if (cleanName.length > 0) {
-        return cleanName
-      }
-    }
-  }
-  
-  // 작업번호로 추정
-  if (workData.work_no) {
-    const workNo = workData.work_no.toUpperCase()
-    if (workNo.includes('PM') || workNo.includes('OM')) {
-      return '타이레놀정500mg'
-    }
-  }
-  
-  return '제품명 확인 필요'
-}
-
-// 영어 → 한글 변환 함수들
+// 영어 → 한글 변환 함수들 (DB 저장용)
 function getKoreanStatus(englishStatus) {
   const statusMap = {
     'READY': '준비',
@@ -689,7 +596,7 @@ function getKoreanLineType(englishType) {
   return typeMap[englishType] || englishType
 }
 
-// 한글 → 영어 변환 함수들
+// 한글 → 영어 변환 함수들 (화면 표시용)
 function getEnglishStatus(koreanStatus) {
   const statusMap = {
     '준비': 'READY',
@@ -709,6 +616,7 @@ function getEnglishLineType(koreanType) {
 }
 
 function updateWorkStatusFromData(workData) {
+  // API에서 받은 한글 상태를 영어로 변환하여 내부적으로 처리
   const status = getEnglishStatus(workData.step_status) || workData.step_status;
   
   switch (status) {
@@ -772,18 +680,13 @@ function resetCurrentWork() {
   }
 }
 
-// 🔥 수정: 컴포넌트 마운트시 외포장 데이터 확인 로직 추가
+// 컴포넌트 마운트
 onMounted(() => {
   console.log('PackageWork 컴포넌트 마운트 시작');
   console.log('현재 라인 정보:', workInfo.value);
   
-  // 🔥 외포장이면 즉시 내포장 데이터 확인
-  if (workInfo.value.lineType === 'OUTER') {
-    console.log('🔍 외포장 모드 감지, 내포장 데이터 확인...')
-    forceLoadInnerData()
-  } else {
-    loadCompletedInnerWorks()
-  }
+  // 🔥 완료된 내포장 작업 복원
+  loadCompletedInnerWorks()
   
   nextTick(async () => {
     try {
@@ -808,28 +711,19 @@ onUnmounted(() => {
   }
 })
 
-// 🔥 수정: 페이지 초기화 함수 개선
+// 페이지 초기화
 async function initializeWorkPage() {
   try {
     loading.value = true
     loadingMessage.value = '작업 정보를 초기화하는 중...'
     
-    // 🔥 외포장이면 먼저 내포장 데이터 강제 로드
-    if (workInfo.value.lineType === 'OUTER') {
-      addLog('🔍 외포장 모드: 내포장 완료 데이터를 확인합니다...', 'info')
-      const hasInnerData = forceLoadInnerData()
-      
-      if (!hasInnerData) {
-        showErrorMessage(`내포장이 완료된 작업이 없습니다.\n\n먼저 내포장을 완료한 후 외포장을 진행해주세요.\n\n또는 다른 브라우저/탭에서 내포장을 완료했다면\n브라우저를 새로고침해보세요.`)
-        return
-      }
-    }
-    
     addLog(`${workInfo.value.lineName || '선택된 라인'}에서 작업을 시작합니다.`, 'info')
     
+    // 1. 작업번호 목록 로드
     loadingMessage.value = '작업 목록을 불러오는 중...'
     await loadAvailableWorkOrders()
     
+    // 2. URL에서 전달된 작업번호가 있으면 설정
     if (route.query.work_no) {
       selectedWorkOrder.value = route.query.work_no
       loadingMessage.value = '작업 상세 정보를 불러오는 중...'
@@ -847,34 +741,23 @@ async function initializeWorkPage() {
   }
 }
 
-// 🔥 수정: 작업번호 목록 조회 함수 개선
+// 작업번호 목록 조회
 async function loadAvailableWorkOrders() {
   try {
     console.log('작업번호 목록 조회 시작...');
     console.log('현재 라인 타입:', workInfo.value.lineType);
     
-    // 🔥 외포장인 경우 먼저 내포장 데이터 재확인
-    if (workInfo.value.lineType === 'OUTER') {
-      console.log('🔍 외포장 모드: 내포장 데이터 재확인...')
-      forceLoadInnerData()
-      
-      if (completedInnerWorks.value.size === 0) {
-        addLog('⚠️ 내포장 완료 작업이 없습니다.', 'warning')
-        showErrorMessage('내포장이 완료된 작업이 없습니다.\n먼저 내포장을 완료해주세요.')
-        return
-      }
-    }
-    
     const apiUrl = `${PACKAGES_API_URL}/works/options`;
     console.log('요청 URL:', apiUrl);
     
+    // 한글 라인타입으로 요청
     const koreanLineType = getKoreanLineType(workInfo.value.lineType);
     console.log('한글 라인타입으로 요청:', koreanLineType);
     
     const res = await axios.get(apiUrl, {
       params: {
-        line_type: koreanLineType,
-        work_step: koreanLineType
+        line_type: koreanLineType, // 한글로 요청
+        work_step: koreanLineType  // 한글로 요청
       }
     })
     
@@ -884,6 +767,7 @@ async function loadAvailableWorkOrders() {
     if (res.data.success) {
       let workOrders = res.data.data || [];
       
+      // 클라이언트 사이드 필터링 (한글 기준)
       if (workOrders.length > 0) {
         const beforeFilter = workOrders.length;
         
@@ -906,7 +790,7 @@ async function loadAvailableWorkOrders() {
         
         console.log(`라인 타입 필터링: ${beforeFilter}개 → ${workOrders.length}개`);
         
-        // 🔥 외포장인 경우 필터링 적용
+        // 🔥 외포장인 경우 내포장 완료된 작업만 필터링
         if (workInfo.value.lineType === 'OUTER') {
           const beforeInnerFilter = workOrders.length;
           workOrders = filterOuterWorksByInnerCompletion(workOrders);
@@ -915,9 +799,6 @@ async function loadAvailableWorkOrders() {
       }
       
       availableWorkOrders.value = workOrders;
-      
-      // 🔥 추가: 데이터 디버깅
-      debugWorkOrderData(workOrders)
       
       if (availableWorkOrders.value.length === 0) {
         const packageType = workInfo.value.lineType === 'INNER' ? '1차(내포장)' : '2차(외포장)';
@@ -933,6 +814,7 @@ async function loadAvailableWorkOrders() {
         const packageType = workInfo.value.lineType === 'INNER' ? '1차(내포장)' : '2차(외포장)';
         addLog(`${availableWorkOrders.value.length}개의 ${packageType} 작업을 불러왔습니다.`, 'success');
         
+        // 외포장인 경우 추가 안내
         if (workInfo.value.lineType === 'OUTER') {
           addLog(`내포장 완료: ${completedInnerWorks.value.size}개 | 외포장 가능: ${availableWorkOrders.value.length}개`, 'info');
         }
@@ -975,6 +857,7 @@ async function onWorkOrderChange() {
     
     const workData = res.data.data;
     
+    // 받은 데이터 검증
     if (!workData) {
       throw new Error('작업 데이터가 없습니다.')
     }
@@ -986,7 +869,9 @@ async function onWorkOrderChange() {
     console.log('타입 확인:', typeof workData.product_name);
     console.log('모든 키:', Object.keys(workData));
     
+    // 🔥 제품명 추출 로직 개선
     function extractProductName(data) {
+      // 가능한 필드명들을 순서대로 확인
       const candidates = [
         data.product_name,
         data.productName,
@@ -1004,7 +889,7 @@ async function onWorkOrderChange() {
       }
       
       console.warn('제품명을 찾을 수 없어 기본값 사용');
-      return '베아르정';
+      return '베아르정'; // 기본값
     }
     
     const extractedProductName = extractProductName(workData);
@@ -1019,7 +904,7 @@ async function onWorkOrderChange() {
     
     currentWork.value = {
       work_no: workData.work_no || selectedWorkOrder.value,
-      product_name: extractedProductName,
+      product_name: extractedProductName, // 🔥 개선된 제품명 추출
       package_type: getKoreanLineType(workData.line_type || workInfo.value.lineType),
       order_quantity: workData.input_qty || 0,
       input_qty: workData.input_qty || 0,
@@ -1036,6 +921,7 @@ async function onWorkOrderChange() {
     
     inputQuantity.value = workData.input_qty || 500
     
+    // 진행 중인 작업인 경우 설정 (한글 상태도 고려)
     if (workData.step_status === '진행중' || workData.step_status === 'IN_PROGRESS' || 
         workData.step_status === 'WORKING' || workData.step_status === '작업중') {
       productionSettings.value.targetQty = workData.input_qty || inputQuantity.value
@@ -1070,14 +956,15 @@ async function forceRestartExistingWork() {
     console.log('기존 작업 강제 재시작 시도');
     console.log('작업번호:', selectedWorkOrder.value);
     
+    // PUT 요청으로 기존 작업 상태 업데이트 (한글 상태로 전송)
     const updateApiUrl = `${PACKAGES_API_URL}/${selectedWorkOrder.value}`;
     const updateData = {
-      step_status: '진행중',
+      step_status: '진행중', // 한글로 전송
       input_qty: inputQuantity.value,
       employee_id: 2,
       start_time: new Date().toISOString(),
-      line_type: getKoreanLineType(workInfo.value.lineType),
-      work_step: getKoreanLineType(workInfo.value.lineType)
+      line_type: getKoreanLineType(workInfo.value.lineType), // 한글로 변환
+      work_step: getKoreanLineType(workInfo.value.lineType) // 한글로 변환
     };
     
     console.log('PUT 요청으로 기존 작업 업데이트:', updateApiUrl);
@@ -1089,7 +976,10 @@ async function forceRestartExistingWork() {
     
     if (response.data && (response.data.success !== false)) {
       addLog('기존 작업을 성공적으로 재시작했습니다.', 'success');
+      
+      // 로컬 상태 업데이트
       await proceedWithWorkStart();
+      
     } else {
       throw new Error(response.data?.message || '작업 업데이트 실패');
     }
@@ -1097,6 +987,7 @@ async function forceRestartExistingWork() {
   } catch (updateError) {
     console.error('PUT 요청 실패:', updateError);
     
+    // PUT도 실패하면 PATCH 시도
     try {
       addLog('PUT 실패, PATCH로 재시도...', 'warning');
       
@@ -1104,9 +995,9 @@ async function forceRestartExistingWork() {
       const patchData = {
         input_qty: inputQuantity.value,
         employee_id: 2,
-        step_status: '진행중',
-        line_type: getKoreanLineType(workInfo.value.lineType),
-        work_step: getKoreanLineType(workInfo.value.lineType)
+        step_status: '진행중', // 한글로 전송
+        line_type: getKoreanLineType(workInfo.value.lineType), // 한글로 변환
+        work_step: getKoreanLineType(workInfo.value.lineType) // 한글로 변환
       };
       
       console.log('PATCH 요청으로 작업 시작 (한글):', patchApiUrl);
@@ -1125,6 +1016,8 @@ async function forceRestartExistingWork() {
       
     } catch (patchError) {
       console.error('PATCH도 실패:', patchError);
+      
+      // 모든 API 실패시 로컬에서만 시작
       addLog('⚠️ 서버 업데이트 실패, 로컬에서만 작업을 시작합니다.', 'warning');
       await proceedWithWorkStart();
     }
@@ -1133,12 +1026,14 @@ async function forceRestartExistingWork() {
   }
 }
 
-// 실제 작업 시작 진행
+// 실제 작업 시작 진행 (로컬 상태 업데이트)
 async function proceedWithWorkStart() {
   try {
+    // 생산 초기 설정
     productionSettings.value.targetQty = inputQuantity.value
     productionSettings.value.currentProgress = 0
     
+    // 작업 정보 초기화
     currentWork.value.input_qty = inputQuantity.value
     currentWork.value.output_qty = 0
     currentWork.value.defect_qty = 0
@@ -1173,19 +1068,21 @@ async function startWork() {
       
       console.log('작업 시작 요청');
       
+      // 한글로 데이터 전송
       const workData = {
         work_no: selectedWorkOrder.value,
         input_qty: inputQuantity.value,
         employee_id: 2,
-        step_status: '진행중',
-        line_type: getKoreanLineType(workInfo.value.lineType),
-        work_step: getKoreanLineType(workInfo.value.lineType),
+        step_status: '진행중', // 한글로 전송
+        line_type: getKoreanLineType(workInfo.value.lineType), // 한글로 변환
+        work_step: getKoreanLineType(workInfo.value.lineType), // 한글로 변환
         start_time: new Date().toISOString()
       }
       
       console.log('작업 시작 요청 데이터 (한글):', workData);
       
       try {
+        // POST 요청으로 작업 시작 시도 (새 작업 등록)
         const response = await axios.post(`${PACKAGES_API_URL}/works`, workData)
         
         console.log('작업 시작 응답:', response.data);
@@ -1200,17 +1097,21 @@ async function startWork() {
       } catch (postError) {
         console.error('POST 요청 실패:', postError);
         
+        // 409 에러 (이미 존재하는 작업번호)인 경우 기존 작업 재시작
         if (postError.response?.status === 409) {
           const errorMsg = postError.response.data?.message || '';
           console.log('409 에러 감지:', errorMsg);
           
           if (errorMsg.includes('이미 존재하는 작업번호') || errorMsg.includes('already exists')) {
             addLog('⚠️ 이미 존재하는 작업번호입니다. 기존 작업을 재시작합니다...', 'warning');
+            
+            // 기존 작업 강제 재시작
             await forceRestartExistingWork();
-            return;
+            return; // 여기서 함수 종료
           }
         }
         
+        // 다른 에러들은 기존 로직으로 처리
         throw postError;
       }
       
@@ -1235,9 +1136,9 @@ async function startWork() {
   }
 }
 
-// 작업 완료 처리 함수
+// 작업 완료 처리 함수 (에러 발생해도 페이지 이동)
 async function confirmCompleteWork() {
-  let shouldNavigate = false;
+  let shouldNavigate = false; // 페이지 이동 여부 플래그
   
   try {
     loading.value = true
@@ -1249,14 +1150,15 @@ async function confirmCompleteWork() {
       const completeApiUrl = `${PACKAGES_API_URL}/${currentWork.value.work_no}/complete`;
       console.log('작업 완료 API 호출:', completeApiUrl);
       
+      // 한글로 데이터 전송
       const completeData = {
         input_qty: currentWork.value.input_qty,
         output_qty: currentWork.value.output_qty,
         defect_qty: currentWork.value.defect_qty,
         employee_id: currentWork.value.employee_id,
-        step_status: '완료',
-        line_type: getKoreanLineType(workInfo.value.lineType),
-        work_step: getKoreanLineType(workInfo.value.lineType),
+        step_status: '완료', // 한글로 전송
+        line_type: getKoreanLineType(workInfo.value.lineType), // 한글로 변환
+        work_step: getKoreanLineType(workInfo.value.lineType), // 한글로 변환
         end_time: new Date().toISOString()
       };
       
@@ -1268,13 +1170,15 @@ async function confirmCompleteWork() {
       
       if (res.data && res.data.success) {
         addLog('API로 작업을 완료했습니다.', 'success');
-        shouldNavigate = true;
+        shouldNavigate = true; // API 성공시 페이지 이동
       } else {
+        // API 응답이 실패여도 로컬에서는 완료 처리
         console.warn('API 응답이 실패였지만 로컬에서 완료 처리합니다:', res.data?.message);
         addLog('서버 응답이 실패였지만 로컬에서 작업을 완료했습니다.', 'warning');
-        shouldNavigate = true;
+        shouldNavigate = true; // 실패해도 페이지 이동
       }
     } catch (apiError) {
+      // API 호출 실패해도 로컬에서는 완료 처리
       console.error('API 호출 실패, 로컬에서 완료 처리:', apiError);
       
       if (apiError.response?.status === 404) {
@@ -1285,18 +1189,20 @@ async function confirmCompleteWork() {
         addLog(`서버 오류 발생, 로컬에서만 완료 처리했습니다: ${apiError.message}`, 'warning');
       }
       
-      shouldNavigate = true;
+      shouldNavigate = true; // API 실패해도 페이지 이동
     }
     
   } catch (error) {
     console.error('전체 작업 완료 처리 실패:', error);
     addLog(`작업 완료 처리 중 오류 발생: ${error.message}`, 'error');
-    shouldNavigate = true;
+    shouldNavigate = true; // 에러 발생해도 페이지 이동 (사용자 경험 향상)
   } finally {
     loading.value = false
   }
   
+  // 성공/실패 관계없이 로컬 상태는 완료로 처리
   try {
+    // 최종 결과 반영
     currentWork.value.passRate = Math.round((currentWork.value.output_qty / currentWork.value.input_qty) * 100)
     currentWork.value.defectRate = 100 - currentWork.value.passRate
     
@@ -1306,6 +1212,7 @@ async function confirmCompleteWork() {
     
     updateWorkProgress()
     
+    // 🔥 내포장 완료 시 완료 정보 저장
     if (workInfo.value.lineType === 'INNER') {
       saveCompletedInnerWork({
         work_no: currentWork.value.work_no,
@@ -1322,7 +1229,8 @@ async function confirmCompleteWork() {
     addLog(`${workInfo.value.lineType === 'INNER' ? '내포장' : '외포장'} 작업이 로컬에서 완료되었습니다.`, 'success')
     closeCompleteModal()
     
-    if (shouldNavigate || true) {
+    // 페이지 이동 (shouldNavigate 플래그와 관계없이 항상 이동)
+    if (shouldNavigate || true) { // 항상 이동하도록 수정
       console.log('페이지 이동을 시작합니다...');
       const moveDelay = workInfo.value.lineType === 'INNER' ? 1000 : 2000
       setTimeout(async () => { 
@@ -1335,6 +1243,7 @@ async function confirmCompleteWork() {
     
   } catch (finalError) {
     console.error('최종 처리 실패:', finalError);
+    // 최종 처리 실패해도 페이지 이동은 시도
     setTimeout(async () => { 
       console.log('최종 처리 실패 후 강제 페이지 이동...');
       await goBackToLineSelectionWithCompletion() 
@@ -1353,26 +1262,31 @@ function startProductionSimulation() {
   productionTimer = setInterval(() => {
     if (!isWorking.value) return
     
+    // 생산 진행
     const increment = productionSettings.value.productionSpeed
     productionSettings.value.currentProgress = Math.min(
       productionSettings.value.currentProgress + increment,
       productionSettings.value.targetQty
     )
     
+    // 합격품과 불량품 계산
     const totalProduced = productionSettings.value.currentProgress
     const defectQty = Math.floor(totalProduced * productionSettings.value.defectRate)
     const passQty = totalProduced - defectQty
     
+    // 화면 업데이트
     currentWork.value.output_qty = passQty
     currentWork.value.defect_qty = defectQty
     currentWork.value.progressRate = Math.min(100, Math.round((totalProduced / productionSettings.value.targetQty) * 100))
     currentWork.value.passRate = totalProduced > 0 ? Math.round((passQty / totalProduced) * 100) : 0
     currentWork.value.defectRate = totalProduced > 0 ? Math.round((defectQty / totalProduced) * 100) : 0
     
+    // 로그 추가 (5초마다)
     if (totalProduced > 0 && totalProduced % (productionSettings.value.productionSpeed * 5) === 0) {
       addLog(`생산 진행: ${passQty}개 완료 (불량: ${defectQty}개, 진행률: ${currentWork.value.progressRate}%)`, 'info')
     }
     
+    // 목표 달성시 자동 완료
     if (totalProduced >= productionSettings.value.targetQty) {
       addLog('🎉 목표 수량에 도달했습니다!', 'success')
       autoCompleteProduction()
@@ -1427,12 +1341,14 @@ function autoCompleteProduction() {
   if (workInfo.value.lineType === 'INNER') {
     addLog('내포장이 완료되었습니다. "완료 처리" 버튼을 눌러 다음 단계로 진행해주세요!', 'info')
     addLog('💡 팁: 모달을 닫아도 언제든 "완료 처리" 버튼으로 다시 열 수 있습니다.', 'info')
+    // 내포장에서는 자동으로 생산완료 모달 표시
     setTimeout(() => {
       showCompleteModal.value = true
     }, 1000)
   } else {
     addLog('외포장이 완료되어 모든 작업이 끝났습니다!', 'info')
     addLog('💡 팁: "최종 완료 처리" 버튼으로 언제든 완료 모달을 다시 열 수 있습니다.', 'info')
+    // 외포장에서는 자동으로 생산완료 모달 표시
     setTimeout(() => {
       showCompleteModal.value = true
     }, 1000)
@@ -1441,7 +1357,9 @@ function autoCompleteProduction() {
 
 // 생산 완료 버튼
 function completeProduction() {
+  // 작업이 완료된 상태에서도 모달을 열 수 있도록 허용
   if (workStatus.value === 'COMPLETED' || !isWorking.value) {
+    // 이미 완료된 작업의 경우 바로 모달 표시
     if (workStatus.value === 'COMPLETED') {
       addLog('완료 처리 모달을 다시 엽니다.', 'info')
     }
@@ -1449,6 +1367,7 @@ function completeProduction() {
     return
   }
   
+  // 진행 중인 작업의 경우 기존 로직
   showCompleteModal.value = true
 }
 
@@ -1458,6 +1377,7 @@ async function stopWork() {
     isWorking.value = false
     workStatus.value = 'COMPLETED'
     
+    // 모든 타이머 정리
     if (workTimer) {
       clearInterval(workTimer)
       workTimer = null
@@ -1524,6 +1444,7 @@ function addLog(message, type = 'info') {
 function closeCompleteModal() { 
   showCompleteModal.value = false 
   
+  // 모달을 닫을 때 안내 메시지 추가
   if (workStatus.value === 'COMPLETED') {
     const buttonText = workInfo.value.lineType === 'INNER' ? '"완료 처리"' : '"최종 완료 처리"'
     addLog(`💡 모달을 다시 열려면 ${buttonText} 버튼을 클릭하세요.`, 'info')
@@ -1556,7 +1477,7 @@ function goDirectToOuterPackaging() {
   window.location.href = '/packaging/line?inner_completed=true&next_step=outer&auto_select=outer';
 }
 
-// 라인 선택으로 돌아가기 (작업 완료시)
+// 라인 선택으로 돌아가기 (작업 완료시) - 개선된 버전
 async function goBackToLineSelectionWithCompletion() {
   console.log('goBackToLineSelectionWithCompletion 함수 호출됨');
   console.log('현재 라인 타입:', workInfo.value.lineType);
@@ -1564,6 +1485,7 @@ async function goBackToLineSelectionWithCompletion() {
   if (workInfo.value.lineType === 'INNER') {
     addLog('내포장이 완료되었습니다! 이제 외포장 작업을 진행해주세요.', 'success')
     
+    // 전역 함수 호출 (있다면)
     if (window.handleInnerPackageCompleted) {
       try {
         window.handleInnerPackageCompleted()
@@ -1573,6 +1495,7 @@ async function goBackToLineSelectionWithCompletion() {
       }
     }
     
+    // Vue Router로 이동 시도
     if (router) {
       console.log('Vue Router로 외포장 라인 페이지 이동 시도...');
       
@@ -1584,6 +1507,7 @@ async function goBackToLineSelectionWithCompletion() {
         }
       };
       
+      // 여러 라우터 이름으로 시도
       const routeNames = ['package_line'];
       let routerSuccess = false;
       
@@ -1602,6 +1526,7 @@ async function goBackToLineSelectionWithCompletion() {
         }
       }
       
+      // 라우터 이름으로 안되면 경로로 시도
       if (!routerSuccess) {
         const routePaths = ['/packaging/line', '/package/line'];
         
@@ -1621,6 +1546,7 @@ async function goBackToLineSelectionWithCompletion() {
         }
       }
       
+      // Vue Router로 이동 실패시 직접 URL 이동
       if (!routerSuccess) {
         console.log('Vue Router 이동 모두 실패, 직접 URL로 이동...');
         const targetUrl = '/packaging/line?inner_completed=true&next_step=outer&message=' + 
@@ -1629,6 +1555,7 @@ async function goBackToLineSelectionWithCompletion() {
         window.location.href = targetUrl;
       }
     } else {
+      // 라우터 없으면 바로 URL로 이동
       console.log('Vue Router 없음, 직접 URL로 이동...');
       const targetUrl = '/packaging/line?inner_completed=true&next_step=outer&message=' + 
                        encodeURIComponent('내포장 완료! 외포장을 진행해주세요.');
@@ -1636,8 +1563,10 @@ async function goBackToLineSelectionWithCompletion() {
       window.location.href = targetUrl;
     }
   } else {
+    // 외포장 완료 (모든 작업 완료)
     addLog('🎉 모든 포장 작업이 완료되었습니다!', 'success')
     
+    // 전역 함수 호출 (있다면)
     if (window.handleAllPackageCompleted) {
       try {
         window.handleAllPackageCompleted()
@@ -1647,6 +1576,7 @@ async function goBackToLineSelectionWithCompletion() {
       }
     }
     
+    // 대시보드 또는 메인 페이지로 이동
     if (router) {
       const dashboardRoutes = ['package_status'];
       let routerSuccess = false;
@@ -1680,7 +1610,7 @@ async function goBackToLineSelectionWithCompletion() {
   }
 }
 
-// 라인 선택으로 돌아가기 (작업 완료 없이)
+// 라인 선택으로 돌아가기 (작업 완료 없이) - 수정된 버전
 function goBackToLineSelection() {
   if (isWorking.value) {
     const workType = workInfo.value.lineType === 'INNER' ? '내포장' : '외포장'
@@ -1692,38 +1622,27 @@ function goBackToLineSelection() {
   console.log('라인 선택으로 돌아가기...');
   console.log('현재 라인 타입:', workInfo.value.lineType);
   
-  // 🔥 수정: 외포장에서 돌아갈 때 외포장 상태 유지
+  // 🔥 중요: 현재 라인 타입에 맞는 파라미터 전달 (한글로)
   const queryParams = {
-    from_work: 'true',
-    keep_line_type: workInfo.value.lineType, // 현재 라인 타입 유지
-    maintain_selection: 'true' // 선택 상태 유지 플래그
+    maintain_type: getKoreanLineType(workInfo.value.lineType), // 한글로 변환
+    from_work: 'true'
   };
-  
-  // 🔥 추가: 외포장인 경우 내포장 완료 정보도 함께 전달
-  if (workInfo.value.lineType === 'OUTER') {
-    queryParams.inner_completed = 'true';
-    queryParams.show_outer = 'true'; // 외포장 탭을 활성화하도록 지시
-    
-    // 내포장 완료 수량 정보도 전달 (옵션)
-    if (completedInnerWorks.value.size > 0) {
-      const completedCount = completedInnerWorks.value.size;
-      queryParams.inner_count = completedCount.toString();
-      queryParams.message = `내포장 ${completedCount}개 완료됨. 외포장을 계속 진행하세요.`;
-    }
-  }
   
   console.log('전달할 파라미터:', queryParams);
   
   try {
     if (router && router.push) {
+      // ✅ 수정: 파라미터와 함께 이동
       router.push({ 
         name: 'package_line',
         query: queryParams
       }).catch(() => {
+        // 라우터 실패시 URL 직접 이동 (파라미터 포함)
         const params = new URLSearchParams(queryParams);
         window.location.href = `/packaging/line?${params.toString()}`;
       })
     } else {
+      // 라우터 없으면 URL 직접 이동 (파라미터 포함)
       const params = new URLSearchParams(queryParams);
       window.location.href = `/packaging/line?${params.toString()}`;
     }
@@ -1800,12 +1719,14 @@ function formatElapsedTime(ms) {
 }
 
 function getWorkStatusText(status) {
+  // 한글 상태는 그대로 반환, 영어 상태는 한글로 변환
   const map = {
     'READY': '준비',
     'WORKING': '작업중', 
     'IN_PROGRESS': '작업중',
     'PAUSED': '일시정지',
     'COMPLETED': '완료',
+    // 한글은 그대로 유지
     '준비': '준비',
     '작업중': '작업중',
     '진행중': '작업중',
@@ -2737,4 +2658,4 @@ defineOptions({
     flex-direction: column;
   }
 }
-</style>
+</style>                   
