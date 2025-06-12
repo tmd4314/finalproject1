@@ -96,15 +96,19 @@ const findAllWithUsage = async () => {
   return list;
 }
 
-// 2) 특정 거래처가 사용중인지 개별 확인 (삭제 API 서버 방어용)
-const isAccountInUse = async (accountId) => {
-  // getAccountInUse는 ? 파라미터 2개 받음!
-  let [result] = await mariadb.query("getAccountInUse", [accountId, accountId]);
-  return result?.in_use === 1; // true면 사용중, false면 사용 안함
-}
+// 거래처가 다른 테이블에서 사용되고 있는지
+// const isAccountInUse = async (accountId) => {
+//   try {
+//     const result = await db.query(getAccountInUse, [accountId]);
+//     return result[0].in_use === 1; // true면 사용중, false면 미사용
+//   } catch (error) {
+//     console.error('계정 사용 여부 확인 중 오류:', error);
+//     return true; // 오류시 안전하게 삭제 불가로 처리
+//   }
+// };
 
 
-// 거래처 삭제
+// 거래처 삭제 (반복문 => 여러 거래처 삭제)
 const removeAccount = async (accountId) => {
   let result = await mariadb.query("accountDelete", [accountId])
     .catch(err => {
@@ -116,17 +120,6 @@ const removeAccount = async (accountId) => {
   };
 }
 
-// 여러 거래처 삭제
-const removeMultiple = async (ids) => {
-  if (!Array.isArray(ids) || ids.length === 0) return { affectedRows: 0 }
-  let totalAffected = 0
-  for (const id of ids) {
-    const result = await mariadb.query("accountDelete", [id])
-      .catch(err => { console.error(err); return { affectedRows: 0 } })
-    totalAffected += Number(result.affectedRows)
-  }
-  return { affectedRows: totalAffected }
-}
 
 
 // 외부에서 함수로 쓸 수 있게 내보내기
@@ -136,7 +129,5 @@ module.exports = {
   addAccount,
   updateAccount,
   removeAccount,
-  removeMultiple,
-  isAccountInUse,
   findAllWithUsage
 };
