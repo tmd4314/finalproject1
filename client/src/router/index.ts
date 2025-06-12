@@ -93,9 +93,24 @@ const routes: Array<RouteRecordRaw> = [
         component: RouteViewComponent,
         children: [
            {
-            name: 'login',
-            path: 'login',
-            component: () => import('../pages/auth/Login.vue'),
+            name: 'work_order_manager',
+            path: 'work_order_manager',
+            component: () => import('../pages/workorder/WorkOrderManager.vue'),
+          },
+          {
+            name: 'work_order_check',
+            path: 'work_order_check',
+            component: () => import('../pages/workorder/WorkOrderCheck.vue'),
+          },
+          {
+            name: 'recover-password',
+            path: 'recover-password',
+            component: () => import('../pages/auth/RecoverPassword.vue'),
+          },
+          {
+            name: 'recover-password-email',
+            path: 'recover-password-email',
+            component: () => import('../pages/auth/CheckTheEmail.vue'),
           },
         ],
       },
@@ -159,32 +174,6 @@ const routes: Array<RouteRecordRaw> = [
             component: () => import('../pages/billing/BillingPage.vue'),
           },
         ],
-      },
-    ],
-  },
-  {
-    path: '/production',
-    component: AuthLayout,
-    children: [
-      {
-        name: 'work_order_manager',
-        path: 'work_order_manager',
-        component: () => import('../pages/workorder/WorkOrderManager.vue'),
-      },
-      {
-        name: 'work_order_check',
-        path: 'work_order_check',
-        component: () => import('../pages/workorder/WorkOrderCheck.vue'),
-      },
-      {
-        name: 'recover-password',
-        path: 'recover-password',
-        component: () => import('../pages/auth/RecoverPassword.vue'),
-      },
-      {
-        name: 'recover-password-email',
-        path: 'recover-password-email',
-        component: () => import('../pages/auth/CheckTheEmail.vue'),
       },
       {
         name: 'standardInformation',
