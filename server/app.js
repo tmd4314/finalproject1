@@ -62,6 +62,8 @@ const defectRouter = require('./routers/defectRouter.js');
 
 const materialLotRouter = require('./routers/materialLotRouter.js')
 
+const mrpRouter = require('./routers/mrpsRouter.js')
+
  // 기본 라우팅
 app.get('/', (req, res)=>{
   res.send('Welcome!!...');
@@ -84,6 +86,7 @@ app.use('/', productRouter);
 app.use('/', materialRouter);
 app.use('/', processRouter);
 app.use('/', materialLotRouter);
+app.use('/', mrpRouter);
 
 
 

@@ -50,7 +50,7 @@ const routes: Array<RouteRecordRaw> = [
           },
           {
             name: 'equipment-register',
-            path: 'register',
+            path: '/faq',
             component: () => import('../pages/equipment/EquipmentForm.vue'),
           },
           {
@@ -79,6 +79,11 @@ const routes: Array<RouteRecordRaw> = [
             name: 'receiving-check',
             path: 'receiving-check',
             component: () => import('../pages/material/LotCheckPage.vue'),
+          },
+          {
+            name: 'mrp-calculate',
+            path:'mrp-calculate',
+            component: () => import('../pages/material/mrpCalculatePage.vue')
           },
         ],
       },

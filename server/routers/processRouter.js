@@ -22,7 +22,6 @@ const processService =require('../services/processService.js');
 router.post('/process', async (req, res) => {
   try {
     const processList = req.body;
-    console.log(processList);
     const result = await processService.addProcess(processList);
     res.send(result);
   } catch (err) {

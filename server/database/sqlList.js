@@ -12,6 +12,7 @@ const account = require('./sqls/account.js');
 const defect = require('./sqls/defect.js');
 const materialLot = require('./sqls/materialLot.js');
 const workOrder = require('./sqls/workOrder.js');
+const mrp = require('./sqls/mrps.js');
 
 
 
@@ -31,6 +32,7 @@ const workOrder = require('./sqls/workOrder.js');
      ...account,
      ...defect,
      ...materialLot,
-     ...workOrder
+     ...workOrder,
+     ...mrp
  }
 
