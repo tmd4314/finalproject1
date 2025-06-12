@@ -12,6 +12,51 @@ export default {
   },
   routes: [
     {
+      name: 'standardInformation',
+      displayName: 'menu.기준정보',
+      meta: {
+        icon: 'settings',
+      },
+      children: [
+        {
+          name: 'product-management',
+          displayName: 'menu.제품 관리',
+        },
+        {
+          name: 'material-management',
+          displayName: 'menu.자재 관리',
+        },
+        {
+          name: 'process-flow-chart-management',
+          displayName: 'menu.공정흐름도 관리',
+        },
+        {
+          name: 'equipment-register',
+          displayName: 'menu.설비 등록',
+        },
+        {
+          name: 'account-management',
+          displayName: 'menu.거래처 관리',
+        },
+        // {
+        //   name: 'staff-management',
+        //   displayName: 'menu.사원 관리',
+        // },
+        {
+          name: 'bom-manager',
+          displayName: 'menu.BOM 관리',
+        },
+        {
+          name: 'InspectionManagement',
+          displayName: 'menu.검사항목 관리',
+        },
+        {
+          name: 'defectManagement',
+          displayName: 'menu.불량유형 관리',
+        },
+      ],
+    },
+    {
       name: 'business',
       displayName: 'menu.영업',
       meta: {
@@ -73,6 +118,10 @@ export default {
           name: 'receiving-check',
           displayName: 'menu.입고 조회'
         },
+        {
+          name: 'mrp-calculate',
+          displayName: 'menu.MRP 계산'
+        }
       ],
     },
     {
@@ -147,50 +196,6 @@ export default {
         },
       ],
     },
-    {
-      name: 'standardInformation',
-      displayName: 'menu.기준정보',
-      meta: {
-        icon: 'settings',
-      },
-      children: [
-        {
-          name: 'product-management',
-          displayName: 'menu.제품 관리',
-        },
-        {
-          name: 'material-management',
-          displayName: 'menu.자재 관리',
-        },
-        {
-          name: 'process-flow-chart-management',
-          displayName: 'menu.공정흐름도 관리',
-        },
-        {
-          name: 'equipment-register',
-          displayName: 'menu.설비 등록',
-        },
-        {
-          name: 'account-management',
-          displayName: 'menu.거래처 관리',
-        },
-        // {
-        //   name: 'staff-management',
-        //   displayName: 'menu.사원 관리',
-        // },
-        {
-          name: 'bom-manager',
-          displayName: 'menu.BOM 관리',
-        },
-        {
-          name: 'InspectionManagement',
-          displayName: 'menu.검사항목 관리',
-        },
-        {
-          name: 'defectManagement',
-          displayName: 'menu.불량유형 관리',
-        },
-      ],
-    },
+    
   ] as INavigationRoute[],
 }
