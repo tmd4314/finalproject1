@@ -132,9 +132,17 @@ export default {
       },
       children: [
         {
-          name: 'login',
-          displayName: 'menu.생산',
-        }
+          name: 'work_order_manager',
+          displayName: 'menu.작업지시 관리',
+        },
+        {
+          name: 'work_order_check',
+          displayName: 'menu.작업지시 조회',
+        },
+        {
+          name: 'recover-password',
+          displayName: 'menu.recover-password',
+        },
       ],
     },
     {
