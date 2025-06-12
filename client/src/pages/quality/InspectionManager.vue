@@ -29,6 +29,7 @@
         <table class="custom-table">
           <thead>
             <tr>
+              <th><va-checkbox v-model="allChecked" @click.stop="toggleAll" /></th>
               <th>유형</th>
               <th>항목코드</th>
               <th>항목명</th>
@@ -39,14 +40,15 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="(item, index) in inspectionList" :key="item.insp_code" @click="selectItem(item)">
-              <td>{{ item.item_type }}</td>
-              <td>{{ item.insp_code }}</td>
-              <td>{{ item.insp_name }}</td>
-              <td>{{ item.insp_stad_val }}</td>
-              <td>{{ item.insp_unit }}</td>
-              <td>{{ item.insp_judt_type }}</td>
-              <td>{{ item.insp_remark }}</td>
+            <tr v-for="(item, index) in inspectionList" :key="item.insp_code">
+              <td><va-checkbox v-model="item.checked" @click.stop="resetForm" /></td>
+              <td @click="selectItem(item)">{{ item.item_type }}</td>
+              <td @click="selectItem(item)">{{ item.insp_code }}</td>
+              <td @click="selectItem(item)">{{ item.insp_name }}</td>
+              <td @click="selectItem(item)">{{ item.insp_stad_val }}</td>
+              <td @click="selectItem(item)">{{ item.insp_unit }}</td>
+              <td @click="selectItem(item)">{{ item.insp_judt_type }}</td>
+              <td @click="selectItem(item)" >{{ item.insp_remark }}</td>
             </tr>
           </tbody>
         </table>
@@ -55,7 +57,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import axios from 'axios'
 
 interface InspectionItem {
@@ -66,6 +68,7 @@ interface InspectionItem {
   insp_unit: string
   insp_judt_type: string
   insp_remark: string
+  checked?: boolean
 }
 
 const inspectionList = ref<InspectionItem[]>([])
@@ -84,7 +87,10 @@ const fetchInspectionList = async () => {
   try {
     const res = await axios.get('/inspections/list')
     console.log('응답데이터 : ', res.data);
-    inspectionList.value = res.data
+    inspectionList.value = res.data.map((item: InspectionItem) => ({
+      ...item,
+      checked: false
+    }))
   } catch (err) {
     console.error('검사항목 조회 실패:', err)
   }
@@ -92,7 +98,42 @@ const fetchInspectionList = async () => {
 
 const isEditMode = ref(false)
 
+const allChecked = ref(false)
+
+// allChecked 값이 변하면 모든 체크박스 상태를 동기화
+watch(allChecked, (newVal) => {
+  inspectionList.value.forEach(item => {
+    item.checked = newVal
+  })
+  resetForm()  // 전체 체크/해제시 무조건 input박스 비우기
+})
+
+// 개별 체크박스 변경 시 allChecked 값도 동기화 (부분 체크 상태 관리)
+watch(inspectionList, () => {
+  const allAreChecked = inspectionList.value.length > 0 && inspectionList.value.every(item => item.checked)
+  if (allChecked.value !== allAreChecked) {
+    allChecked.value = allAreChecked
+  }
+}, { deep: true })
+
+// 헤더 체크박스 클릭 시 처리 (클릭할 때 자동으로 allChecked가 바뀌니 따로 처리 없어도 됨)
+// 하지만 혹시 필요하면 아래 함수 추가 가능
+
+function toggleAll() {
+  // allChecked 값에 따라 inspectionList 모두 체크/해제 (watch로 자동 동기화 됨)
+  // resetForm은 watch에서 호출됨
+}
+
+const selectedItems = computed(() => 
+  inspectionList.value.filter(item => item.checked)
+)
+
 function selectItem(item: any) {
+
+  if(selectedItems.value.length > 0) return;
+
+  if(item.checked) return;
+  
   form.value = {
     type: item.item_type,
     itemCode: item.insp_code,
@@ -104,7 +145,6 @@ function selectItem(item: any) {
   };
   isEditMode.value =true;
 }
-
 
 function resetForm() {
   form.value = {
@@ -128,6 +168,12 @@ const registerProduct = async () => {
     return;
   }
 
+  const itemsToDelete = inspectionList.value
+                  .map(item => {
+                    if(item.checked) 
+                      return item.insp_code;
+                   })
+
   const newInspection = {
       item_type: form.value.type,
       insp_code: form.value.itemCode,
@@ -140,6 +186,9 @@ const registerProduct = async () => {
     
     try {
       if (isEditMode.value) {
+        if(itemsToDelete.length == 1) {
+          
+        }
         const res = await axios.post('/inspections/update', newInspection);
         if (res.data.success) {
           alert('수정성공');
@@ -169,9 +218,34 @@ const registerProduct = async () => {
   }
 };
 
-function deleteProduct() {
-  alert('삭제 기능은 아직 구현되지 않았습니다.')
-}
+const deleteProduct = async () => {
+  const itemsToDelete = inspectionList.value
+                    .map(item => {
+                      if(item.checked) 
+                        return item.insp_code;
+                     })
+    
+  if (itemsToDelete.length === 0) {
+    alert('삭제할 항목을 선택해주세요.')
+    return
+  }
+  const confirmDelete = confirm(`${itemsToDelete.length}개 항목을 삭제하시겠습니까?`)
+  if (!confirmDelete) return
+
+  try {
+    const res = await axios.delete(`/inspections/${itemsToDelete}`)
+    if(!res.data.success) {
+        alert('삭제 실패')
+      }
+    alert('삭제 성공');
+    await fetchInspectionList(); 
+    resetForm();                  
+    allChecked.value = false
+    } catch (err: any) {
+      console.error('삭제 오류:', err)
+      alert('서버 오류로 삭제에 실패했습니다.')
+  }
+};
 
 onMounted(() => {
   fetchInspectionList()
@@ -195,7 +269,7 @@ onMounted(() => {
 }
 
 .product-form {
-  /* background-color: white; ← 이 줄 제거 또는 주석 처리 */
+  /* background-color: white;
   background-color: transparent; /* 배경 투명하게 */
   border-radius: 0.5rem;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);
