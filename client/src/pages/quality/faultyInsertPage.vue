@@ -19,18 +19,13 @@
             <va-radio label="대기" name="click" value="wait" />
           </va-radio-group>
 
-
-
-
-
           <div class="form-buttons">
             <va-button @click="registerProduct" color="primary">등록</va-button>
-            <va-button @click="resetForm">취소</va-button>
+            <va-button @click="resetForm" color="secondary">초기화</va-button>
           </div>
 
           <div class="form-buttons">
-            <va-button @click="updateProduct" color="warning">수정</va-button>
-            <va-button @click="deleteProduct" color="danger">삭제</va-button>
+
           </div>
         </div>
       </div>
