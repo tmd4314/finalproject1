@@ -23,11 +23,6 @@
             </span>
           </div>
         </div>
-        <div class="header-actions">
-          <button @click="goBackToLineSelection">
-            ← 라인 선택으로 돌아가기
-          </button>
-        </div>
       </div>
     </div>
 
@@ -70,16 +65,16 @@
                   >
                 </div>
                 <div class="control-group">
-                  <label class="control-label">생산속도 (개/초)</label>
+                  <label class="control-label">생산속도 (정/초)</label>
                   <select 
                     v-model.number="productionSettings.productionSpeed" 
                     class="control-select" 
                     :disabled="isWorking"
                   >
-                    <option value="5">느림 (5개/초)</option>
-                    <option value="10">보통 (10개/초)</option>
-                    <option value="20">빠름 (20개/초)</option>
-                    <option value="50">매우빠름 (50개/초)</option>
+                    <option value="10">느림 (10정/초)</option>
+                    <option value="30">보통 (30정/초)</option>
+                    <option value="60">빠름 (60정/초)</option>
+                    <option value="100">매우빠름 (100정/초)</option>
                   </select>
                 </div>
               </div>
@@ -1622,9 +1617,9 @@ function goBackToLineSelection() {
   console.log('라인 선택으로 돌아가기...');
   console.log('현재 라인 타입:', workInfo.value.lineType);
   
-  // 🔥 중요: 현재 라인 타입에 맞는 파라미터 전달 (한글로)
+  // 🔥 중요: 현재 라인 타입을 영어로 전달 (한글 변환 안 함)
   const queryParams = {
-    maintain_type: getKoreanLineType(workInfo.value.lineType), // 한글로 변환
+    maintain_type: workInfo.value.lineType, // 🔥 영어 그대로 전달 (INNER 또는 OUTER)
     from_work: 'true'
   };
   

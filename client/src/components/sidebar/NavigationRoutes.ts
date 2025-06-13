@@ -153,16 +153,16 @@ export default {
       },
       children: [
         {
+          name: 'package_add_line',         
+          displayName: 'menu.포장 라인 등록',
+        },
+        {
           name: 'package_line',     
-          displayName: 'menu.포장 라인 선택/조회',
+          displayName: 'menu.포장 라인 선택',
         },
         {
           name: 'package_work',   
           displayName: 'menu.포장 작업 수행',
-        },
-        {
-          name: 'package_status',         
-          displayName: 'menu.포장 작업 현황',
         },
       ],
     },
