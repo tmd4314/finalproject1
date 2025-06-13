@@ -37,8 +37,9 @@
             class="quarter-width"
             :disabled="!isQualitative"
           />
-          <div class="input-row">
-            <va-input
+      </div>
+      <div class="input-row">
+                    <va-input
             v-model="form.inspUnit"
             label="단위"
             class="quarter-width"
@@ -65,7 +66,6 @@
             class="quarter-width"
             :disabled="!isQuantitative"
           />
-          </div>
       </div>
       <div class="input-row">
         <div class="form-buttons">
@@ -79,26 +79,24 @@
       <table class="custom-table">
         <thead>
           <tr>
-            <th><va-checkbox v-model="allChecked" @click.stop="toggleAll" /></th>
-            <th>유형</th>
             <th>항목코드</th>
             <th>항목명</th>
-            <th>기본수치</th>
-            <th>단위</th>
             <th>판정방식</th>
+            <th>기준수치</th>
+            <th>단위</th>
             <th>비고</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="item in inspectionList" :key="item.insp_code">
-            <td><va-checkbox v-model="item.checked" @click.stop /></td>
-            <!-- <td @click="selectItem(item)">{{ item.prod_name || form.prodName }}</td>
-            <td @click="selectItem(item)">{{ item.insp_code }}</td>
-            <td @click="selectItem(item)">{{ item.insp_name }}</td>
-            <td @click="selectItem(item)">{{ item.insp_stad_val }}</td>
-            <td @click="selectItem(item)">{{ item.insp_unit }}</td>
-            <td @click="selectItem(item)">{{ item.insp_judt_type }}</td>
-            <td @click="selectItem(item)">{{ item.insp_remark }}</td> -->
+            <td>{{ item.insp_code }}</td>
+            <td>{{ item.insp_name }}</td>
+            <td>{{ item.insp_code }}</td>
+            <td>{{ item.insp_code }}</td>
+            <td>{{ item.insp_code }}</td>
+            <td>{{ item.insp_code }}</td>
+            <td>{{ item.insp_code }}</td>
+            <td>{{ item.insp_code }}</td>
           </tr>
         </tbody>
       </table>
@@ -149,9 +147,6 @@ const form = ref({
 const isQuantitative = computed(() => form.value.inspRefValue === '정량')
 const isQualitative = computed(() => form.value.inspRefValue === '정성')
 
-const isEditMode = ref(false)
-const allChecked = ref(false)
-
 const fetchInspectionList = async () => {
   try {
     const res = await axios.get('/inspections/list')
@@ -164,135 +159,12 @@ const fetchInspectionList = async () => {
   }
 }
 
-watch(allChecked, (newVal) => {
-  inspectionList.value.forEach(item => {
-    item.checked = newVal
-  })
-  // resetForm()
-})
 
-watch(inspectionList, () => {
-  const allAreChecked = inspectionList.value.length > 0 &&
-    inspectionList.value.every(item => item.checked)
-  if (allChecked.value !== allAreChecked) {
-    allChecked.value = allAreChecked
-  }
-}, { deep: true })
 
-function toggleAll() {
-  // allChecked가 이미 변경되므로 실제 내용은 watch에서 처리됨
-}
 
-const selectedItems = computed(() =>
-  inspectionList.value.filter(item => item.checked)
-)
 
-// function selectItem(item: InspectionItem) {
-//   if (selectedItems.value.length > 0 || item.checked) return;
 
-//   form.value = {
-//     prodName: item.prod_name || '',
-//     itemCode: item.insp_code,
-//     itemName: item.insp_name,
-//     basicFigure: item.insp_stad_val,
-//     unit: item.insp_unit,
-//     judgment: item.insp_judt_type,
-//     supplementary: item.insp_remark
-//   }
-//   isEditMode.value = true
-// }
 
-// function resetForm() {
-//   form.value = {
-//     prodName: '',
-//     itemCode: '',
-//     itemName: '',
-//     basicFigure: '',
-//     unit: '',
-//     judgment: '',
-//     supplementary: ''
-//   }
-//   isEditMode.value = false
-// }
-
-// const registerProduct = async () => {
-//   const { itemCode, itemName, basicFigure, unit, judgment, supplementary } = form.value
-
-//   if (!itemCode.trim() || !itemName.trim() || !basicFigure.trim() || !unit.trim() || !judgment.trim()) {
-//     alert('모든 필수 항목을 입력해주세요.')
-//     return
-//   }
-
-  // const newInspection = {
-  //   insp_code: itemCode,
-  //   insp_name: itemName,
-  //   insp_stad_val: basicFigure,
-  //   insp_unit: unit,
-  //   insp_judt_type: judgment,
-  //   insp_remark: supplementary
-  // }
-
-//   try {
-//     if (isEditMode.value) {
-//       const res = await axios.post('/inspections/update', newInspection)
-//       if (res.data.success) {
-//         alert('수정 성공')
-//         await fetchInspectionList()
-//         resetForm()
-//       } else {
-//         alert(res.data.message || '수정 실패')
-//       }
-//     } else {
-//       const res = await axios.post('/inspections/insert', newInspection)
-//       if (res.data.success) {
-//         alert('등록 성공')
-//         await fetchInspectionList()
-//         resetForm()
-//       } else {
-//         alert(res.data.message || '등록 실패')
-//       }
-//     }
-//   } catch (err: any) {
-//     if (err.response?.status === 400 && err.response.data?.message) {
-//       alert(err.response.data.message)
-//     } else {
-//       console.error('서버 에러:', err)
-//       alert('중복된 코드를 입력하였거나 서버 오류입니다.')
-//     }
-//     resetForm()
-//   }
-// }
-
-// const deleteProduct = async () => {
-//   const itemsToDelete = inspectionList.value
-//     .filter(item => item.checked)
-//     .map(item => item.insp_code)
-
-//   if (itemsToDelete.length === 0) {
-//     alert('삭제할 항목을 선택해주세요.')
-//     return
-//   }
-
-//   const confirmDelete = confirm(`${itemsToDelete.length}개 항목을 삭제하시겠습니까?`)
-//   if (!confirmDelete) return
-
-//   try {
-//     const res = await axios.delete('/inspections/delete', {
-//       data: { codes: itemsToDelete }
-//     })
-//     if (!res.data.success) {
-//       alert('삭제 실패')
-//       return
-//     }
-//     alert('삭제 성공')
-//     await fetchInspectionList()
-//     resetForm()
-//     allChecked.value = false
-//   } catch (err: any) {
-//     console.error('삭제 오류:', err)
-//     alert('서버 오류로 삭제에 실패했습니다.')
-//   }
-// }
 
 onMounted(() => {
   fetchInspectionList()

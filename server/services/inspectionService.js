@@ -1,11 +1,5 @@
 const mariadb = require('../database/mapper.js');
 
-//제품명 조회
-const selectProductName = async () => {
-  const productList = await mariadb.query("selectProductList").catch((err) => console.log(err));
-  return productList;
-}
-
 // 검사항목 전체 조회
 const selectAll = async () => {
   const list = await mariadb.query("selectInspectionList").catch((err) => console.log(err));
@@ -58,7 +52,6 @@ const deleteInspection = async (data) => {
 };
 
 module.exports ={
-  selectProductName,
   selectAll,
   insertOne,
   updateOne,
