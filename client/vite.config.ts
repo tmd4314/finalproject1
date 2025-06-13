@@ -27,7 +27,9 @@ const proxyPaths = [
   'orderCheck',
   'mrps',
   'puOrder',
-  'purchase'
+  'purchase',
+  'workOrder'
+
 ]
 
 // ✅ 공통 proxy 설정 생성 함수

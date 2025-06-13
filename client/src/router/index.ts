@@ -125,6 +125,11 @@ const routes: Array<RouteRecordRaw> = [
         component: RouteViewComponent,
         children: [
           {
+            name: 'package_add_line',
+            path: 'package_add_line',
+            component: () => import('../pages/package/PackageAddLine.vue'),
+          },
+          {
             name: 'package_line',
             path: 'package_line',
             component: () => import('../pages/package/PackageLine.vue'),
@@ -133,12 +138,7 @@ const routes: Array<RouteRecordRaw> = [
             name: 'package_work',
             path: 'package_work',
             component: () => import('../pages/package/PackageWork.vue'),
-          },
-          {
-            name: 'package_status',
-            path: 'package_status',
-            component: () => import('../pages/package/PackageStatus.vue'),
-          },
+          }, 
         ],
       },
       {

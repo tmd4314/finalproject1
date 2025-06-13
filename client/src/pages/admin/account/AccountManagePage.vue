@@ -206,7 +206,7 @@
               @input="e => handleBusinessNoInput(e.target.value)"
               :error="errors.businessNo"
               :error-messages="errors.businessNo ? '올바른 사업자번호를 입력하세요' : ''"
-              maxlength="12"
+              maxlength="10"
             />
           </div>
         </div>
@@ -569,7 +569,7 @@ function isValidBusinessNo(businessNo: string) {
 
 // 전화번호 유효성 검사
 function isValidPhone(phone: string) {
-  const regex = /^\d{3}-\d{4}-\d{4}$|\d{2}-\d{3}-\d{4}|\d{3}-\d{3}-\d{4}|\d{4}-\d{4}/
+  const regex = /^\d{3}-\d{4}-\d{4}$|^\d{2}-\d{3}-\d{4}$|^\d{3}-\d{3}-\d{4}$|^\d{4}-\d{4}$/
   return regex.test(phone)
 }
 
@@ -668,7 +668,15 @@ function handleBusinessNoInput(value: string) {
   const numbers = value.replace(/[^0-9]/g, '')
   
   // 사업자 포맷팅
+  if (numbers.length >= 10) {
   form.value.businessNo = `${numbers.slice(0, 3)}-${numbers.slice(3, 5)}-${numbers.slice(5)}`
+  } else 
+  
+  if (numbers.length == 3) {
+    form.value.businessNo = `${numbers.slice(0, 3)}-`
+  } else if (numbers.length == 5) {
+    form.value.businessNo = `${numbers.slice(0, 3)}-${numbers.slice(3, 5)}-`
+  }
 }
 
 // 전화번호 자동 포맷팅

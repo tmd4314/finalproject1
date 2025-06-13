@@ -28,7 +28,7 @@ module.exports = {
   getOrderItems: `
     SELECT od.product_code, 
            p.product_name, 
-           p.spec, 
+           p.product_atc, 
            od.order_qty, 
            p.stock, 
            od.remarks
@@ -43,7 +43,7 @@ module.exports = {
            om.order_date, 
            om.delivery_date,
            p.product_name, 
-           p.spec, 
+           p.product_atc, 
            od.order_qty, 
            od.product_code, 
            om.status
