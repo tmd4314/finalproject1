@@ -145,6 +145,7 @@ interface ProcessPayload {
   process_seq: number
   product_code: string
   code_value: string
+  process_group_code: string
 }
 
 interface EquipmentCode {
@@ -170,6 +171,11 @@ interface MaterialOption {
   usage_qty: number
 }
 
+interface ProcessGroupPayload {
+  process_group_code: string
+  product_code: string
+}
+
 const selectedProductCode = ref<string>('')
 const products = ref<Product[]>([])
 const processes = ref<Process[]>([])
@@ -192,7 +198,7 @@ const fetchProducts = async () => {
 
 const fetchEquipmentCodes = async () => {
   try{
-    const res = await axios ('/common-codes/?groups=0T')
+    const res = await axios.get('/common-codes/?groups=0T')
     equipmentCodes.value = res.data['0T'] || []
   } catch(err) {
     console.error('❌ 설비유형 불러오기 실패:', err)
@@ -366,11 +372,17 @@ const saveMaterial = async (): Promise<void> => {
 }
 
 const saveProcesses = async (): Promise<void> => {
-  const insertList: ProcessPayload[] = []
-  const updateList: ProcessPayload[] = []
+  const insertList: ProcessPayload[] = [];
+  const updateList: ProcessPayload[] = [];
+
+  const group_code = `${selectedProductCode.value}-Process`;
+  const groupItem: ProcessGroupPayload = {
+    process_group_code: group_code,
+    product_code: selectedProductCode.value
+  };
 
   processes.value.forEach((p, idx) => {
-    const code = `${selectedProductCode.value}Process${idx + 1}`
+    const code = `${selectedProductCode.value}Process${idx + 1}`;
     const payload: ProcessPayload = {
       process_code: code,
       process_name: p.process_name,
@@ -378,46 +390,46 @@ const saveProcesses = async (): Promise<void> => {
       process_seq: idx + 1,
       code_value: p.code_value,
       product_code: selectedProductCode.value,
-    }
+      process_group_code: group_code
+    };
 
     if (!p.process_code) {
-      // 신규 등록 대상
-      insertList.push(payload)
+      insertList.push(payload);
     } else {
-      // 기존 수정 대상
-      updateList.push(payload)
+      updateList.push(payload);
     }
-  })
+  });
 
   try {
+    // 신규 등록 처리
     if (insertList.length > 0) {
-      const res = await axios.post('/process/', insertList)
-      if (!res.data.isSuccessed) throw new Error('신규 등록 실패')
+      const groupRes = await axios.post('/processG', groupItem);
+      if (!groupRes.data.isSuccessed) throw new Error('공정 그룹 등록 실패');
+
+      const processRes = await axios.post('/process', insertList);
+      if (!processRes.data.isSuccessed) throw new Error('공정 등록 실패');
     }
 
-    if (updateList.length > 0) {
+    // 수정 처리
     for (const payload of updateList) {
       try {
-        const res = await axios.put(`/process/${payload.process_code}`, [payload])
+        const res = await axios.put(`/process/${payload.process_code}`, [payload]);
         if (!res.data.isSuccessed) {
-          console.warn(`⚠️ 수정 실패: ${payload.process_code}`)
-          continue // 실패한 항목은 건너뛰고 다음으로 진행
+          console.warn(`⚠️ 수정 실패: ${payload.process_code}`);
         }
       } catch (err) {
-        console.error(`❌ 수정 중 오류: ${payload.process_code}`, err)
-        alert(`공정 수정 중 오류 발생: ${payload.process_code}`)
-        continue
+        console.error(`❌ 수정 중 오류: ${payload.process_code}`, err);
+        alert(`공정 수정 중 오류 발생: ${payload.process_code}`);
       }
     }
-}
 
-    alert('공정 저장 완료!')
-    await fetchProcess()
+    alert('공정 저장 완료!');
+    await fetchProcess();
   } catch (err) {
-    console.error('❌ 저장 실패:', err)
-    alert('저장 중 오류 발생!')
+    console.error('❌ 저장 실패:', err);
+    alert('저장 중 오류 발생!');
   }
-}
+};
 
 const openPopup = (processCode: string,  productCode: string): void => {
   popupProcessCode.value = processCode

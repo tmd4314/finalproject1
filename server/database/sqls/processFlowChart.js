@@ -1,24 +1,34 @@
+const groupInsert = `
+INSERT INTO process_group (
+  process_group_code,
+  product_code
+) VALUES (?, ?)
+`;
+
+
 const processInsert = 
-  `INSERT INTO process(
-                      process_code,
-                      process_name,
-                      process_seq,
-                      process_time,
-                      code_value,
-                      process_remark,
-                      process_dt,
-                      product_code)
-  VALUES(?, ?, ?, ?, ?, ?, NOW(), ?)`
-  ;
+`INSERT INTO process(
+                    process_code,
+                    process_name,
+                    process_seq,
+                    process_time,
+                    code_value,
+                    process_remark,
+                    process_dt,
+                    process_group_code)
+VALUES(?, ?, ?, ?, ?, ?, NOW(), ?)`
+;
 
 const processSelect =
-  `SELECT process_code,
-          process_name,
-          process_seq,
-          process_time,
-          code_value
-   FROM   process
-   WHERE  product_code = ?`
+  `SELECT p.process_code,
+          p.process_name,
+          p.process_seq,
+          p.process_time,
+          p.code_value
+   FROM   process p
+   JOIN   process_group pg
+     ON   p.process_group_code = pg.process_group_code
+   WHERE  pg.product_code = ?`
 ;
 
 const processUpdate = 
@@ -78,6 +88,7 @@ const processDetailDELETE =
 ;
 
 module.exports ={
+  groupInsert,
   processInsert,
   processDetail,
   processSelect,

@@ -12,6 +12,10 @@
         :current-page.sync="page"
         track-by="plan_id"
       >
+        <template #cell(plan_reg_dt)="{ row }">
+          {{ formatToKST(row.source.plan_reg_dt) }}
+        </template>
+
         <template #cell(action)="{ row }">
           <va-button size="small" @click="onCalculateMRP(row.source)">계산</va-button>
         </template>
@@ -27,7 +31,7 @@
         track-by="material_code"
       />
       <div class="button-wrap">
-        <va-button @click="onRegisterOrder" :disabled="!selectedPlan">발주 등록</va-button>
+        <va-button @click="onRegisterOrder" :disabled="!selectedPlan">발주관리 등록</va-button>
       </div>
     </div>
   </div>
@@ -60,7 +64,11 @@ const page = ref(1)
 const planColumns = [
   { key: 'plan_id', label: '계획번호' },
   { key: 'plan_name', label: '계획명' },
-  { key: 'plan_reg_dt', label: '등록일' },
+  {
+    key: 'plan_reg_dt',
+    label: '등록일',
+    formatter: (value: string) => formatToKST(value)
+  },
   { key: 'action', label: '계산' }
 ]
 
@@ -72,6 +80,21 @@ const shortageColumns = [
   { key: 'material_cls', label: '분류' },
   { key: 'shortage_qty', label: '부족수량' }
 ]
+
+const formatToKST = (isoDate: string): string => {
+  const date = new Date(isoDate);
+  // KST 적용 (UTC+9)
+  const kst = new Date(date.getTime() + 9 * 60 * 60 * 1000);
+
+  const yyyy = kst.getFullYear();
+  const mm = String(kst.getMonth() + 1).padStart(2, '0');
+  const dd = String(kst.getDate()).padStart(2, '0');
+  const hh = String(kst.getHours()).padStart(2, '0');
+  const mi = String(kst.getMinutes()).padStart(2, '0');
+
+  return `${yyyy}-${mm}-${dd} ${hh}:${mi}`;
+};
+
 
 const fetchPlans = async () => {
   try {

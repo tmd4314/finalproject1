@@ -13,6 +13,33 @@ const findProcessDetail = async(processCode) => {
   return list;
 }
 
+const addProcessG = async (processGList) => {
+  const insertColums = [
+    'process_group_code',
+    'product_code'
+  ];
+
+  const data = convertObjToAry(processGList, insertColums);
+
+  const resInfo = await mariadb.query("groupInsert", data)
+  .catch(err => {
+    console.error('❌ insert 실패:', err);
+  });
+
+  let result = null;
+  if (resInfo?.affectedRows > 0) {
+    result = {
+      isSuccessed: true
+    };
+  } else {
+    result = {
+      isSuccessed: false,
+    };
+  }
+  return result;
+}
+
+
 const addProcess = async (processList) => {
   const insertColums = [
     'process_code',
@@ -21,7 +48,7 @@ const addProcess = async (processList) => {
     'process_time',
     'code_value',
     'process_remark',
-    'product_code'
+    'process_group_code'
   ];
 
   let successCount = 0;
@@ -146,6 +173,7 @@ const removeProcessDetailInfo = async(processCode, materialCode) => {
 
 
 module.exports = {
+  addProcessG,
   findProcess,
   addProcess,
   addDetailProcess,
