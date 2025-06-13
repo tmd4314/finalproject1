@@ -90,6 +90,11 @@ const routes: Array<RouteRecordRaw> = [
             path:'purchase-order',
             component: () => import('../pages/material/purchaseOrderPage.vue')
           },
+          {
+            name: 'purchase-check',
+            path:'purchase-check',
+            component: () => import('../pages/material/purchaseCheckPage.vue')
+          },
         ],
       },
       {

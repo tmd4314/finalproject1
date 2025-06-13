@@ -67,7 +67,11 @@ const purchaseCheck =
           po.due_date,
           po.account_id,
           ac.account_name,
-          po.name
+          po.name,
+          m.material_pay,
+          ac.business_no,
+          ac.address,
+          ac.charger_name
   FROM     purchase_order po
   JOIN     material m
     ON     po.material_code = m.material_code

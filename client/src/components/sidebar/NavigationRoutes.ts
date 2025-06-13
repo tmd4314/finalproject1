@@ -126,6 +126,11 @@ export default {
           name: 'purchase-order',
           displayName: 'menu.발주 관리'
         }
+        ,
+        {
+          name: 'purchase-check',
+          displayName: 'menu.발주 조회'
+        }
       ],
     },
     {
