@@ -2,10 +2,10 @@
 module.exports = {
   // ========== 라인 마스터 관리 ==========
   
-  // 라인 마스터 등록 (실제 DB 구조에 맞춤 - location 제거)
+  // 라인 마스터 등록 (실제 DB 구조에 맞춤)
   insertLineMaster: `
     INSERT INTO package_master (
-      line_id, line_name, eq_group_code, line_type, max_capacity, description, reg_date, result_id
+      line_code, line_name, eq_group_code, line_type, max_capacity, description, reg_date, result_id
     ) VALUES (?, ?, ?, ?, ?, ?, NOW(), ?)
   `,
 
@@ -22,7 +22,7 @@ module.exports = {
       DATE_FORMAT(reg_date, '%Y-%m-%d') as reg_date,
       result_id
     FROM package_master
-    ORDER BY line_id ASC
+    ORDER BY line_code ASC
   `,
 
   // 라인 마스터 상세
@@ -41,7 +41,7 @@ module.exports = {
     WHERE line_masterid = ?
   `,
 
-  // 라인 ID로 마스터 조회
+  // 라인 코드로 마스터 조회
   selectLineMasterByLineId: `
     SELECT
       line_masterid,
@@ -54,10 +54,10 @@ module.exports = {
       DATE_FORMAT(reg_date, '%Y-%m-%d') as reg_date,
       result_id
     FROM package_master
-    WHERE line_id = ?
+    WHERE line_code = ?
   `,
 
-  // 라인 마스터 수정 (location 제거)
+  // 라인 마스터 수정
   updateLineMaster: `
     UPDATE package_master SET
       line_name = ?,
@@ -73,12 +73,19 @@ module.exports = {
     DELETE FROM package_master WHERE line_masterid = ?
   `,
 
-  // 라인 ID 중복 체크
+  // 라인 코드 중복 체크 (기존)
   checkLineIdExists: `
     SELECT COUNT(*) as count FROM package_master WHERE line_code = ?
   `,
 
-  // 사용 가능한 라인 ID 목록 (A-Z 중 미사용)
+  // 라인 코드 + 타입 조합 중복 체크 - 🔥 새로 추가
+  checkLineIdExistsByType: `
+    SELECT COUNT(*) as count 
+    FROM package_master 
+    WHERE line_code = ? AND line_type = ?
+  `,
+
+  // 사용 가능한 라인 코드 목록 (A-Z 중 미사용)
   getAvailableLineIds: `
     SELECT 
       CHAR(65 + numbers.n) as line_code
@@ -98,15 +105,15 @@ module.exports = {
   // 라인(상태/실시간) 등록
   insertLine: `
     INSERT INTO package_line (
-      line_masterid, pkg_type, line_status, employee_name, eq_name, current_speed, curr_work_no, target_qty, reg_date
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
+    line_masterid, line_code, pkg_type, line_status, employee_name, eq_name, current_speed, curr_work_no, target_qty, reg_date
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
   `,
 
-  // 프론트엔드용 통합 라인 목록 (마스터 + 최신 상태) - 실제 DB 구조 반영
+  // 🔥 프론트엔드용 통합 라인 목록 (마스터 + 최신 상태) - 실제 DB 구조 반영
   selectLineList: `
     SELECT
       m.line_masterid,
-      m.line_id,
+      m.line_code as line_id,
       m.line_name,
       m.line_type,
       m.eq_group_code,
@@ -133,7 +140,7 @@ module.exports = {
         ROW_NUMBER() OVER (PARTITION BY line_masterid ORDER BY reg_date DESC, line_id DESC) as rn
       FROM package_line
     ) latest ON m.line_masterid = latest.line_masterid AND latest.rn = 1
-    ORDER BY m.line_id ASC
+    ORDER BY m.line_code ASC
   `,
 
   // 라인 상세 (상태/실적)
@@ -175,7 +182,7 @@ module.exports = {
   selectLineWithMaster: `
     SELECT
       l.*,
-      m.line_id as master_line_id,
+      m.line_code as master_line_id,
       m.line_name,
       m.eq_group_code,
       m.line_type,
@@ -186,17 +193,17 @@ module.exports = {
     WHERE l.line_id = ?
   `,
 
-  // 특정 마스터 라인 ID로 상태 조회
+  // 특정 마스터 라인 코드로 상태 조회
   selectLineStatusByMasterId: `
     SELECT
       l.*,
-      m.line_id as master_line_id,
+      m.line_code as master_line_id,
       m.line_name,
       m.line_type,
       m.max_capacity
     FROM package_line l
     JOIN package_master m ON l.line_masterid = m.line_masterid
-    WHERE m.line_id = ?
+    WHERE m.line_code = ?
     ORDER BY l.reg_date DESC
     LIMIT 1
   `,
@@ -212,19 +219,19 @@ module.exports = {
       current_speed = ?,
       curr_work_no = ?,
       target_qty = ?
-    WHERE line_masterid = (SELECT line_masterid FROM package_master WHERE line_id = ?)
+    WHERE line_masterid = (SELECT line_masterid FROM package_master WHERE line_code = ?)
       AND line_id = (
         SELECT MAX(pl.line_id) 
         FROM package_line pl 
         JOIN package_master pm ON pl.line_masterid = pm.line_masterid 
-        WHERE pm.line_id = ?
+        WHERE pm.line_code = ?
       )
   `,
 
-  // 라인 상태 삭제 (마스터 라인 ID 기준)
+  // 라인 상태 삭제 (마스터 라인 코드 기준)
   deleteLineByMasterId: `
     DELETE FROM package_line 
-    WHERE line_masterid = (SELECT line_masterid FROM package_master WHERE line_id = ?)
+    WHERE line_masterid = (SELECT line_masterid FROM package_master WHERE line_code = ?)
   `,
 
   // ========== 통계 쿼리 ==========
@@ -253,7 +260,7 @@ module.exports = {
   // 현재 작업 중인 라인 목록
   selectWorkingLines: `
     SELECT
-      m.line_id,
+      m.line_code,
       m.line_name,
       m.line_type,
       l.employee_name,

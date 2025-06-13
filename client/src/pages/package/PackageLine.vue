@@ -417,25 +417,17 @@ onMounted(() => {
 async function fetchLines() {
   loading.value = true
   error.value = ''
-  
   try {
-    console.log('🔄 라인 목록 로드 시작...')
-    
-    
-    //실제 API 호출 (주석 처리됨)
-    
     const res = await axios.get('/lines/list')
-    console.log('📥 API 응답:', res.data)
     
+    // 🔥 백엔드 응답 구조 확인
     if (res.data && res.data.success && Array.isArray(res.data.data)) {
-      packageLines.value = res.data.data
+      packageLines.value = res.data.data  // .data 추가!
       console.log('✅ 라인 목록 로드 완료:', res.data.data.length, '개')
     } else {
-      console.warn('⚠️ 예상과 다른 응답 구조:', res.data)
       packageLines.value = []
       error.value = '데이터 형식이 올바르지 않습니다'
     }
-    
   } catch (err) {
     console.error('❌ 라인 목록 로드 실패:', err)
     error.value = '라인 목록을 불러오지 못했습니다.'

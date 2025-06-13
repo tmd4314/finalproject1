@@ -71,7 +71,7 @@ router.post('/', async (req, res) => {
     console.error('❌ 라인 등록 실패:', err);
     
     // 중복 라인 ID 에러 처리
-    if (err.message.includes('이미 존재하는 라인 ID')) {
+    if (err.message.includes('이미 존재하는 라인')) {
       res.status(409).json({
         success: false,
         message: err.message,
@@ -81,6 +81,39 @@ router.post('/', async (req, res) => {
       res.status(500).json({
         success: false,
         message: '라인 등록에 실패했습니다.',
+        error: err.message
+      });
+    }
+  }
+});
+
+// 내포장/외포장 동시 등록 API - 🔥 새로 추가
+router.post('/dual', async (req, res) => {
+  try {
+    console.log('➕ 내포장/외포장 동시 등록 API 호출');
+    console.log('요청 데이터:', req.body);
+    
+    const result = await lineService.insertDualPackagingLine(req.body);
+    
+    res.status(201).json({
+      success: true,
+      data: result,
+      message: result.message
+    });
+    
+  } catch (err) {
+    console.error('❌ 내포장/외포장 동시 등록 실패:', err);
+    
+    if (err.message.includes('이미 존재하는 라인')) {
+      res.status(409).json({
+        success: false,
+        message: err.message,
+        error: 'DUPLICATE_LINE_ID'
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: '라인 동시 등록에 실패했습니다.',
         error: err.message
       });
     }
