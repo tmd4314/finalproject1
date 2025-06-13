@@ -54,10 +54,10 @@ module.exports = {
     LEFT JOIN PRODUCT p ON od.product_code = p.product_code
     ORDER BY om.order_id DESC, od.order_detail_id
   `,
-};
+
 
 // 주문 등록
-const orderInsert = `INSERT INTO order_detail ( order_detail_id,
+orderInsert: `INSERT INTO order_detail ( order_detail_id,
                                                 order_id,
                                                 product_code,
                                                 order_qty,
@@ -68,4 +68,7 @@ const orderInsert = `INSERT INTO order_detail ( order_detail_id,
                                                 remain_qty,
                                                 reamarks,
                                                 reg_date )
-                     VALUES(?,?,?,?,?,?,?,?,?,?,?)`;
+                     VALUES(?,?,?,?,?,?,?,?,?,?,?)`,
+
+                     
+};
