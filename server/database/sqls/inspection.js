@@ -1,3 +1,10 @@
+//제품명 조회
+const selectProduct =
+`SELECT product_name
+ FROM   product
+`
+;
+
 // 전체조회
 const selectInspectionList = 
 `SELECT  insp_code,
