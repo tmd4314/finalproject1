@@ -114,12 +114,7 @@ const addDetailProcess = async (processCode, detailList) => {
   }
 
   return {
-    isSuccessed: successCount === detailList.length,
-    insertedCount: successCount,
-    totalCount: detailList.length,
-    message: successCount === detailList.length
-      ? '모든 공정 등록 완료'
-      : `${successCount}/${detailList.length}개만 등록됨`
+    isSuccessed: successCount === detailList.length
   };
 };
 
