@@ -121,6 +121,10 @@ export default {
         {
           name: 'mrp-calculate',
           displayName: 'menu.MRP 계산'
+        },
+        {
+          name: 'purchase-order',
+          displayName: 'menu.발주 관리'
         }
       ],
     },

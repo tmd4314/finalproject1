@@ -85,6 +85,11 @@ const routes: Array<RouteRecordRaw> = [
             path:'mrp-calculate',
             component: () => import('../pages/material/mrpCalculatePage.vue')
           },
+          {
+            name: 'purchase-order',
+            path:'purchase-order',
+            component: () => import('../pages/material/purchaseOrderPage.vue')
+          },
         ],
       },
       {

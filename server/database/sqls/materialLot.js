@@ -9,14 +9,18 @@ const selectOrderList =
           pd.material_name,
           pd.material_unit,
           pt.material_qual_num,
-          pt.mat_qual_test_status
+          pt.material_expiration_date
   FROM    purchase_order po
   JOIN    material_quality_test pt
     ON    po.purchase_order_id = pt.purchase_order_id
   JOIN    material pd
     ON    po.material_code = pd.material_code
-  WHERE   pt.mat_qual_test_status = "합격"
-    AND   po.stock_status = "수령"`
+  JOIN    common_code co
+    ON    po.code_value = co.code_value 
+  JOIN    common_code cq
+    ON    pt.code_value = cq.code_value
+  WHERE   co.code_label = "수령"
+   AND    cq.code_label = "합격"`
   ;
 
 const insertMaterialLOT =
@@ -33,8 +37,8 @@ const insertMaterialLOT =
 
 const updateOrder = 
   ` UPDATE purchase_order
-    SET stock_status = "입고완료"
-    WHERE purchase_order_id = ?
+    SET    code_value = "y5"
+    WHERE  purchase_order_id = ?
   `
 ;
 
@@ -53,22 +57,28 @@ const selectLotList =
 ;
 
 const orderCheck =
-  `SELECT po.purchase_order_id,
-          m.material_code,
-          m.material_name,
-          m.material_unit,
-          po.purchase_order_quantity,
-          po.purchase_order_date
+  `SELECT  po.purchase_order_id,
+           m.material_code,
+           m.material_name,
+           m.material_unit,
+           po.purchase_order_quantity,
+           po.purchase_order_date,
+           po.account_id,
+           ac.account_name
     FROM   purchase_order po
     JOIN   material m
       ON   po.material_code = m.material_code
-    WHERE  po.stock_status = "발주"
+    JOIN   account ac
+      ON   po.account_id = ac.account_id
+    JOIN   common_code co
+      ON   po.code_value = co.code_value
+    WHERE  co.code_label = "발주완료"
   `
 ;
 
 const orderCheckUpdate =
   ` UPDATE purchase_order
-    SET    stock_status = "수령"
+    SET    code_value = "y4"
     WHERE  purchase_order_id = ?
   `
 ;

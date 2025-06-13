@@ -51,7 +51,7 @@
           <td>{{ item.quantity }}</td>
           <td>{{ item.material_unit }}</td>
           <td>{{ item.material_cls }}</td>
-          <td>{{ item.received_date }}</td>
+          <td>{{ formatToKST(item.received_date) }}</td>
         </tr>
       </tbody>
     </table>
@@ -71,6 +71,20 @@ interface MaterialLot {
   material_cls: string
   received_date: string
 }
+
+const formatToKST = (isoDate: string): string => {
+  const date = new Date(isoDate);
+  // KST 적용 (UTC+9)
+  const kst = new Date(date.getTime() + 9 * 60 * 60 * 1000);
+
+  const yyyy = kst.getFullYear();
+  const mm = String(kst.getMonth() + 1).padStart(2, '0');
+  const dd = String(kst.getDate()).padStart(2, '0');
+  const hh = String(kst.getHours()).padStart(2, '0');
+  const mi = String(kst.getMinutes()).padStart(2, '0');
+
+  return `${yyyy}-${mm}-${dd} ${hh}:${mi}`;
+};
 
 const lotList = ref<MaterialLot[]>([])
 const filters = ref({

@@ -12,7 +12,9 @@
             <th>단위</th>
             <th>발주 수량</th>
             <th>발주일</th>
-            <th>수령</th>
+            <th>거래처코드</th>
+            <th>거래처명</th>
+            <th>수령 수</th>
           </tr>
         </thead>
         <tbody>
@@ -22,7 +24,9 @@
             <td>{{ item.material_name }}</td>
             <td>{{ item.material_unit }}</td>
             <td>{{ item.purchase_order_quantity }}</td>
-            <td>{{ item.purchase_order_date }}</td>
+            <td>{{ formatToKST(item.purchase_order_date) }}</td>
+            <td>{{ item.account_id }}</td>
+            <td>{{ item.account_name }}</td>
             <td><button @click="handleReceive(item)" class="btn">수령</button></td>
           </tr>
         </tbody>
@@ -51,7 +55,7 @@
           <td>{{ item.material_name }}</td>
           <td>{{ item.purchase_order_quantity }}</td>
           <td>{{ item.material_unit }}</td>
-          <td><input type="date" v-model="item.expiry_date" /></td>
+          <td>{{ formatToKST(item.material_expiration_date) }}</td>
           <td><input type="text" v-model="item.lot_number" placeholder="예: TEMP-LOT001" /></td>
           <td><button @click="saveMaterialLot(item)" class="btn">입고</button></td>
         </tr>
@@ -72,9 +76,25 @@ interface MaterialReceipt {
   material_unit: string
   mat_qual_test_status: string
   lot_number: string
-  expiry_date: string
+  material_expiration_date: string
   purchase_order_date: string
+  account_id: string
+  account_name: string
 }
+
+const formatToKST = (isoDate: string): string => {
+  const date = new Date(isoDate);
+  // KST 적용 (UTC+9)
+  const kst = new Date(date.getTime() + 9 * 60 * 60 * 1000);
+
+  const yyyy = kst.getFullYear();
+  const mm = String(kst.getMonth() + 1).padStart(2, '0');
+  const dd = String(kst.getDate()).padStart(2, '0');
+  const hh = String(kst.getHours()).padStart(2, '0');
+  const mi = String(kst.getMinutes()).padStart(2, '0');
+
+  return `${yyyy}-${mm}-${dd} ${hh}:${mi}`;
+};
 
 const materialOrderList = ref<MaterialReceipt[]>([])
 const orderCheckList = ref<MaterialReceipt[]>([])
@@ -104,7 +124,7 @@ const saveMaterialLot = async (item: MaterialReceipt): Promise<void> => {
   const payload = {
     lot_number: item.lot_number,
     material_code: item.material_code,
-    expiry_date: item.expiry_date,
+    material_expiration_date: item.material_expiration_date,
     quantity: item.purchase_order_quantity,
     purchase_order_id: item.purchase_order_id
   }
