@@ -42,18 +42,10 @@
       </div>
     </div>
 
-
-
-
-
     <!-- 버튼 -->
     <div class="form-buttons">
       <va-button @click="registerProduct" color="primary">등록</va-button>
-      <va-button @click="resetForm">취소</va-button>
-    </div>
-    <div class="form-buttons">
-      <va-button @click="updateProduct" color="warning">수정</va-button>
-      <va-button @click="deleteProduct" color="danger">삭제</va-button>
+      <va-button @click="resetForm" color="seconderys">초기화</va-button>
     </div>
   </div>
 </template>
