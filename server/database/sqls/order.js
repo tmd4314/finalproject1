@@ -1,6 +1,6 @@
 module.exports = {
-  // 주문 목록(좌측 리스트)
-  getOrderList: `
+    // 주문 목록(좌측 리스트)
+    getOrderList: `
     SELECT om.order_id, 
            ac.account_name, 
            om.order_date, 
@@ -9,8 +9,8 @@ module.exports = {
     LEFT JOIN ACCOUNT ac ON om.account_id = ac.account_id
     ORDER BY om.order_id DESC
   `,
-  // 주문 기본정보(상세 우측 헤더)
-  getOrderDetail: `
+    // 주문 기본정보(상세 우측 헤더)
+    getOrderDetail: `
     SELECT om.order_id, 
            om.order_date, 
            om.delivery_date, 
@@ -24,8 +24,8 @@ module.exports = {
     LEFT JOIN ACCOUNT ac ON om.account_id = ac.account_id
     WHERE om.order_id = ?
   `,
-  // 주문 품목 리스트(상세 우측 하단)
-  getOrderItems: `
+    // 주문 품목 리스트(상세 우측 하단)
+    getOrderItems: `
     SELECT od.product_code, 
            p.product_name, 
            p.product_atc, 
@@ -36,8 +36,9 @@ module.exports = {
     LEFT JOIN PRODUCT p ON od.product_code = p.product_code
     WHERE od.order_id = ?
   `,
-  // 주문+품목 목록(주문관리화면 상단)
-  getOrderListWithItems: `
+
+    // 주문+품목 목록(주문관리화면 상단)
+    getOrderListWithItems: `
     SELECT om.order_id, 
            ac.account_name, 
            om.order_date, 
@@ -52,5 +53,19 @@ module.exports = {
     LEFT JOIN ORDER_DETAIL od ON om.order_id = od.order_id
     LEFT JOIN PRODUCT p ON od.product_code = p.product_code
     ORDER BY om.order_id DESC, od.order_detail_id
-  `
+  `,
 };
+
+// 주문 등록
+const orderInsert = `INSERT INTO order_detail ( order_detail_id,
+                                order_id,
+                                product_code,
+                                order_qty,
+                                order_date,
+                                delivery_date,
+                                progress_status,
+                                delivery_qty,
+                                remain_qty,
+                                reamarks,
+                                reg_date )
+      VALUES(?,?,?,?,?,?,?,?,?,?,?)`;
