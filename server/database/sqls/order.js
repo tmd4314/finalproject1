@@ -58,14 +58,14 @@ module.exports = {
 
 // 주문 등록
 const orderInsert = `INSERT INTO order_detail ( order_detail_id,
-                                order_id,
-                                product_code,
-                                order_qty,
-                                order_date,
-                                delivery_date,
-                                progress_status,
-                                delivery_qty,
-                                remain_qty,
-                                reamarks,
-                                reg_date )
-      VALUES(?,?,?,?,?,?,?,?,?,?,?)`;
+                                                order_id,
+                                                product_code,
+                                                order_qty,
+                                                order_date,
+                                                delivery_date,
+                                                progress_status,
+                                                delivery_qty,
+                                                remain_qty,
+                                                reamarks,
+                                                reg_date )
+                     VALUES(?,?,?,?,?,?,?,?,?,?,?)`;
