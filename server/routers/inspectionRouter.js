@@ -2,13 +2,6 @@ const express = require('express');
 const router = express.Router();
 const inspectionService = require('../services/inspectionService.js');
 
-// 제품명 조회
-router.get('/productList', async(req, res) => {
-  const productList = await inspectionService.selectProductName().catch((err) => console.log(err));
-  res.send(productList);
-})
-
-
 // 전체 리스트 조회
 router.get('/list', async(req, res) => {
   const inspectionList = await inspectionService.selectAll().catch((err) => console.log(err));
