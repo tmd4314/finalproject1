@@ -1,58 +1,108 @@
 <template>
-  <!-- 제품 등록 폼 -->
   <div class="product-form">
-    <h3 class="form-title">검사항목 등록  </h3>
+    <h3 class="form-title">검사항목 등록</h3>
     <br>
-
-    <!-- 상단 폼 -->
     <div class="form-section">
+      <h3 class="form-title">기본정보</h3>
+      <br>
+        <div class="input-row">
+          <va-input v-model="form.prodName" label="제품명" class="quarter-width"/>
+          <va-input v-model="form.inspCode" label="항목코드" class="quarter-width" />
+          <va-input v-model="form.inspName" label="항목명" class="quarter-width" />
+          <va-input v-model="form.inspValueType" label="판정방식" class="quarter-width" />
+        </div>
+        <div class="input-row">
+          <va-input v-model="form.supplementary" label="비고" class="half-width" />
+        </div>
+    </div>
+    <div class="form-section">
+      <h3 class="form-title">기준값 정보</h3>
+      <br>
       <div class="input-row">
-        <va-input v-model="form.type" label="유형" class="quarter-width"  />
-        <va-input v-model="form.itemCode" label="항목코드" class="quarter-width" :readonly="isEditMode" />
-        <va-input v-model="form.itemName" label="항목명" class="quarter-width" />
-        <va-input v-model="form.basicFigure" label="기본수치" class="quarter-width" />
+          <va-select
+            v-model="form.inspRefValue"
+            :options="['정량', '정성']"
+            label="기준값 유형"
+            class="quarter-width"
+          />
+          <va-input
+            v-model="form.inspQuantitaValue"
+            label="정량 기준값"
+            class="quarter-width"
+            :disabled="!isQuantitative"
+          />
+          <va-input
+            v-model="form.inspQualitaValue"
+            label="정성 기준값"
+            class="quarter-width"
+            :disabled="!isQualitative"
+          />
+          <div class="input-row">
+            <va-input
+            v-model="form.inspUnit"
+            label="단위"
+            class="quarter-width"
+            :disabled="!isQuantitative"
+          />
+          <va-input
+            v-model="form.inspQuantitaMin"
+            label="최소범위"
+            class="quarter-width"
+            type="number"
+            :disabled="!isQuantitative"
+          />
+          <va-input
+            v-model="form.inspQuantitaMax"
+            label="최대범위"
+            class="quarter-width"
+            type="number"
+            :disabled="!isQuantitative"
+          />
+          <va-select
+            v-model="form.inspRange"
+            :options="['±', '≤']"
+            label="기준값범위"
+            class="quarter-width"
+            :disabled="!isQuantitative"
+          />
+          </div>
       </div>
       <div class="input-row">
-        <va-input v-model="form.unit" label="단위" class="quarter-width" />
-        <va-input v-model="form.judgment" label="판정방식" class="quarter-width" />
-        <va-input v-model="form.supplementary" label="비고" class="half-width" />
-      </div>
-      <div class="form-buttons">
-        <va-button @click="registerProduct" color="primary">등록</va-button>
-        <va-button @click="resetForm" color="secondary">초기화</va-button>
-        <va-button @click="deleteProduct" color="danger">삭제</va-button>
+        <div class="form-buttons">
+          <!-- <va-button @click="registerProduct" color="primary">등록</va-button>
+          <va-button @click="resetForm" color="secondary">초기화</va-button>
+          <va-button @click="deleteProduct" color="danger">삭제</va-button> -->
+        </div>
       </div>
     </div>
-
-    <!-- 하단 폼 -->
-      <div class="form-section">
-        <table class="custom-table">
-          <thead>
-            <tr>
-              <th><va-checkbox v-model="allChecked" @click.stop="toggleAll" /></th>
-              <th>유형</th>
-              <th>항목코드</th>
-              <th>항목명</th>
-              <th>기본수치</th>
-              <th>단위</th>
-              <th>판정방식</th>
-              <th>비고</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="(item, index) in inspectionList" :key="item.insp_code">
-              <td><va-checkbox v-model="item.checked" @click.stop="resetForm" /></td>
-              <td @click="selectItem(item)">{{ item.item_type }}</td>
-              <td @click="selectItem(item)">{{ item.insp_code }}</td>
-              <td @click="selectItem(item)">{{ item.insp_name }}</td>
-              <td @click="selectItem(item)">{{ item.insp_stad_val }}</td>
-              <td @click="selectItem(item)">{{ item.insp_unit }}</td>
-              <td @click="selectItem(item)">{{ item.insp_judt_type }}</td>
-              <td @click="selectItem(item)" >{{ item.insp_remark }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+    <div class="form-section">
+      <table class="custom-table">
+        <thead>
+          <tr>
+            <th><va-checkbox v-model="allChecked" @click.stop="toggleAll" /></th>
+            <th>유형</th>
+            <th>항목코드</th>
+            <th>항목명</th>
+            <th>기본수치</th>
+            <th>단위</th>
+            <th>판정방식</th>
+            <th>비고</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="item in inspectionList" :key="item.insp_code">
+            <td><va-checkbox v-model="item.checked" @click.stop /></td>
+            <!-- <td @click="selectItem(item)">{{ item.prod_name || form.prodName }}</td>
+            <td @click="selectItem(item)">{{ item.insp_code }}</td>
+            <td @click="selectItem(item)">{{ item.insp_name }}</td>
+            <td @click="selectItem(item)">{{ item.insp_stad_val }}</td>
+            <td @click="selectItem(item)">{{ item.insp_unit }}</td>
+            <td @click="selectItem(item)">{{ item.insp_judt_type }}</td>
+            <td @click="selectItem(item)">{{ item.insp_remark }}</td> -->
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 </template>
 
@@ -61,32 +111,50 @@ import { ref, computed, onMounted, watch } from 'vue'
 import axios from 'axios'
 
 interface InspectionItem {
-  item_type: string
-  insp_code: string
-  insp_name: string
-  insp_stad_val: string
-  insp_unit: string
-  insp_judt_type: string
-  insp_remark: string
-  checked?: boolean
+  product_name: string;
+  insp_code: string;
+	insp_name: string;
+  insp_value_type: string;
+  insp_ref_value: string;
+  insp_quantita_value: string; 
+  insp_qualita_value: string;
+  insp_unit: string;
+  insp_quantita_min: number;
+  insp_quantita_max: number;
+  insp_range: string;
+  insp_judgment: string;
+  insp_remark: string;
+  checked?: boolean;
 }
 
 const inspectionList = ref<InspectionItem[]>([])
 
 const form = ref({
-  type: '',
-  itemCode: '',
-  itemName: '',
-  basicFigure: '',
-  unit: '',
-  judgment: '',
-  supplementary: '',
+  prodName: '',              
+  inspCode: '',               
+  inspName: '',               
+  inspValueType: '',        
+  inspRefValue: '',           
+  inspQuantitaValue: '', 
+  inspQualitaValue: '',       
+  inspUnit: '',             
+  inspQuantitaMin: 0,      
+  inspQuantitaMax: 0,      
+  inspRange: '',             
+  inspJudgment: '',          
+  inspRemark: '',          
+  supplementary: ''         
 })
+
+const isQuantitative = computed(() => form.value.inspRefValue === '정량')
+const isQualitative = computed(() => form.value.inspRefValue === '정성')
+
+const isEditMode = ref(false)
+const allChecked = ref(false)
 
 const fetchInspectionList = async () => {
   try {
     const res = await axios.get('/inspections/list')
-    console.log('응답데이터 : ', res.data);
     inspectionList.value = res.data.map((item: InspectionItem) => ({
       ...item,
       checked: false
@@ -96,161 +164,139 @@ const fetchInspectionList = async () => {
   }
 }
 
-const isEditMode = ref(false)
-
-const allChecked = ref(false)
-
-// allChecked 값이 변하면 모든 체크박스 상태를 동기화
 watch(allChecked, (newVal) => {
   inspectionList.value.forEach(item => {
     item.checked = newVal
   })
-  resetForm()  // 전체 체크/해제시 무조건 input박스 비우기
+  // resetForm()
 })
 
-// 개별 체크박스 변경 시 allChecked 값도 동기화 (부분 체크 상태 관리)
 watch(inspectionList, () => {
-  const allAreChecked = inspectionList.value.length > 0 && inspectionList.value.every(item => item.checked)
+  const allAreChecked = inspectionList.value.length > 0 &&
+    inspectionList.value.every(item => item.checked)
   if (allChecked.value !== allAreChecked) {
     allChecked.value = allAreChecked
   }
 }, { deep: true })
 
-// 헤더 체크박스 클릭 시 처리 (클릭할 때 자동으로 allChecked가 바뀌니 따로 처리 없어도 됨)
-// 하지만 혹시 필요하면 아래 함수 추가 가능
-
 function toggleAll() {
-  // allChecked 값에 따라 inspectionList 모두 체크/해제 (watch로 자동 동기화 됨)
-  // resetForm은 watch에서 호출됨
+  // allChecked가 이미 변경되므로 실제 내용은 watch에서 처리됨
 }
 
-const selectedItems = computed(() => 
+const selectedItems = computed(() =>
   inspectionList.value.filter(item => item.checked)
 )
 
-function selectItem(item: any) {
+// function selectItem(item: InspectionItem) {
+//   if (selectedItems.value.length > 0 || item.checked) return;
 
-  if(selectedItems.value.length > 0) return;
+//   form.value = {
+//     prodName: item.prod_name || '',
+//     itemCode: item.insp_code,
+//     itemName: item.insp_name,
+//     basicFigure: item.insp_stad_val,
+//     unit: item.insp_unit,
+//     judgment: item.insp_judt_type,
+//     supplementary: item.insp_remark
+//   }
+//   isEditMode.value = true
+// }
 
-  if(item.checked) return;
-  
-  form.value = {
-    type: item.item_type,
-    itemCode: item.insp_code,
-    itemName: item.insp_name,
-    basicFigure: item.insp_stad_val,
-    unit: item.insp_unit,
-    judgment: item.insp_judt_type,
-    supplementary: item.insp_remark
-  };
-  isEditMode.value =true;
-}
+// function resetForm() {
+//   form.value = {
+//     prodName: '',
+//     itemCode: '',
+//     itemName: '',
+//     basicFigure: '',
+//     unit: '',
+//     judgment: '',
+//     supplementary: ''
+//   }
+//   isEditMode.value = false
+// }
 
-function resetForm() {
-  form.value = {
-    type: '', itemCode: '', itemName: '', basicFigure: '', unit: '',
-    judgment: '', supplementary: ''
-  };
-  isEditMode.value = false;
-}
+// const registerProduct = async () => {
+//   const { itemCode, itemName, basicFigure, unit, judgment, supplementary } = form.value
 
-const registerProduct = async () => {
-    
-  if (
-    !form.value.type.trim() ||
-    !form.value.itemCode.trim() ||
-    !form.value.itemName.trim() ||
-    !form.value.basicFigure.trim() ||
-    !form.value.unit.trim() ||
-    !form.value.judgment.trim()
-  ) {
-    alert('모든 필수 항목을 입력해주세요.');
-    return;
-  }
+//   if (!itemCode.trim() || !itemName.trim() || !basicFigure.trim() || !unit.trim() || !judgment.trim()) {
+//     alert('모든 필수 항목을 입력해주세요.')
+//     return
+//   }
 
-  const itemsToDelete = inspectionList.value
-                  .map(item => {
-                    if(item.checked) 
-                      return item.insp_code;
-                   })
+  // const newInspection = {
+  //   insp_code: itemCode,
+  //   insp_name: itemName,
+  //   insp_stad_val: basicFigure,
+  //   insp_unit: unit,
+  //   insp_judt_type: judgment,
+  //   insp_remark: supplementary
+  // }
 
-  const newInspection = {
-      item_type: form.value.type,
-      insp_code: form.value.itemCode,
-      insp_name: form.value.itemName,
-      insp_stad_val: form.value.basicFigure,
-      insp_unit: form.value.unit,
-      insp_judt_type: form.value.judgment,
-      insp_remark: form.value.supplementary
-    }
-    
-    try {
-      if (isEditMode.value) {
-        if(itemsToDelete.length == 1) {
-          
-        }
-        const res = await axios.post('/inspections/update', newInspection);
-        if (res.data.success) {
-          alert('수정성공');
-          await fetchInspectionList();
-          resetForm();
-        } else {
-          alert(res.data.message || '수정 실패');
-        }
-      } else {
-        const res = await axios.post('/inspections/insert', newInspection);
-        if(res.data.success) {
-          alert('등록 성공');
-          inspectionList.value.push({ ...newInspection });
-          await fetchInspectionList();
-          resetForm();
-        }
-      }
-    } catch (err: any) {
+//   try {
+//     if (isEditMode.value) {
+//       const res = await axios.post('/inspections/update', newInspection)
+//       if (res.data.success) {
+//         alert('수정 성공')
+//         await fetchInspectionList()
+//         resetForm()
+//       } else {
+//         alert(res.data.message || '수정 실패')
+//       }
+//     } else {
+//       const res = await axios.post('/inspections/insert', newInspection)
+//       if (res.data.success) {
+//         alert('등록 성공')
+//         await fetchInspectionList()
+//         resetForm()
+//       } else {
+//         alert(res.data.message || '등록 실패')
+//       }
+//     }
+//   } catch (err: any) {
+//     if (err.response?.status === 400 && err.response.data?.message) {
+//       alert(err.response.data.message)
+//     } else {
+//       console.error('서버 에러:', err)
+//       alert('중복된 코드를 입력하였거나 서버 오류입니다.')
+//     }
+//     resetForm()
+//   }
+// }
 
-      if(err.response?.status === 400 && err.response.data?.message) {
-        alert(err.response.data.message);
-        resetForm();
-      } else {
-        console.log('서버 에러 : ', err);
-        alert('중복된 코드를 입력하였습니다');
-      }
-  }
-};
+// const deleteProduct = async () => {
+//   const itemsToDelete = inspectionList.value
+//     .filter(item => item.checked)
+//     .map(item => item.insp_code)
 
-const deleteProduct = async () => {
-  const itemsToDelete = inspectionList.value
-                    .map(item => {
-                      if(item.checked) 
-                        return item.insp_code;
-                     })
-    
-  if (itemsToDelete.length === 0) {
-    alert('삭제할 항목을 선택해주세요.')
-    return
-  }
-  const confirmDelete = confirm(`${itemsToDelete.length}개 항목을 삭제하시겠습니까?`)
-  if (!confirmDelete) return
+//   if (itemsToDelete.length === 0) {
+//     alert('삭제할 항목을 선택해주세요.')
+//     return
+//   }
 
-  try {
-    const res = await axios.delete(`/inspections/${itemsToDelete}`)
-    if(!res.data.success) {
-        alert('삭제 실패')
-      }
-    alert('삭제 성공');
-    await fetchInspectionList(); 
-    resetForm();                  
-    allChecked.value = false
-    } catch (err: any) {
-      console.error('삭제 오류:', err)
-      alert('서버 오류로 삭제에 실패했습니다.')
-  }
-};
+//   const confirmDelete = confirm(`${itemsToDelete.length}개 항목을 삭제하시겠습니까?`)
+//   if (!confirmDelete) return
+
+//   try {
+//     const res = await axios.delete('/inspections/delete', {
+//       data: { codes: itemsToDelete }
+//     })
+//     if (!res.data.success) {
+//       alert('삭제 실패')
+//       return
+//     }
+//     alert('삭제 성공')
+//     await fetchInspectionList()
+//     resetForm()
+//     allChecked.value = false
+//   } catch (err: any) {
+//     console.error('삭제 오류:', err)
+//     alert('서버 오류로 삭제에 실패했습니다.')
+//   }
+// }
 
 onMounted(() => {
   fetchInspectionList()
 })
-
 </script>
 
 <style scoped>
