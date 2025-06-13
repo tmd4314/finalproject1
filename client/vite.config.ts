@@ -13,6 +13,7 @@ const proxyPaths = [
   'material',
   'bom',
   'process',
+  'processG',
   'processDetail',
   'inspections',
   'api',
@@ -25,7 +26,10 @@ const proxyPaths = [
   'materialLotList',
   'orderCheck',
   'mrps',
-  'puOrder'
+  'puOrder',
+  'purchase',
+  'workOrder'
+
 ]
 
 // ✅ 공통 proxy 설정 생성 함수

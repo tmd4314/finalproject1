@@ -53,6 +53,13 @@
       <div class="flex flex-col bg-white rounded-lg shadow-sm border border-gray-200 p-4">
         <!-- 기본 정보 -->
         <div class="grid grid-cols-3 gap-3 mb-4">
+        <div>
+            <label class="block text-xs font-medium text-blue-600 mb-2">BOM 코드</label>
+            <input 
+              v-model="form.bom_code" 
+              class="w-full px-2 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-xs" 
+            />
+          </div>
           <div>
             <label class="block text-xs font-medium text-blue-600 mb-2">제품명</label>
             <div class="relative">
@@ -75,13 +82,7 @@
               />
             </div>
           </div>
-          <div>
-            <label class="block text-xs font-medium text-blue-600 mb-2">BOM 코드</label>
-            <input 
-              v-model="form.bom_code" 
-              class="w-full px-2 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-xs" 
-            />
-          </div>
+          
           <div>
             <label class="block text-xs font-medium text-blue-600 mb-2">규격</label>
             <select 
@@ -118,9 +119,9 @@
                   <th class="border border-gray-200 px-2 py-0.5 text-left font-medium text-gray-700">자재코드</th>
                   <th class="border border-gray-200 px-2 py-0.5 text-left font-medium text-gray-700">자재명</th>
                   <th class="border border-gray-200 px-2 py-0.5 text-left font-medium text-gray-700">분류</th>
-                  <th class="border border-gray-200 px-2 py-0.5 text-left font-medium text-gray-700">단위</th>
                   <th class="border border-gray-200 px-2 py-0.5 text-left font-medium text-gray-700">규격</th>
                   <th class="border border-gray-200 px-2 py-0.5 text-left font-medium text-gray-700">투입량</th>
+                  <th class="border border-gray-200 px-2 py-0.5 text-left font-medium text-gray-700">단위</th>
                 </tr>
               </thead>
               <tbody>
@@ -131,16 +132,16 @@
                   <td class="border border-gray-200 px-2 py-0.5">{{ mat.material_code }}</td>
                   <td class="border border-gray-200 px-2 py-0.5">{{ mat.material_name }}</td>
                   <td class="border border-gray-200 px-2 py-0.5">{{ mat.material_type || '-' }}</td>
-                  <td class="border border-gray-200 px-2 py-0.5">{{ mat.material_unit }}</td>
                   <td class="border border-gray-200 px-2 py-0.5">{{ mat.material_stand }}</td>
                   <td class="border border-gray-200 px-2 py-0.5">
                     <input 
-                      v-model.number="mat.usage_qty" 
-                      type="number" 
-                      step="0.01" 
-                      class="w-14 px-1 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" 
+                    v-model.number="mat.usage_qty" 
+                    type="number" 
+                    step="0.01" 
+                    class="w-14 px-1 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" 
                     />
                   </td>
+                  <td class="border border-gray-200 px-2 py-0.5">{{ mat.material_unit }}</td>
                 </tr>
               </tbody>
             </table>
@@ -172,8 +173,8 @@
                   <th class="border border-gray-200 px-2 py-0.5 text-left font-medium text-gray-700">자재코드</th>
                   <th class="border border-gray-200 px-2 py-0.5 text-left font-medium text-gray-700">자재명</th>
                   <th class="border border-gray-200 px-2 py-0.5 text-left font-medium text-gray-700">분류</th>
-                  <th class="border border-gray-200 px-2 py-0.5 text-left font-medium text-gray-700">단위</th>
                   <th class="border border-gray-200 px-2 py-0.5 text-left font-medium text-gray-700">규격</th>
+                  <th class="border border-gray-200 px-2 py-0.5 text-left font-medium text-gray-700">단위</th>
                 </tr>
               </thead>
               <tbody>
@@ -184,8 +185,8 @@
                   <td class="border border-gray-200 px-2 py-0.5">{{ mat.material_code }}</td>
                   <td class="border border-gray-200 px-2 py-0.5">{{ mat.material_name }}</td>
                   <td class="border border-gray-200 px-2 py-0.5">{{ mat.material_type }}</td>
-                  <td class="border border-gray-200 px-2 py-0.5">{{ mat.material_unit }}</td>
                   <td class="border border-gray-200 px-2 py-0.5">{{ mat.material_stand }}</td>
+                  <td class="border border-gray-200 px-2 py-0.5">{{ mat.material_unit }}</td>
                 </tr>
               </tbody>
             </table>

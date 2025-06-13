@@ -1,407 +1,185 @@
 <template>
-  <div class="order-management-container">
-    <h1 class="page-title">주문 관리</h1>
+  <div class="order-management">
+    <h1>주문 관리</h1>
     
-    <!-- 상단: 주문 목록 -->
-    <div class="order-list-section">
-      <!-- 검색 및 필터 영역 -->
-      <div class="search-filter-area">
-        <div class="search-bar">
-          <va-input 
-            v-model="searchText" 
-            placeholder="주문번호 또는 거래처명 검색..."
-            class="search-input"
-          >
-            <template #prepend>
-              <va-icon name="search" />
-            </template>
-          </va-input>
-          <va-button @click="handleSearch">조회</va-button>
-        </div>
-        
-        <!-- 필터 드롭다운들 -->
-        <div class="filter-row">
-          <div class="filter-item">
-            <label>주문번호</label>
-            <va-select
-              v-model="filters.orderId"
-              :options="orderIdOptions"
-              placeholder="전체"
-              clearable
-            />
-          </div>
-          <div class="filter-item">
-            <label>거래처명</label>
-            <va-select
-              v-model="filters.customer"
-              :options="customerOptions"
-              placeholder="전체"
-              clearable
-            />
-          </div>
-          <div class="filter-item">
-            <label>주문일</label>
-            <va-date-input
-              v-model="filters.orderDate"
-              placeholder="날짜 선택"
-              clearable
-            />
-          </div>
-          <div class="filter-item">
-            <label>납기일</label>
-            <va-date-input
-              v-model="filters.deliveryDate"
-              placeholder="날짜 선택"
-              clearable
-            />
-          </div>
-          <div class="filter-item">
-            <label>제품명</label>
-            <va-select
-              v-model="filters.product"
-              :options="productOptions"
-              placeholder="전체"
-              clearable
-            />
-          </div>
-          <div class="filter-item">
-            <label>규격</label>
-            <va-select
-              v-model="filters.spec"
-              :options="specOptions"
-              placeholder="전체"
-              clearable
-            />
-          </div>
-          <div class="filter-item">
-            <label>제품코드</label>
-            <va-select
-              v-model="filters.productCode"
-              :options="productCodeOptions"
-              placeholder="전체"
-              clearable
-            />
-          </div>
-          <div class="filter-item">
-            <label>상태</label>
-            <va-select
-              v-model="filters.status"
-              :options="statusOptions"
-              placeholder="전체"
-              clearable
-            />
-          </div>
-        </div>
+    <!-- 검색 영역 -->
+    <div class="search-area">
+      <va-input 
+        v-model="searchText" 
+        placeholder="주문번호, 거래처명 검색"
+        style="width: 300px"
+      />
+      <va-button @click="handleSearch">검색</va-button>
+    </div>
+
+    <!-- 주문 목록 테이블 -->
+    <div class="table-section">
+      <table class="order-table">
+        <thead>
+          <tr>
+            <th>주문번호</th>
+            <th>거래처명</th>
+            <th>주문일</th>
+            <th>납기일</th>
+            <th>제품명</th>
+            <th>규격</th>
+            <th>수량</th>
+            <th>제품코드</th>
+            <th>상태</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-if="orders.length === 0">
+            <td colspan="8" class="no-data">데이터가 없습니다.</td>
+          </tr>
+          <tr v-for="order in filteredOrders" :key="order.order_id">
+            <td>{{ order.order_id }}</td>
+            <td>{{ order.account_name }}</td>
+            <td>{{ formatDate(order.order_date) }}</td>
+            <td>{{ formatDate(order.delivery_date) }}</td>
+            <td>{{ order.product_name }}</td>
+            <td>규격규격규격</td>
+            <td>수량수량수량</td>
+            <td>제품코오오드</td>
+            <td>
+              <va-chip :color="getStatusColor(order.status)" size="small">
+                {{ order.status }}
+              </va-chip>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 주문 등록/수정 폼 -->
+    <div class="form-section">
+      <h2>{{ editMode ? '주문 수정' : '주문 등록' }}</h2>
+      
+      <!-- 기본 정보 -->
+      <div class="form-row">
+
+      <div class="form-group" style="width: 240px;">
+        <label>거래처 <span class="required">*</span></label>
+        <va-select
+          v-model="form.customerId"
+          :options="customerOptions"
+          placeholder="거래처를 선택하세요"
+          style="width: 240px"
+        />
       </div>
 
-      <!-- 주문 목록 테이블 -->
-      <div class="order-table-container">
-        <table class="order-table">
+        <div class="form-group">
+          <label>주문일 <span class="required">*</span></label>
+          <va-date-input v-model="form.orderDate" />
+        </div>
+        <div class="form-group">
+          <label>납기일 <span class="required">*</span></label>
+          <va-date-input v-model="form.deliveryDate" />
+        </div>
+      
+
+        <div class="form-group">
+          <label>작성자</label> 
+          <va-input v-model="form.createdBy" placeholder="작성자명" style="width: 250px;"/>
+        </div>
+      </div>
+      <!-- 제품 정보 -->
+      <div class="products-section">
+        <div class="section-header">
+          <h3>제품 정보</h3>
+          <va-button size="small" @click="addProduct">제품 추가</va-button>
+        </div>
+        
+        <table class="product-table">
           <thead>
             <tr>
-              <th width="40">
-                <va-checkbox v-model="selectAll" @update:model-value="handleSelectAll" />
-              </th>
-              <th>주문번호</th>
-              <th>거래처명</th>
-              <th>주문일</th>
-              <th>납기일</th>
-              <th>제품명</th>
-              <th>규격</th>
-              <th>주문량</th>
+              <th style="width: 186px;">제품명</th>
+              <th style="width: 120px;">규격 (정)</th>
+              <th>수량 (box)</th>
               <th>제품코드</th>
-              <th>상태</th>
+              <th>단가</th>
+              <th>주문가격</th>
+              <th style="width: 50px; text-align: center;">삭제</th>
             </tr>
           </thead>
           <tbody>
-            <!-- 각 주문별로 그룹핑 -->
-            <template v-for="orderGroup in paginatedOrders" :key="orderGroup.orderId">
-              <!-- 첫 번째 제품 행 (클릭 시 펼치기/접기) -->
-              <tr 
-                @click="toggleOrder(orderGroup.orderId)"
-                :class="{ 'selected': selectedOrder?.order_id === orderGroup.orderId }"
-                class="main-row"
-              >
-                <td @click.stop>
-                  <va-checkbox v-model="selectedIds" :array-value="orderGroup.orderId" />
-                </td>
-                <td>{{ orderGroup.orderId }}</td>
-                <td>{{ orderGroup.customerName }}</td>
-                <td>{{ formatDate(orderGroup.orderDate) }}</td>
-                <td>{{ formatDate(orderGroup.deliveryDate) }}</td>
-                <td>{{ orderGroup.items[0].productName }}</td>
-                <td>{{ orderGroup.items[0].spec }}</td>
-                <td>{{ orderGroup.items[0].quantity }}</td>
-                <td>{{ orderGroup.items[0].productCode }}</td>
-                <td>
-                  <va-chip :color="getStatusColor(orderGroup.status)" size="small">
-                    {{ orderGroup.status }}
-                  </va-chip>
-                </td>
-              </tr>
+            <tr v-for="(item, index) in form.products" :key="index">
+              <td>
+                <va-select
+                  v-model="item.productId"
+                  :options="uniqueProductName"
+                  placeholder="제품 선택"
+                  @update:model-value="(val) => updateProduct(val, index)"
+                />
+              </td>
+              <!-- 규격 -->
+              <td>
+                <va-select
+                  v-model="item.spec"
+                />
+
+              </td>
+              <!-- 수량 -->
+              <td>
+                <va-input 
+                  v-model.number="item.quantity" 
+                  type="number"
+                  min="1"
+                />
+              </td>
+
+              <td>{{ item.productCode }}</td>
               
-              <!-- 추가 제품들 (펼쳤을 때만 표시) -->
-              <tr 
-                v-for="(item, index) in orderGroup.items.slice(1)" 
-                :key="`${orderGroup.orderId}-${index}`"
-                v-show="expandedOrders.includes(orderGroup.orderId)"
-                class="sub-row"
-              >
-                <td colspan="5"></td>
-                <td>{{ item.productName }}</td>
-                <td>{{ item.spec }}</td>
-                <td>{{ item.quantity }}</td>
-                <td>{{ item.productCode }}</td>
-                <td></td>
-              </tr>
-            </template>
+              <!-- 단가 (수정필요!!!!!!!!!!!!!!!!!!) -->
+              <td>
+                <va-input 
+                  v-model="item.quantity"
+                />
+              </td>
+              <!-- 주문가격 (수정필요!!!!!!!!!!!!!!!!!!) -->
+              <td>
+                <va-input 
+                  v-model="item.quantity"
+                />
+              </td>
+              <td style="text-align: center;">
+                <va-button 
+                  icon="delete" 
+                  preset="plain" 
+                  size="medium"
+                  color="danger"
+                  @click="removeProduct(index)"
+                />
+              </td>
+              
+            </tr>
           </tbody>
         </table>
       </div>
 
-      <!-- 페이지네이션 -->
-      <div class="pagination-area">
-        <div class="page-info">
-          {{ startIndex + 1 }}-{{ Math.min(currentPage * itemsPerPage, groupedOrders.length) }} of {{ groupedOrders.length }}
-        </div>
-        <div class="page-controls">
-          <span>Rows per page: </span>
-          <va-select
-            v-model="itemsPerPage"
-            :options="[10, 20, 50]"
-            class="rows-select"
-          />
-          <va-pagination
-            v-model="currentPage"
-            :pages="totalPages"
-            :visible-pages="5"
-            buttons-preset="secondary"
-            rounded
-            gapped
-            border-color="primary"
-            class="ml-3"
-          />
-        </div>
-      </div>
-    </div>
-
-    <!-- 하단: 주문 등록/수정 폼 -->
-    <div class="order-form-section">
-      <div class="form-header">
-        <h2>{{ selectedOrder ? '주문 수정' : '주문 등록' }}</h2>
-        <div class="form-info">
-          <span v-if="selectedOrder">주문번호: {{ selectedOrder.order_id }}</span>
-        </div>
-      </div>
-
-      <div class="form-content">
-        <!-- 기본 정보 -->
-        <div class="form-row">
-          <div class="form-group">
-            <label>거래처 <span class="required">*</span></label>
-            <va-select
-              v-model="form.customerId"
-              :options="customerSelectOptions"
-              placeholder="거래처를 선택하세요"
-              text-by="label"
-              value-by="value"
-            />
-          </div>
-          <div class="form-group">
-            <label>주문일 <span class="required">*</span></label>
-            <va-date-input
-              v-model="form.orderDate"
-              placeholder="주문일 선택"
-            />
-          </div>
-          <div class="form-group">
-            <label>납기일 <span class="required">*</span></label>
-            <va-date-input
-              v-model="form.deliveryDate"
-              placeholder="납기일 선택"
-            />
-          </div>
-          <div class="form-group">
-            <label>작성자</label>
-            <va-input
-              v-model="form.createdBy"
-              placeholder="작성자명"
-            />
-          </div>
-        </div>
-
-        <!-- 제품 정보 -->
-        <div class="products-section">
-          <div class="section-header">
-            <h3>제품 정보</h3>
-            <va-button 
-              preset="secondary" 
-              size="small" 
-              icon="add"
-              @click="addProduct"
-            >
-              제품 추가
-            </va-button>
-          </div>
-
-          <div class="products-table">
-            <table>
-              <thead>
-                <tr>
-                  <th>제품명 <span class="required">*</span></th>
-                  <th>규격 <span class="required">*</span></th>
-                  <th>출하 필요량(Box) <span class="required">*</span></th>
-                  <th>제품코드</th>
-                  <th width="60">삭제</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="(product, index) in form.products" :key="index">
-                  <td>
-                    <va-select
-                      v-model="product.productId"
-                      :options="productSelectOptions"
-                      placeholder="제품 선택"
-                      text-by="label"
-                      value-by="value"
-                      @update:model-value="(value) => onProductSelect(value, index)"
-                    />
-                  </td>
-                  <td>
-                    <va-select
-                      v-model="product.spec"
-                      placeholder="규격"
-                    />
-                  </td>
-                  <td>
-                    <va-input
-                      v-model.number="product.quantity"
-                      type="number"
-                      placeholder="수량"
-                      min="1"
-                    />
-                  </td>
-                  <td>
-                    <va-input
-                      v-model="product.productCode"
-                      placeholder="제품코드"
-                      disabled
-                    />
-                  </td>
-                  <td>
-                    <va-button
-                      preset="plain"
-                      color="danger"
-                      icon="delete"
-                      size="small"
-                      @click="removeProduct(index)"
-                    />
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- 비고 -->
-        <div class="form-row">
-          <div class="form-group full-width">
-            <label>비고</label>
-            <va-textarea
-              v-model="form.remarks"
-              placeholder="비고사항을 입력하세요"
-              :min-rows="2"
-              :max-rows="4"
-            />
-          </div>
-        </div>
-
-        <!-- 버튼 영역 -->
-        <div class="form-actions">
-          <va-button preset="secondary" @click="resetForm">초기화</va-button>
-          <va-button @click="saveOrder">
-            {{ selectedOrder ? '수정' : '저장' }}
-          </va-button>
-        </div>
+      <!-- 버튼 -->
+      <div class="form-actions">
+        <va-button preset="secondary" @click="cancelForm">취소</va-button>
+        <va-button @click="saveOrder">{{ editMode ? '수정' : '저장' }}</va-button>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import axios from 'axios'
 
-// 타입 정의
-interface OrderItem {
-  productId: string
-  productName: string
-  productCode: string
-  spec: string
-  quantity: number
-}
-
-interface OrderGroup {
-  orderId: string
-  customerName: string
-  orderDate: string
-  deliveryDate: string
-  status: string
-  items: OrderItem[]
-}
-
-interface Order {
-  order_id: string
-  account_name: string
-  order_date: string
-  delivery_date: string
-  status: string
-  created_by: string
-}
-
-interface Product {
-  product_id: string
-  product_name: string
-  product_code: string
-  spec: string
-  stock: number
-}
-
-interface FormProduct {
-  productId: string
-  productName: string
-  productCode: string
-  spec: string
-  quantity: number
-}
-
-// 상태 관리
-const searchText = ref('')
-const selectedIds = ref<string[]>([])
-const selectAll = ref(false)
-const currentPage = ref(1)
-const itemsPerPage = ref(10)
-const expandedOrders = ref<string[]>([])
-const selectedOrder = ref<Order | null>(null)
-
-// 전체 주문 데이터 (그룹화 전)
-const allOrders = ref<any[]>([])
-// 제품 목록
-const products = ref<Product[]>([])
-// 거래처 목록
+// 데이터
+const orders = ref<any[]>([])
 const customers = ref<any[]>([])
+const products = ref<any[]>([])
 
-// 필터 상태
-const filters = ref({
-  orderId: '',
-  customer: '',
-  orderDate: null,
-  deliveryDate: null,
-  product: '',
-  spec: '',
-  productCode: '',
-  status: ''
-})
+// 상태
+const searchText = ref('')
+const showForm = ref(false)
+const editMode = ref(false)
+const selectedOrderId = ref<string | null>(null)
 
 // 폼 데이터
 const form = ref({
@@ -410,149 +188,69 @@ const form = ref({
   deliveryDate: new Date(),
   createdBy: '',
   products: [
-    {
-      productId: '',
-      productName: '',
-      productCode: '',
-      spec: '',
-      quantity: 1
-    }
-  ],
-  remarks: ''
+    { productId: '', productName: '', spec: '', quantity: 1, productCode: '' }
+  ]
 })
 
-// 필터 옵션들
-const orderIdOptions = ref<string[]>([])
-const customerOptions = ref<string[]>([])
-const productOptions = ref<string[]>([])
-const specOptions = ref<string[]>([])
-const productCodeOptions = ref<string[]>([])
-const statusOptions = ref(['진행중', '완료', '지연', '대기', '취소'])
+// computed
+const filteredOrders = computed(() => {
+  if (!searchText.value) return orders.value
+  
+  const search = searchText.value.toLowerCase()
+  return orders.value.filter(order => 
+    order.order_id.toLowerCase().includes(search) ||
+    order.account_name.toLowerCase().includes(search)
+  )
+})
 
-// 선택 옵션들 (value, label 형태)
-const customerSelectOptions = computed(() => 
+const customerOptions = computed(() => 
   customers.value.map(c => ({
     value: c.account_id,
-    label: c.account_name
+    text: c.account_name
   }))
 )
 
-// const productSelectOptions = computed(() =>
+// const productOptions = computed(() =>
 //   products.value.map(p => ({
 //     value: p.product_id,
-//     label: p.product_name
+//     text: p.product_name
 //   }))
 // )
 
-// 주문 데이터를 그룹화 (주문번호별로)
-const groupedOrders = computed(() => {
-  const grouped: { [key: string]: OrderGroup } = {}
-  
-  allOrders.value.forEach(order => {
-    if (!grouped[order.order_id]) {
-      grouped[order.order_id] = {
-        orderId: order.order_id,
-        customerName: order.account_name,
-        orderDate: order.order_date,
-        deliveryDate: order.delivery_date,
-        status: order.status,
-        items: []
-      }
-    }
-
-    let specValue = '';
-    if (order.product_stand) {
-      const match = order.product_stand.match(/^\d+/);
-      specValue = match ? match[0] : order.product_stand;
-    } else if (order.spec) {
-      specValue = order.spec;
-    }
-
-    grouped[order.order_id].items.push({
-      productId: order.product_id,
-      productName: order.product_name,
-      productCode: order.product_code,
-      spec: specValue,
-      quantity: order.order_qty
-    })
-  })
-  
-  // 필터링 적용
-  return Object.values(grouped).filter(orderGroup => {
-    const matchesSearch = !searchText.value || 
-      orderGroup.orderId.includes(searchText.value) ||
-      orderGroup.customerName.includes(searchText.value)
-    
-    const matchesFilters = 
-      (!filters.value.orderId || orderGroup.orderId === filters.value.orderId) &&
-      (!filters.value.customer || orderGroup.customerName === filters.value.customer) &&
-      (!filters.value.status || orderGroup.status === filters.value.status)
-    
-    return matchesSearch && matchesFilters
-  })
-})
-
-// 페이지네이션
-const totalPages = computed(() => 
-  Math.ceil(groupedOrders.value.length / itemsPerPage.value)
-)
-
-const startIndex = computed(() => 
-  (currentPage.value - 1) * itemsPerPage.value
-)
-
-const paginatedOrders = computed(() => {
-  const start = startIndex.value
-  const end = start + itemsPerPage.value
-  return groupedOrders.value.slice(start, end)
-})
-
-// 제품명 목록 만들기!
-const productSelectOptions = computed(() => {
-  return [...new Set(products.value.map(p => p.product_name))].map(name => ({
+// 제품명 중복제거
+const uniqueProductName = computed(() => {
+  const uniqueNames = [...new Set(products.value.map(p => p.product_name))]
+  return uniqueNames.map(name => ({
     value: name,
-    label: name
-  }));
-});
+    text: name
+  }))
+})
 
-
-// 라이프사이클
-onMounted(async () => {
-  await fetchOrders()
-  await fetchProducts()
-  await fetchCustomers()
-  setupFilterOptions()
+// 초기 데이터 로드
+onMounted(() => {
+  console.log('컴포넌트 마운트됨')
+  fetchOrders()
+  fetchCustomers()
+  fetchProducts()
 })
 
 // API 함수들
 async function fetchOrders() {
   try {
-    const response = await axios.get('/api/orders/with-items')
-    allOrders.value = response.data
+    const response = await axios.get('http://localhost:3000/api/orders/with-items')
+    console.log('주문 데이터:', response.data)
+    orders.value = response.data || []
   } catch (error) {
-    console.error('주문 목록 로드 실패!!!!:', error)
+    console.error('주문 조회 실패:', error)
     // Mock 데이터
-    allOrders.value = [
-      {
-        order_id: 'ORD001(Mock 데이터입니다.)',
-        account_name: '셀트리온(Mock 데이터입니다.)',
-        order_date: '2024-01-15(Mock 데이터입니다.)',
-        delivery_date: '2024-01-20(Mock 데이터입니다.)',
-        product_name: '타이레놀 500mg(Mock 데이터입니다.)',
-        spec: '500mg x 10정(Mock 데이터입니다.)',
-        order_qty: 100,
-        product_code: 'TYL-500(Mock 데이터입니다.)',
-        status: '진행중(Mock 데이터입니다.)'
-      },
+    orders.value = [
       {
         order_id: 'ORD001',
         account_name: '셀트리온',
         order_date: '2024-01-15',
         delivery_date: '2024-01-20',
-        product_name: '아스피린 100mg',
-        spec: '100mg x 30정',
-        order_qty: 200,
-        product_code: 'ASP-100',
+        product_name: '타이레놀 500mg',
+        order_qty: 100,
         status: '진행중'
       },
       {
@@ -560,150 +258,95 @@ async function fetchOrders() {
         account_name: '한미약품',
         order_date: '2024-01-16',
         delivery_date: '2024-01-22',
-        product_name: '이부프로펜 200mg',
-        spec: '200mg x 20정',
-        order_qty: 150,
-        product_code: 'IBU-200',
+        product_name: '아스피린 100mg',
+        order_qty: 200,
         status: '완료'
       }
     ]
   }
 }
 
-async function fetchProducts() {
-  try {
-    const response = await axios.get('/product')
-    products.value = response.data
-  } catch (error) {
-    console.error('제품 목록 로드 실패:', error)
-    // Mock 데이터
-    products.value = [
-      { product_id: 'P001', product_name: '타이레놀 500mg', product_code: 'TYL-500', spec: '500mg x 10정', stock: 1000 },
-      { product_id: 'P002', product_name: '아스피린 100mg', product_code: 'ASP-100', spec: '100mg x 30정', stock: 2000 },
-      { product_id: 'P003', product_name: '이부프로펜 200mg', product_code: 'IBU-200', spec: '200mg x 20정', stock: 1500 }
-    ]
-  }
-}
-
 async function fetchCustomers() {
   try {
-    const response = await axios.get('/api/account')
-    customers.value = response.data
+    const response = await axios.get('http://localhost:3000/account')
+    console.log('거래처 데이터:', response.data)
+    customers.value = response.data || []
   } catch (error) {
-    console.error('거래처 목록 로드 실패:', error)
-    // Mock 데이터
-    customers.value = [
-      { account_id: 'C001', account_name: '셀트리온' },
-      { account_id: 'C002', account_name: '한미약품' },
-      { account_id: 'C003', account_name: '종근당' }
-    ]
+    console.error('거래처 조회 실패:', error)
   }
 }
 
-// 필터 옵션 설정
-function setupFilterOptions() {
-  // 중복 제거하여 옵션 생성
-  orderIdOptions.value = [...new Set(allOrders.value.map(o => o.order_id))]
-  customerOptions.value = [...new Set(allOrders.value.map(o => o.account_name))]
-  productOptions.value = [...new Set(allOrders.value.map(o => o.product_name))]
-  specOptions.value = [...new Set(allOrders.value.map(o => o.spec))]
-  productCodeOptions.value = [...new Set(allOrders.value.map(o => o.product_code))]
-}
-
-// 메서드들
-function handleSearch() {
-  currentPage.value = 1
-}
-
-function handleSelectAll(value: boolean) {
-  if (value) {
-    selectedIds.value = paginatedOrders.value.map(order => order.orderId)
-  } else {
-    selectedIds.value = []
-  }
-}
-
-function toggleOrder(orderId: string) {
-  const index = expandedOrders.value.indexOf(orderId)
-  if (index > -1) {
-    expandedOrders.value.splice(index, 1)
-  } else {
-    expandedOrders.value.push(orderId)
-  }
-  
-  // 주문 선택 및 폼 데이터 로드
-  loadOrderForEdit(orderId)
-}
-
-// 규격 옵션 만들기!
-function getSpecOptions(productName: string) {
-  if(!productName) return [];
-  return [
-    ...new Set(
-      products.value
-      .filter(p => p.product_name === productName)
-      .map(p => p.spec)
-    )
-  ];
-}
-
-// 제품, 규격 선택 시 product_code 자동입력!!
-function onProductSelect(productName: string, index: number) {
-  form.value.products[index].productName = productName;
-  form.value.products[index].spec = '';
-  form.value.products[index].productCode = '';
-}
-function onSpecSelect(spec: string, index: number) {
-  const name = form.value.products[index].productName;
-  const product = products.value.find(
-    p => p.product_name === name && p.spec === spec
-  );
-  form.value.products[index].productCode = product ? product.product_code : '';
-}
-
-async function loadOrderForEdit(orderId: string) {
+async function fetchProducts() {
   try {
-    // 실제로는 API에서 상세 정보를 가져와야 함
-    const orderData = groupedOrders.value.find(o => o.orderId === orderId)
-    if (!orderData) return
+    const response = await axios.get('http://localhost:3000/product')
+    console.log('제품 데이터:', response.data)
+    products.value = response.data || []
+  } catch (error) {
+    console.error('제품 조회 실패:', error)
+  }
+}
+
+
+
+// 검색
+function handleSearch() {
+  // filteredOrders computed가 자동으로 처리
+}
+
+// 주문 수정
+async function editOrder(order: any) {
+  console.log('주문 수정:', order)
+  showForm.value = true
+  editMode.value = true
+  selectedOrderId.value = order.order_id
+  
+  try {
+    const response = await axios.get(`http://localhost:3000/api/orders/${order.order_id}/details`)
+    const { order: orderInfo, items } = response.data
     
-    selectedOrder.value = {
-      order_id: orderId,
-      account_name: orderData.customerName,
-      order_date: orderData.orderDate,
-      delivery_date: orderData.deliveryDate,
-      status: orderData.status,
-      created_by: '김철수' // API에서 가져와야 함
-    }
+    // 거래처 ID 찾기
+    const customer = customers.value.find(c => c.account_name === order.account_name)
     
-    // 폼에 데이터 채우기
-    const customer = customers.value.find(c => c.account_name === orderData.customerName)
     form.value = {
       customerId: customer?.account_id || '',
-      orderDate: new Date(orderData.orderDate),
-      deliveryDate: new Date(orderData.deliveryDate),
-      createdBy: selectedOrder.value.created_by,
-      products: orderData.items.map(item => ({
-        productId: item.productId,
-        productName: item.productName,
-        productCode: item.productCode,
+      orderDate: new Date(orderInfo.order_date),
+      deliveryDate: new Date(orderInfo.delivery_date),
+      createdBy: orderInfo.created_by || '',
+      products: items.map((item: any) => ({
+        productId: '',  // 제품 ID를 찾아야 함
+        productName: item.product_name,
         spec: item.spec,
-        quantity: item.quantity
-      })),
-      remarks: ''
+        quantity: item.order_qty,
+        productCode: item.product_code
+      }))
     }
   } catch (error) {
-    console.error('주문 정보 로드 실패:', error)
+    console.error('주문 상세 조회 실패:', error)
   }
 }
 
+// 주문 삭제
+async function deleteOrder(order: any) {
+  if (!confirm('정말 삭제하시겠습니까?')) return
+  
+  try {
+    await axios.delete(`http://localhost:3000/api/orders/${order.order_id}`)
+    alert('삭제되었습니다.')
+    fetchOrders()
+  } catch (error) {
+    console.error('삭제 실패:', error)
+    alert('삭제에 실패했습니다.')
+  }
+}
+
+// 제품 추가/삭제
 function addProduct() {
   form.value.products.push({
     productId: '',
     productName: '',
-    productCode: '',
     spec: '',
-    quantity: 1
+    quantity: 1,
+    productCode: ''
   })
 }
 
@@ -713,296 +356,198 @@ function removeProduct(index: number) {
   }
 }
 
-// function onProductSelect(productId: string, index: number) {
-//   const product = products.value.find(p => p.product_id === productId)
-//   if (product) {
-//     form.value.products[index] = {
-//       productId: product.product_id,
-//       productName: product.product_name,
-//       productCode: product.product_code,
-//       spec: product.spec,
-//       quantity: form.value.products[index].quantity || 1
-//     }
-//   }
-// }
+// 제품 선택 시 정보 업데이트
+function updateProduct(productId: string, index: number) {
+  const product = products.value.find(p => p.product_id === productId)
+  if (product) {
+    form.value.products[index] = {
+      productId: product.product_id,
+      productName: product.product_name,
+      spec: product.product_atc,
+      quantity: form.value.products[index].quantity || 1,
+      productCode: product.product_code
+    }
+  }
+}
 
+// 폼 초기화
 function resetForm() {
-  selectedOrder.value = null
   form.value = {
     customerId: '',
     orderDate: new Date(),
     deliveryDate: new Date(),
     createdBy: '',
-    products: [{
-      productId: '',
-      productName: '',
-      productCode: '',
-      spec: '',
-      quantity: 1
-    }],
-    remarks: ''
+    products: [
+      { productId: '', productName: '', spec: '', quantity: 1, productCode: '' }
+    ]
   }
 }
 
+// 저장
 async function saveOrder() {
+  // 유효성 검사
+  if (!form.value.customerId) {
+    alert('거래처를 선택하세요.')
+    return
+  }
+  
+  if (form.value.products.some(p => !p.productId || !p.quantity)) {
+    alert('제품 정보를 모두 입력하세요.')
+    return
+  }
+  
   try {
-    // 유효성 검사
-    if (!form.value.customerId) {
-      alert('거래처를 선택해주세요.')
-      return
-    }
-    
-    if (form.value.products.some(p => !p.productId || !p.quantity)) {
-      alert('제품 정보를 모두 입력해주세요.')
-      return
-    }
-    
     const orderData = {
       customerId: form.value.customerId,
       orderDate: form.value.orderDate,
       deliveryDate: form.value.deliveryDate,
-      createdBy: form.value.createdBy,
-      products: form.value.products,
-      remarks: form.value.remarks
+      createdBy: form.value.createdBy || '관리자',
+      products: form.value.products.map(p => ({
+      productId: p.productId,
+      productCode: p.productCode,
+      quantity: p.quantity
+      }))
     }
     
-    if (selectedOrder.value) {
-      // 수정
-      await axios.put(`/api/orders/${selectedOrder.value.order_id}`, orderData)
-      alert('주문이 수정되었습니다.')
+    console.log('저장할 데이터:', orderData)
+    
+    if (editMode.value) {
+      await axios.put(`http://localhost:3000/api/orders/${selectedOrderId.value}`, orderData)
+      alert('수정되었습니다.')
     } else {
-      // 신규 등록
-      await axios.post('/api/orders', orderData)
-      alert('주문이 등록되었습니다.')
+      await axios.post('http://localhost:3000/api/orders', orderData)
+      alert('등록되었습니다.')
     }
     
-    // 목록 새로고침
-    await fetchOrders()
-    resetForm()
+    showForm.value = false
+    fetchOrders()
   } catch (error) {
-    console.error('주문 저장 실패:', error)
-    alert('주문 저장에 실패했습니다.')
+    console.error('저장 실패:', error)
+    alert('저장에 실패했습니다.')
   }
 }
 
-function formatDate(dateString: string) {
-  if (!dateString) return '-'
-  const date = new Date(dateString)
-  return date.toLocaleDateString('ko-KR').replace(/\. /g, '-').replace(/\./g, '')
+// 취소
+function cancelForm() {
+  showForm.value = false
+  resetForm()
 }
 
+// 날짜 포맷
+function formatDate(dateString: string) {
+  if (!dateString) return '-'
+  return dateString.split('T')[0]
+}
+
+// 상태별 색상
 function getStatusColor(status: string) {
-  const colorMap: Record<string, string> = {
+  const colors: Record<string, string> = {
     '진행중': 'info',
     '완료': 'success',
     '지연': 'danger',
     '대기': 'warning',
     '취소': 'secondary'
   }
-  return colorMap[status] || 'secondary'
+  return colors[status] || 'secondary'
 }
-
-// 감시자
-watch(filters, () => {
-  currentPage.value = 1
-}, { deep: true })
 </script>
 
 <style scoped>
-/* 전체 컨테이너 */
-.order-management-container {
+.order-management {
   padding: 20px;
-  background-color: #f5f5f5;
-  min-height: 100vh;
+  max-width: 1400px;
+  margin: 0 auto;
 }
 
-.page-title {
-  font-size: 28px;
-  font-weight: 600;
-  margin-bottom: 24px;
-  color: #333;
-}
-
-/* 상단 주문 목록 섹션 */
-.order-list-section {
-  background: white;
-  border-radius: 8px;
-  padding: 24px;
-  margin-bottom: 24px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-}
-
-/* 검색 및 필터 */
-.search-filter-area {
+h1 {
   margin-bottom: 20px;
 }
 
-.search-bar {
+/* 검색 영역 */
+.search-area {
   display: flex;
-  gap: 8px;
-  margin-bottom: 16px;
+  gap: 10px;
+  margin-bottom: 20px;
+  align-items: center;
 }
 
-.search-input {
-  flex: 1;
-  max-width: 400px;
-}
-
-.filter-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 12px;
-}
-
-.filter-item {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.filter-item label {
-  font-size: 12px;
-  color: #666;
-  font-weight: 500;
-}
-
-/* 테이블 */
-.order-table-container {
+/* 테이블 섹션 */
+.table-section {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   overflow-x: auto;
-  border: 1px solid #e0e0e0;
-  border-radius: 4px;
 }
 
 .order-table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 1200px;
 }
 
 .order-table th {
-  background-color: #f5f5f5;
-  padding: 12px 8px;
+  background: #f5f5f5;
+  padding: 12px;
   text-align: left;
   font-weight: 500;
-  font-size: 14px;
-  border-bottom: 1px solid #e0e0e0;
-  white-space: nowrap;
+  border-bottom: 2px solid #e0e0e0;
 }
 
 .order-table td {
-  padding: 12px 8px;
-  font-size: 14px;
+  padding: 12px;
   border-bottom: 1px solid #f0f0f0;
 }
 
-.order-table .main-row {
-  cursor: pointer;
-  transition: background-color 0.2s;
+.order-table tr:hover {
+  background: #f8f8f8;
 }
 
-.order-table .main-row:hover {
-  background-color: #f8f8f8;
+.no-data {
+  text-align: center;
+  color: #999;
 }
 
-.order-table .main-row.selected {
-  background-color: #e3f2fd;
-}
-
-.order-table .sub-row {
-  background-color: #fafafa;
-  font-size: 13px;
-}
-
-/* 페이지네이션 */
-.pagination-area {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid #e0e0e0;
-}
-
-.page-info {
-  font-size: 14px;
-  color: #666;
-}
-
-.page-controls {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.rows-select {
-  width: 80px;
-}
-
-/* 하단 주문 폼 섹션 */
-.order-form-section {
+/* 폼 섹션 */
+.form-section {
   background: white;
   border-radius: 8px;
-  padding: 24px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  padding: 20px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
-.form-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
+.form-section h2 {
+  margin-bottom: 20px;
 }
 
-.form-header h2 {
-  font-size: 20px;
-  font-weight: 600;
-  color: #333;
+.form-group {
+  margin-bottom: 16px;
 }
 
-.form-info {
-  font-size: 14px;
-  color: #666;
-}
-
-/* 폼 콘텐츠 */
-.form-content {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
 }
 
 .form-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: 1fr 1fr 1fr 1fr;
   gap: 16px;
 }
 
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.form-group.full-width {
-  grid-column: 1 / -1;
-}
-
-.form-group label {
-  font-size: 14px;
-  font-weight: 500;
-  color: #333;
-}
-
 .required {
-  color: #e74c3c;
+  color: red;
 }
 
 /* 제품 섹션 */
 .products-section {
+  margin: 20px 0;
+  padding: 16px;
   border: 1px solid #e0e0e0;
   border-radius: 4px;
-  padding: 16px;
-  background-color: #fafafa;
 }
 
 .section-header {
@@ -1013,79 +558,67 @@ watch(filters, () => {
 }
 
 .section-header h3 {
-  font-size: 16px;
-  font-weight: 600;
-  color: #333;
+  margin: 0;
 }
 
-/* 제품 테이블 */
-.products-table {
-  overflow-x: auto;
-}
-
-.products-table table {
+.product-table {
   width: 100%;
   border-collapse: collapse;
-  background: white;
-  border-radius: 4px;
-  overflow: hidden;
+  table-layout: fixed;
 }
 
-.products-table th {
-  background-color: #f5f5f5;
-  padding: 10px;
+.product-table th {
+  background: #f5f5f5;
+  padding: 8px;
   text-align: left;
   font-weight: 500;
-  font-size: 14px;
-  border-bottom: 1px solid #e0e0e0;
+  border: 1px solid #e0e0e0;
 }
 
-.products-table td {
-  padding: 10px;
-  border-bottom: 1px solid #f0f0f0;
+.product-table td {
+  padding: 8px;
+  border: 1px solid #e0e0e0;
 }
 
-/* 폼 액션 버튼 */
+/* 버튼 영역 */
 .form-actions {
   display: flex;
+  gap: 10px;
   justify-content: flex-end;
-  gap: 8px;
-  margin-top: 24px;
-  padding-top: 24px;
-  border-top: 1px solid #e0e0e0;
+  margin-top: 20px;
 }
 
-/* 유틸리티 클래스 */
-.ml-3 { margin-left: 12px; }
-
 /* 반응형 */
-@media (max-width: 1200px) {
-  .filter-row {
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+@media (max-width: 1420px) {
+  .form-row {
+    grid-template-columns: 1fr 1fr 1fr;
   }
-  
-  .order-table {
-    font-size: 13px;
+
+  .search-area {
+    flex-direction: column;
+    align-items: stretch;
   }
-  
-  .order-table th,
-  .order-table td {
-    padding: 8px 4px;
+}
+
+@media (max-width: 1180px) {
+  .form-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .search-area {
+    flex-direction: column;
+    align-items: stretch;
   }
 }
 
 @media (max-width: 768px) {
-  .order-management-container {
-    padding: 12px;
-  }
-  
-  .order-list-section,
-  .order-form-section {
-    padding: 16px;
-  }
-  
   .form-row {
     grid-template-columns: 1fr;
+  }
+  
+  .search-area {
+    flex-direction: column;
+    align-items: stretch;
   }
 }
 </style>

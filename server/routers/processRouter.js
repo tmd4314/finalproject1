@@ -19,6 +19,17 @@ const processService =require('../services/processService.js');
   res.send(processDetailList);
  });
 
+router.post('/processG', async (req, res) => {
+  try {
+    const processGList = req.body;
+    const result = await processService.addProcessG(processGList);
+    res.send(result);
+  } catch (err) {
+    console.error('❌ 과정 등록 실패:', err);
+    res.status(500).send({ isSuccessed: false, message: '서버 오류' });
+  }
+});
+
 router.post('/process', async (req, res) => {
   try {
     const processList = req.body;

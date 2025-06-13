@@ -62,9 +62,11 @@ const defectRouter = require('./routers/defectRouter.js');
 
 const materialLotRouter = require('./routers/materialLotRouter.js');
 
-// const workOrderRouter = require('./routers/workOrderRouter.js');
+const workOrderRouter = require('./routers/workOrderRouter.js');
 
-const mrpRouter = require('./routers/mrpsRouter.js')
+const mrpRouter = require('./routers/mrpsRouter.js');
+
+const purchaseRouter = require('./routers/purchaseRouter.js');
 
  // 기본 라우팅
 app.get('/', (req, res)=>{
@@ -82,7 +84,7 @@ app.use('/', accountRouter);
 
 //다산
 app.use('/bom', bomRouter);
-// app.use('/workOrder', workOrderRouter);
+app.use('/workOrder', workOrderRouter);
 
  //승민
 app.use('/', productRouter);
@@ -90,6 +92,7 @@ app.use('/', materialRouter);
 app.use('/', processRouter);
 app.use('/', materialLotRouter);
 app.use('/', mrpRouter);
+app.use('/', purchaseRouter);
 
 
 

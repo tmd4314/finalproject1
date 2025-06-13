@@ -3,7 +3,7 @@
     <!-- 1단계: 포장 타입 선택 -->
     <div v-if="currentStep === 'package-type-selection'" class="package-type-selection">
       <nav class="breadcrumb">
-        <span class="breadcrumb-item">Home</span>
+        <span class="breadcrumb-item">홈</span>
         <span class="breadcrumb-separator">/</span>
         <span class="breadcrumb-item">포장</span>
         <span class="breadcrumb-separator">/</span>
@@ -33,7 +33,7 @@
           <div v-if="completedSteps.includes('INNER')" class="completion-badge">
             ✅ 작업완료
           </div>
-          <button v-else class="selection-button available">
+          <button v-else class="selection-button available" @click.stop="selectPackageType('INNER')">
             선택 가능
           </button>
         </div>
@@ -54,13 +54,21 @@
           <div v-if="completedSteps.includes('OUTER')" class="completion-badge">
             ✅ 작업완료
           </div>
-          <button v-else-if="completedSteps.includes('INNER')" class="selection-button available highlighted">
+          <button v-else-if="completedSteps.includes('INNER')" 
+                  class="selection-button available highlighted"
+                  @click.stop="selectPackageType('OUTER')">
             ✨ 선택 가능 ✨
           </button>
-          <button v-else class="selection-button disabled">
+          <button v-else class="selection-button disabled" disabled>
             내포장 완료 후 선택 가능
           </button>
         </div>
+      </div>
+      
+      <div class="navigation-actions">
+        <button @click="goBackToLineAdd" class="back-btn secondary">
+          🔧 라인 관리로 이동
+        </button>
       </div>
       
       <!-- 완료된 작업 요약 -->
@@ -94,7 +102,7 @@
     <!-- 2단계: 라인 선택 -->
     <div v-if="currentStep === 'line-selection'" class="line-selection">
       <nav class="breadcrumb">
-        <span class="breadcrumb-item">Home</span>
+        <span class="breadcrumb-item">홈</span>
         <span class="breadcrumb-separator">/</span>
         <span class="breadcrumb-item">포장</span>
         <span class="breadcrumb-separator">/</span>
@@ -248,6 +256,9 @@
         <button @click="goBackToPackageTypeSelection" class="back-btn">
           ← 포장 타입 선택으로 돌아가기
         </button>
+        <button @click="goBackToLineAdd" class="back-btn secondary">
+          🔧 라인 관리로 이동
+        </button>
       </div>
     </div>
 
@@ -283,10 +294,10 @@ import axios from 'axios'
 const router = useRouter()
 const route = useRoute()
 
-// 🎯 상태 관리 (명확한 초기값)
-const currentStep = ref('package-type-selection')  // 항상 포장 타입 선택부터 시작
-const selectedPackageType = ref(null)              // null: 선택 안됨
-const completedSteps = ref([])                     // []: 빈 배열로 시작
+// 상태 관리
+const currentStep = ref('package-type-selection')
+const selectedPackageType = ref(null)
+const completedSteps = ref([])
 const innerCompletionTime = ref(null)
 const outerCompletionTime = ref(null)
 const showInnerCompletedMessage = ref(false)
@@ -305,129 +316,139 @@ const error = ref('')
 const showStartModal = ref(false)
 const selectedLineForStart = ref(null)
 
-// 🎯 URL 파라미터 처리 (단순화)
+// 🔥 필터링된 라인 목록 (computed 추가)
+const filteredLines = computed(() => {
+  let lines = packageLines.value || []
+  
+  // 라인 타입 필터
+  if (lineTypeFilter.value) {
+    lines = lines.filter(line => line.line_type === lineTypeFilter.value)
+  }
+  
+  // 라인 상태 필터
+  if (lineStatusFilter.value) {
+    lines = lines.filter(line => line.line_status === lineStatusFilter.value)
+  }
+  
+  // 검색어 필터
+  if (searchText.value) {
+    const search = searchText.value.toLowerCase()
+    lines = lines.filter(line => 
+      line.line_name?.toLowerCase().includes(search) ||
+      line.eq_name?.toLowerCase().includes(search) ||
+      line.line_id?.toString().includes(search)
+    )
+  }
+  
+  return lines
+})
+
+// URL 파라미터 처리
 onBeforeMount(() => {
   console.log('🚀 포장 라인 페이지 로드');
   console.log('📍 URL 파라미터:', route.query);
   
-  // 🔥 Case 1: 외포장 작업에서 돌아온 경우 (가장 중요)
+  // Case 1: 외포장 작업에서 돌아온 경우
   if (route.query.maintain_type === 'OUTER' && route.query.from_work === 'true') {
     console.log('✅ 외포장 작업에서 돌아옴 - 외포장 라인 유지');
-    
-    // 외포장 라인 선택 상태로 설정 + 내포장 완료 표시
-    completedSteps.value = ['INNER'];  // 내포장 완료로 설정
+    completedSteps.value = ['INNER'];
     innerCompletionTime.value = new Date();
     selectedPackageType.value = 'OUTER';
     currentStep.value = 'line-selection';
     lineTypeFilter.value = 'OUTER';
-    
-    console.log('🎯 외포장 라인 선택 상태로 설정 완료 (내포장 완료 표시)');
-    
-    // URL 파라미터 정리
+    console.log('🎯 외포장 라인 선택 상태로 설정 완료');
     setTimeout(() => router.replace({ query: {} }), 100);
     return;
   }
   
-  // 🔥 Case 2: 내포장 작업에서 돌아온 경우
+  // Case 2: 내포장 작업에서 돌아온 경우
   if (route.query.maintain_type === 'INNER' && route.query.from_work === 'true') {
     console.log('✅ 내포장 작업에서 돌아옴 - 내포장 라인 유지');
-    
     selectedPackageType.value = 'INNER';
     currentStep.value = 'line-selection';
     lineTypeFilter.value = 'INNER';
-    
     console.log('🎯 내포장 라인 선택 상태로 설정 완료');
-    
-    // URL 파라미터 정리
     setTimeout(() => router.replace({ query: {} }), 100);
     return;
   }
   
-  // 🔥 Case 3: 내포장 완료 후 돌아온 경우
+  // Case 3: 내포장 완료 후 돌아온 경우
   if (route.query.inner_completed === 'true') {
     console.log('✅ 내포장 완료 후 돌아옴');
-    
     completedSteps.value = ['INNER'];
     innerCompletionTime.value = new Date();
     showInnerCompletedMessage.value = true;
-    
-    
-    // 🔥 내포장 완료 후 바로 외포장 라인 선택으로 이동
     selectedPackageType.value = 'OUTER';
     currentStep.value = 'line-selection';
     lineTypeFilter.value = 'OUTER';
-    
-    console.log('🎯 내포장 완료 - 외포장 라인 선택으로 자동 이동 (내포장 완료 상태 표시)');
-    
-    // URL 파라미터 정리
+    console.log('🎯 내포장 완료 - 외포장 라인 선택으로 자동 이동');
     setTimeout(() => router.replace({ query: {} }), 100);
     return;
   }
   
-  // 🔥 Case 4: 외포장 완료 후 돌아온 경우
+  // Case 4: 외포장 완료 후 돌아온 경우
   if (route.query.outer_completed === 'true') {
     console.log('✅ 외포장 완료 후 돌아옴');
-    
     completedSteps.value = ['INNER', 'OUTER'];
     innerCompletionTime.value = new Date();
     outerCompletionTime.value = new Date();
-    
-    // 포장 타입 선택 화면으로 돌아가기
     currentStep.value = 'package-type-selection';
     selectedPackageType.value = null;
-    
     console.log('🎯 외포장 완료 - 포장 타입 선택으로 이동');
-    
-    // URL 파라미터 정리
     setTimeout(() => router.replace({ query: {} }), 100);
     return;
   }
   
-  // 🔥 Case 5: 일반 진입 (기본값)
+  // Case 5: 일반 진입
   console.log('📝 일반 진입 - 내포장부터 시작');
   currentStep.value = 'package-type-selection';
   selectedPackageType.value = null;
   completedSteps.value = [];
-  lineTypeFilter.value = '';
-  lineStatusFilter.value = '';
-  searchText.value = '';
-  
   console.log('✅ 초기 상태 설정 완료');
+})
+
+// 🔥 컴포넌트 마운트 시 라인 목록 로드 (onMounted 추가)
+onMounted(() => {
+  console.log('🔄 컴포넌트 마운트 - 라인 목록 로드 시작');
+  fetchLines();
 })
 
 // 라인 목록 가져오기
 async function fetchLines() {
   loading.value = true
   error.value = ''
+  
   try {
+    console.log('🔄 라인 목록 로드 시작...')
+    
+    
+    //실제 API 호출 (주석 처리됨)
+    
     const res = await axios.get('/lines/list')
-    packageLines.value = res.data
-    console.log('✅ 라인 목록 로드 완료:', res.data?.length, '개');
+    console.log('📥 API 응답:', res.data)
+    
+    if (res.data && res.data.success && Array.isArray(res.data.data)) {
+      packageLines.value = res.data.data
+      console.log('✅ 라인 목록 로드 완료:', res.data.data.length, '개')
+    } else {
+      console.warn('⚠️ 예상과 다른 응답 구조:', res.data)
+      packageLines.value = []
+      error.value = '데이터 형식이 올바르지 않습니다'
+    }
+    
   } catch (err) {
-    error.value = '라인 목록을 불러오지 못했습니다.'
     console.error('❌ 라인 목록 로드 실패:', err)
+    error.value = '라인 목록을 불러오지 못했습니다.'
+    packageLines.value = []
   } finally {
     loading.value = false
   }
 }
 
-onMounted(() => {
-  fetchLines();
-})
-
-// 필터링된 라인 목록
-const filteredLines = computed(() => {
-  return packageLines.value.filter(line => {
-    const matchType = !lineTypeFilter.value || line.line_type === lineTypeFilter.value
-    const matchStatus = !lineStatusFilter.value || line.line_status === lineStatusFilter.value
-    const matchSearch = !searchText.value || line.line_name?.toLowerCase().includes(searchText.value.toLowerCase())
-    return matchType && matchStatus && matchSearch
-  })
-})
-
-// 포장 타입 선택
+// 🔥 포장 타입 선택 (디버그 로그 추가)
 function selectPackageType(type) {
   console.log('🎯 포장 타입 선택:', type);
+  console.log('현재 완료된 단계:', completedSteps.value);
   
   if (type === 'OUTER' && !completedSteps.value.includes('INNER')) {
     alert('내포장 작업을 먼저 완료해주세요.');
@@ -436,11 +457,13 @@ function selectPackageType(type) {
   
   selectedPackageType.value = type;
   currentStep.value = 'line-selection';
-  lineTypeFilter.value = type;  // 선택한 타입으로 필터 설정
+  lineTypeFilter.value = type;
   lineStatusFilter.value = '';
   searchText.value = '';
   
   console.log(`✅ ${type === 'INNER' ? '내포장' : '외포장'} 라인 선택 화면으로 이동`);
+  console.log('현재 단계:', currentStep.value);
+  console.log('선택된 포장 타입:', selectedPackageType.value);
 }
 
 // 포장 타입 선택으로 돌아가기
@@ -451,6 +474,17 @@ function goBackToPackageTypeSelection() {
   lineStatusFilter.value = ''
   searchText.value = ''
   console.log('🔙 포장 타입 선택 화면으로 돌아가기');
+}
+
+// 라인 관리로 이동
+function goBackToLineAdd() {
+  console.log('🔧 포장 라인 관리로 이동');
+  try {
+    router.push({ name: 'package_add_line' });
+  } catch (err) {
+    console.warn('라우터를 통한 이동 실패:', err);
+    window.location.href = '/faq/package_add_line';
+  }
 }
 
 // 모든 단계 초기화
@@ -470,7 +504,7 @@ function resetAllSteps() {
 // 필터 초기화
 function clearAllFilters() {
   if (currentStep.value === 'line-selection' && selectedPackageType.value) {
-    lineTypeFilter.value = selectedPackageType.value;  // 현재 포장 타입 유지
+    lineTypeFilter.value = selectedPackageType.value;
   } else {
     lineTypeFilter.value = '';
   }
@@ -495,10 +529,7 @@ async function confirmStartWork() {
   
   try {
     console.log('🚀 작업 시작:', selectedLineForStart.value);
-    
-    // 작업 수행 페이지로 이동
     navigateToWorkPage(selectedLineForStart.value)
-    
   } catch (err) {
     console.error('❌ 작업 시작 중 오류:', err)
     alert('작업 시작 중 오류가 발생했습니다.')
@@ -511,14 +542,6 @@ async function confirmStartWork() {
 function navigateToWorkPage(line) {
   console.log('🚀 작업 페이지로 이동:', line);
   
-  // 상태 저장
-  const currentState = {
-    selectedPackageType: selectedPackageType.value,
-    completedSteps: completedSteps.value
-  };
-  localStorage.setItem('packageLineState', JSON.stringify(currentState));
-  
-  // 라우터로 이동
   try {
     router.push({
       name: 'package_work',
@@ -535,7 +558,6 @@ function navigateToWorkPage(line) {
   } catch (routerError) {
     console.error('❌ 라우터 이동 실패:', routerError);
     
-    // 직접 URL로 이동
     const params = new URLSearchParams({
       line_id: line.line_id,
       line_name: line.line_name,
@@ -548,57 +570,6 @@ function navigateToWorkPage(line) {
     window.location.href = `/packaging/work?${params.toString()}`;
   }
 }
-
-// 🔥 작업 수행 페이지 연동 함수들 (새로 추가)
-function goBackToPackageLinesFromOuter() {
-  router.push({
-    name: 'package_line',
-    query: { maintain_type: 'OUTER', from_work: 'true' }
-  })
-}
-
-function goBackToPackageLinesFromInner() {
-  router.push({
-    name: 'package_line',
-    query: { maintain_type: 'INNER', from_work: 'true' }
-  })
-}
-
-function completeInnerPackaging() {
-  router.push({
-    name: 'package_line',
-    query: { inner_completed: 'true' }
-  })
-}
-
-function completeOuterPackaging() {
-  router.push({
-    name: 'package_line',
-    query: { outer_completed: 'true' }
-  })
-}
-
-function handleWorkCompleted(workType) {
-  if (workType === 'INNER') {
-    completedSteps.value = ['INNER']
-    innerCompletionTime.value = new Date()
-    selectedPackageType.value = 'OUTER'
-    currentStep.value = 'line-selection'
-    lineTypeFilter.value = 'OUTER'
-  } else if (workType === 'OUTER') {
-    completedSteps.value = ['INNER', 'OUTER']
-    outerCompletionTime.value = new Date()
-    currentStep.value = 'package-type-selection'
-    selectedPackageType.value = null
-  }
-}
-
-// 전역 노출
-window.handlePackageWorkCompleted = handleWorkCompleted
-window.goBackToPackageLinesFromOuter = goBackToPackageLinesFromOuter
-window.goBackToPackageLinesFromInner = goBackToPackageLinesFromInner
-window.completeInnerPackaging = completeInnerPackaging
-window.completeOuterPackaging = completeOuterPackaging
 
 // 모달 닫기
 function closeStartModal() {
@@ -636,21 +607,14 @@ function formatTime(date) {
   return date.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
 }
 
-// 컴포넌트명을 전역에 노출
-defineOptions({
-  name: 'PackageLine'
-})
-
-// 컴포넌트 함수들을 export (다른 컴포넌트에서 import해서 사용 가능)
+// 컴포넌트 함수들을 export
 defineExpose({
-  goBackToPackageLinesFromOuter,
-  goBackToPackageLinesFromInner,
-  completeInnerPackaging,
-  completeOuterPackaging,
-  handleWorkCompleted
+  selectPackageType,
+  goBackToPackageTypeSelection,
+  goBackToLineAdd,
+  resetAllSteps
 })
 </script>
-
 <style scoped>
 .package-line-container {
   min-height: 100vh;
@@ -1366,6 +1330,10 @@ defineExpose({
 .navigation-actions {
   text-align: center;
   margin-top: 40px;
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  flex-wrap: wrap;
 }
 
 .back-btn {
@@ -1382,6 +1350,14 @@ defineExpose({
 
 .back-btn:hover {
   background: #4b5563;
+}
+
+.back-btn.secondary {
+  background: #3b82f6;
+}
+
+.back-btn.secondary:hover {
+  background: #2563eb;
 }
 
 /* 반응형 */
@@ -1433,6 +1409,11 @@ defineExpose({
   
   .modal-actions {
     flex-direction: column;
+  }
+  
+  .navigation-actions {
+    flex-direction: column;
+    align-items: center;
   }
 }
 </style>
