@@ -68,7 +68,7 @@ const purchaseCheck =
           po.account_id,
           ac.account_name,
           po.name,
-          m.material_pay,
+          (m.material_pay * po.purchase_order_quantity) AS sumPay,
           ac.business_no,
           ac.address,
           ac.charger_name
@@ -76,7 +76,7 @@ const purchaseCheck =
   JOIN     material m
     ON     po.material_code = m.material_code
   JOIN     account ac
-    ON     po.account_id = ac.account_id;
+    ON     po.account_id = ac.account_id
 `
 ;
 

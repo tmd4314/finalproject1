@@ -31,6 +31,10 @@
           style="min-width: 1400px"
           track-by="purchase_order_id"
         >
+        <!-- 발주 가격 숫자 포맷팅 -->
+          <template #cell(sumPay)="{ value }">
+            {{ Number(value).toLocaleString() }} 원
+          </template>
           <template #cell(select)="{ row }">
             <va-checkbox v-model="selectedIds" :array-value="row.source.purchase_order_id" />
           </template>
@@ -154,6 +158,7 @@ const columns = [
   { key: 'material_code', label: '자재코드' },
   { key: 'material_name', label: '자재명' },
   { key: 'purchase_order_quantity', label: '요청수량' },
+  { key: 'sumPay', label: '발주 가격' },
   { key: 'material_unit', label: '단위' },
   { key: 'purchase_order_date', label: '발주일' },
   { key: 'due_date', label: '납기일' },
