@@ -27,8 +27,17 @@
         class="va-label-lg"
       />
 
-      <!-- 설비명 -->
-      <VaInput v-model="formData.name" label="설비명" :rules="[requiredRule]" class="va-label-lg" />
+      <!-- 설비명 (드롭다운) -->
+      <VaSelect 
+        v-model="formData.baseName" 
+        label="설비명" 
+        :options="codeOptions.eq_base_name" 
+        :rules="[requiredRule]" 
+        value-by="value"
+        text-by="label"
+        class="va-label-lg"
+        @update:modelValue="onBaseNameChange"
+      />
 
       <!-- 설비 분류 / 설비 유형 / 도입 유형 -->
       <div class="grid grid-cols-3 gap-4 va-label-lg">
@@ -43,10 +52,12 @@
         <VaSelect 
           v-model="formData.type" 
           label="설비 세부 유형" 
-          :options="codeOptions.eq_type" 
+          :options="filteredEqTypes" 
           :rules="[requiredRule]" 
           value-by="value"
           text-by="label"
+          :disabled="!formData.baseName"
+          placeholder="설비명을 먼저 선택해주세요"
         />
         <VaSelect 
           v-model="formData.installType" 
@@ -161,7 +172,8 @@ interface CodeOption {
 interface FormData {
   image: File[]
   id: string
-  name: string
+  baseName: string // 설비 기본명 (프론트엔드에서만 사용)
+  name: string // 실제 등록될 설비명 (혼합기1, 혼합기2 형태)
   category: string
   line: string
   type: string
@@ -198,6 +210,29 @@ const fileUploadRef = ref<any>()
 const previewUrl = ref<string>('')
 const existingImage = ref<string>('')
 
+// 설비 세부 유형 매핑
+const equipmentTypeMapping: Record<string, string[]> = {
+  'a1': ['t1'], // 혼합기 -> 고속 혼합기
+  'a2': ['t2'], // 과립기 -> 습식 과립기
+  'a3': ['t3'], // 건조기 -> 유동층 건조기
+  'a4': ['t4'], // 압축기 -> 정제 압축기
+  'a5': ['t5'], // 코팅기 -> 정제 코팅기
+  'a6': ['t7'], // 자동 정제 검사기 -> 물리적 검사 장비
+  'a7': ['t7'], // 경도 측정기 -> 물리적 검사 장비
+  'a8': ['t7'], // 칭량저울 -> 물리적 검사 장비
+  'a9': ['t8'], // HPLC -> 분석 장비
+  'a10': ['t8'], // 용출 시험기 -> 분석 장비
+  'a11': ['t8'], // 수분 분석기 -> 분석 장비
+  'a12': ['t8'], // 입도 분석기 -> 분석 장비
+  'a13': ['t6'], // 10정용 블리스터 포장기 -> 자동 포장기
+  'a14': ['t6'], // 30정용 블리스터 포장기 -> 자동 포장기
+  'a15': ['t6'], // 60정용 블리스터 포장기 -> 자동 포장기
+  'a16': ['t6'], // 병 모노블럭 -> 자동 포장기
+  'a17': ['t6'], // 소형 카톤포장기 -> 자동 포장기
+  'a18': ['t6'], // 대형 카톤포장기 -> 자동 포장기
+  'a19': ['t6']  // 라벨러 -> 자동 포장기
+}
+
 // 모드 결정: route params의 id가 있거나, query에 mode=edit이고 eq_id가 있으면 수정모드
 const mode = computed(() => {
   return route.params.id || (route.query.mode === 'edit' && route.query.eq_id) ? 'edit' : 'register'
@@ -211,6 +246,16 @@ const pageTitle = computed(() => {
   return mode.value === 'edit' ? '설비 수정' : '설비 등록'
 })
 
+// 설비명 선택에 따른 설비 세부 유형 필터링
+const filteredEqTypes = computed(() => {
+  if (!formData.value.baseName) return []
+  
+  const allowedTypes = equipmentTypeMapping[formData.value.baseName] || []
+  return codeOptions.value.eq_type.filter(option => 
+    allowedTypes.includes(option.value)
+  )
+})
+
 const requiredRule = (v: any): string | boolean => {
   return !!v || '필수 입력 항목입니다'
 }
@@ -218,6 +263,7 @@ const requiredRule = (v: any): string | boolean => {
 const getInitialFormState = (): FormData => ({
   image: [],
   id: '',
+  baseName: '',
   name: '',
   category: '',
   line: '',
@@ -247,8 +293,36 @@ const codeOptions = ref({
   eq_group: [] as CodeOption[],
   eq_type: [] as CodeOption[],
   eq_import: [] as CodeOption[],
+  eq_base_name: [] as CodeOption[], // 설비 기본명 (0A)
   line: [] as CodeOption[]
 })
+
+// 설비명 변경 시 처리
+const onBaseNameChange = (newBaseName: string) => {
+  // 설비 세부 유형 초기화
+  formData.value.type = ''
+  
+  // 설비 분류 자동 설정
+  if (newBaseName) {
+    const selectedBaseName = codeOptions.value.eq_base_name.find(option => option.value === newBaseName)
+    if (selectedBaseName) {
+      // 설비명에 따른 분류 자동 설정
+      if (['a1', 'a2', 'a3', 'a4', 'a5'].includes(newBaseName)) {
+        formData.value.category = 'e1' // 생산설비
+      } else if (['a6', 'a7', 'a8', 'a9', 'a10', 'a11', 'a12'].includes(newBaseName)) {
+        formData.value.category = 'e2' // 품질관리설비
+      } else if (['a13', 'a14', 'a15', 'a16', 'a17', 'a18', 'a19'].includes(newBaseName)) {
+        formData.value.category = 'e3' // 포장설비
+      }
+      
+      // 설비 세부 유형 자동 설정 (매핑된 유형이 하나인 경우)
+      const allowedTypes = equipmentTypeMapping[newBaseName] || []
+      if (allowedTypes.length === 1) {
+        formData.value.type = allowedTypes[0]
+      }
+    }
+  }
+}
 
 const onImageSelected = (files: any) => {
   const file = Array.isArray(files) ? files[0] : files
@@ -263,7 +337,7 @@ const onImageSelected = (files: any) => {
 
 const loadCommonCodes = async () => {
   try {
-    const { data: codes }: { data: CommonCodesResponse } = await axios.get('/common-codes?groups=0F,0L,0M,0E,0T,0I,line')
+    const { data: codes }: { data: CommonCodesResponse } = await axios.get('/common-codes?groups=0F,0L,0M,0E,0T,0I,0A,line')
     codeOptions.value = {
       factory: codes['0F'] || [],
       floor: codes['0L'] || [],
@@ -271,6 +345,7 @@ const loadCommonCodes = async () => {
       eq_group: codes['0E'] || [],
       eq_type: codes['0T'] || [],
       eq_import: codes['0I'] || [],
+      eq_base_name: codes['0A'] || [], // 설비 기본명
       line: codes.line || []
     }
   } catch (error: any) {
@@ -284,10 +359,16 @@ const loadEquipmentData = async (equipmentId: string) => {
     if (response.data.isSuccessed && response.data.data) {
       const equipment = response.data.data
       
+      // 기존 설비명에서 기본명 추출 (숫자 제거)
+      const extractedBaseName = equipment.eq_name?.replace(/\d+$/, '') || ''
+      // 기본명으로 코드 찾기
+      const baseNameOption = codeOptions.value.eq_base_name.find(option => option.label === extractedBaseName)
+      
       // 폼 데이터 설정
       formData.value = {
         image: [],
         id: equipment.eq_id || '',
+        baseName: baseNameOption?.value || '',
         name: equipment.eq_name || '',
         category: equipment.eq_group_code || '',
         line: equipment.line_id || '',
@@ -386,8 +467,15 @@ const handleSubmit = async (): Promise<void> => {
   try {
     const submitFormData = new FormData()
 
-    Object.entries(formData.value).forEach(([key, value]) => {
-      if (key !== 'image') {
+    // 선택된 기본명을 실제 설비명으로 변환해서 전송
+    const selectedBaseNameOption = codeOptions.value.eq_base_name.find(option => option.value === formData.value.baseName)
+    const submitData = {
+      ...formData.value,
+      name: selectedBaseNameOption?.label || formData.value.baseName // 서버에서 자동으로 번호 부여
+    }
+
+    Object.entries(submitData).forEach(([key, value]) => {
+      if (key !== 'image' && key !== 'baseName') {
         if (value !== null && value !== undefined && value !== '' && !Array.isArray(value)) {
           submitFormData.append(key, String(value))
         }
@@ -430,7 +518,6 @@ const handleReset = async (): Promise<void> => {
   if (!confirm('정말 초기화하시겠습니까?')) return
   await resetForm()
 }
-
 
 </script>
 

@@ -11,7 +11,7 @@ module.exports = {
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `,
 
-  // 설비 리스트 조회 (설비 조회/관리용)
+  // 설비 리스트 조회
   selectEquipmentList: `
     SELECT
       e.eq_id, 
@@ -70,7 +70,7 @@ module.exports = {
     WHERE eq_id = ?
   `,
 
-  // 설비 수정 (등록일 갱신 포함)
+  // 설비 수정
   updateEquipment: `
     UPDATE equipment SET
       eq_name = ?, eq_group_code = ?, eq_type_code = ?, eq_import_code = ?,
@@ -81,12 +81,12 @@ module.exports = {
     WHERE eq_id = ?
   `,
 
-  // 설비명 중복 수
+  // 설비명 중복 수 조회 (혼합기%, 과립기% 형태로 조회)
   countSameNameEquipments: `
     SELECT COUNT(*) as count FROM equipment WHERE eq_name LIKE ?
   `,
 
-  // 단일 삭제
+  // 단일 삭제 관련 쿼리들
   deleteInspectPartResultByEquipment: `
     DELETE ipr FROM inspect_part_result ipr
     INNER JOIN equipment_inspection_log eil ON ipr.inspection_log_id = eil.inspection_log_id
@@ -118,7 +118,7 @@ module.exports = {
     DELETE FROM equipment WHERE eq_id = ?
   `,
 
-  // 다중 삭제
+  // 다중 삭제 관련 쿼리들
   deleteInspectPartResultByEqIds: `
     DELETE ipr FROM inspect_part_result ipr
     INNER JOIN equipment_inspection_log eil ON ipr.inspection_log_id = eil.inspection_log_id
