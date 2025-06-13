@@ -1,4 +1,14 @@
-<template>
+const resetForm = async () => {
+  // 새로운 작업지시서 번호 생성
+  const newWorkOrderNo = await generateWorkOrderNo()
+  
+  form.value = {
+    work_order_no: newWorkOrderNo, // 새 번호로 설정
+    plan_id: '',
+    writer_id: '2', // 기본값 유지
+    writer_name: '김홍인', // 기본값 유지
+    write_date: new Date().toISOString().split('T')[0], // 오늘 날짜로 설정
+    order_start_dt: '',<template>
   <div class="max-w-[1060px] h-[739px] mx-auto p-4 bg-gray-50 overflow-hidden">
     <!-- 상단 타이틀 -->
     <div class="mb-3">
@@ -7,15 +17,15 @@
 
     <div class="h-[calc(100%-60px)] bg-white rounded-lg shadow-sm border border-gray-200 p-4">
       <!-- 기본 정보 영역 -->
-      <div class="grid grid-cols-4 gap-3 mb-4">
+      <div class="grid grid-cols-3 gap-3 mb-4">
         <!-- 작업지시서 번호 -->
         <div>
           <label class="block text-xs font-medium text-blue-600 mb-1">작업지시서 번호</label>
           <div class="flex">
             <input 
               v-model="form.work_order_no" 
-              class="flex-1 px-2 py-1.5 border border-gray-300 rounded-l-md text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
-              placeholder="WO001"
+              class="flex-1 px-2 py-1.5 border border-gray-300 rounded-l-md text-xs bg-gray-50"
+              readonly
             />
             <button 
               @click="openWorkOrderModal"
@@ -53,43 +63,12 @@
         <!-- 작성자 -->
         <div>
           <label class="block text-xs font-medium text-blue-600 mb-1">작성자</label>
-          <div class="flex">
-            <input 
-              v-model="form.writer_name" 
-              class="flex-1 px-2 py-1.5 border border-gray-300 rounded-l-md text-xs bg-gray-50"
-              readonly
-            />
-            <button 
-              @click="openEmployeeModal('writer')"
-              class="px-2 bg-blue-500 text-white rounded-r-md hover:bg-blue-600 text-xs flex items-center justify-center"
-            >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="11" cy="11" r="8"/>
-                <path d="m21 21-4.35-4.35"/>
-              </svg>
-            </button>
-          </div>
-        </div>
-
-        <!-- 담당자 -->
-        <div>
-          <label class="block text-xs font-medium text-blue-600 mb-1">담당자</label>
-          <div class="flex">
-            <input 
-              v-model="form.manager_name" 
-              class="flex-1 px-2 py-1.5 border border-gray-300 rounded-l-md text-xs bg-gray-50"
-              readonly
-            />
-            <button 
-              @click="openEmployeeModal('manager')"
-              class="px-2 bg-blue-500 text-white rounded-r-md hover:bg-blue-600 text-xs flex items-center justify-center"
-            >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="11" cy="11" r="8"/>
-                <path d="m21 21-4.35-4.35"/>
-              </svg>
-            </button>
-          </div>
+          <input 
+            v-model="form.writer_name" 
+            class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs bg-gray-50"
+            readonly
+            placeholder="로그인된 사용자"
+          />
         </div>
       </div>
 
@@ -110,7 +89,7 @@
         <div>
           <label class="block text-xs font-medium text-blue-600 mb-1">시작예정일</label>
           <input 
-            v-model="form.start_date" 
+            v-model="form.order_start_dt" 
             type="date"
             class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
@@ -120,7 +99,7 @@
         <div>
           <label class="block text-xs font-medium text-blue-600 mb-1">종료예정일</label>
           <input 
-            v-model="form.end_date" 
+            v-model="form.order_end_dt" 
             type="date"
             class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
@@ -164,13 +143,13 @@
             <thead class="bg-gray-50 sticky top-0">
               <tr>
                 <th class="border border-gray-200 px-2 py-1.5 text-center font-medium text-gray-700">#</th>
-                <th class="border border-gray-200 px-2 py-1.5 text-left font-medium text-gray-700">순번</th>
                 <th class="border border-gray-200 px-2 py-1.5 text-left font-medium text-gray-700">제품코드</th>
                 <th class="border border-gray-200 px-2 py-1.5 text-left font-medium text-gray-700">제품명</th>
-                <th class="border border-gray-200 px-2 py-1.5 text-left font-medium text-gray-700">수량</th>
                 <th class="border border-gray-200 px-2 py-1.5 text-left font-medium text-gray-700">단위</th>
                 <th class="border border-gray-200 px-2 py-1.5 text-left font-medium text-gray-700">규격</th>
                 <th class="border border-gray-200 px-2 py-1.5 text-left font-medium text-gray-700">공정코드</th>
+                <th class="border border-gray-200 px-2 py-1.5 text-left font-medium text-gray-700">우선순위</th>
+                <th class="border border-gray-200 px-2 py-1.5 text-left font-medium text-gray-700">비고</th>
               </tr>
             </thead>
             <tbody>
@@ -178,24 +157,26 @@
                 <td class="border border-gray-200 px-2 py-1.5 text-center">
                   <input type="checkbox" v-model="product.selected" class="rounded w-3 h-3" />
                 </td>
-                <td class="border border-gray-200 px-2 py-1.5">{{ index + 1 }}</td>
                 <td class="border border-gray-200 px-2 py-1.5">{{ product.product_code }}</td>
                 <td class="border border-gray-200 px-2 py-1.5">{{ product.product_name }}</td>
+                <td class="border border-gray-200 px-2 py-1.5">{{ product.product_unit }}</td>
+                <td class="border border-gray-200 px-2 py-1.5">{{ product.product_stand }}</td>
+                <td class="border border-gray-200 px-2 py-1.5">{{ product.process_code }}</td>
                 <td class="border border-gray-200 px-2 py-1.5">
                   <input 
-                    v-model.number="product.product_qty" 
+                    v-model.number="product.work_order_priority" 
                     type="number" 
                     min="1"
                     class="w-16 px-1 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    placeholder=""
+                    @input="sortProductsByPriority"
                   />
                 </td>
-                <td class="border border-gray-200 px-2 py-1.5">{{ product.product_unit }}</td>
-                <td class="border border-gray-200 px-2 py-1.5">{{ product.product_stand }}</td>
                 <td class="border border-gray-200 px-2 py-1.5">
                   <input 
-                    v-model="product.process_code" 
-                    class="w-20 px-1 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
-                    placeholder="공정코드"
+                    v-model="product.order_detail_remark" 
+                    class="w-full px-1 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    placeholder="비고"
                   />
                 </td>
               </tr>
@@ -223,30 +204,24 @@
     </div>
 
     <!-- 모달들 -->
-    <!-- <WorkOrderSearchModal 
-      v-if="showWorkOrderModal" 
-      @select="selectWorkOrder" 
-      @close="showWorkOrderModal = false" 
+    <ProductSearchModal 
+      v-if="showProductModal" 
+      @select="addProduct" 
+      @close="showProductModal = false" 
     />
     
     <PlanSearchModal 
       v-if="showPlanModal" 
       @select="selectPlan" 
       @close="showPlanModal = false" 
-    /> -->
-    
-    <EmployeeSearchModal 
-      v-if="showEmployeeModal" 
-      :type="employeeModalType"
-      @select="selectEmployee" 
-      @close="showEmployeeModal = false" 
     />
-    
-    <!-- <ProductSearchModal 
-      v-if="showProductModal" 
-      @select="addProduct" 
-      @close="showProductModal = false" 
+
+    <!-- <WorkOrderSearchModal 
+      v-if="showWorkOrderModal" 
+      @select="selectWorkOrder" 
+      @close="showWorkOrderModal = false" 
     /> -->
+
   </div>
 </template>
 
@@ -254,10 +229,9 @@
 import { ref, onMounted, computed } from 'vue'
 import axios from 'axios'
 
-// 모달 컴포넌트들 (나중에 생성)
-import EmployeeSearchModal from './EmployeeSearchModal.vue'
-// import ProductSearchModal from './ProductSearchModal.vue'
-// import PlanSearchModal from './PlanSearchModal.vue'
+// 모달 컴포넌트들
+import ProductSearchModal from './ProductSearchModal.vue'
+import PlanSearchModal from './PlanSearchModal.vue'
 // import WorkOrderSearchModal from './WorkOrderSearchModal.vue'
 
 // 기본 상태
@@ -266,9 +240,7 @@ const isEditMode = ref(false)
 // 모달 상태
 const showWorkOrderModal = ref(false)
 const showPlanModal = ref(false)
-const showEmployeeModal = ref(false)
 const showProductModal = ref(false)
-const employeeModalType = ref('') // 'writer' | 'manager'
 
 // 폼 데이터
 const form = ref({
@@ -276,11 +248,9 @@ const form = ref({
   plan_id: '',
   writer_id: '',
   writer_name: '',
-  manager_id: '',
-  manager_name: '',
-  write_date: '', // 자동 생성
-  start_date: '',
-  end_date: '',
+  write_date: '',
+  order_start_dt: '',
+  order_end_dt: '',
   order_remark: '',
   products: []
 })
@@ -291,8 +261,7 @@ const hasSelectedProducts = computed(() => {
 })
 
 const canSave = computed(() => {
-  return form.value.work_order_no && 
-         form.value.plan_id && 
+  return form.value.plan_id && 
          form.value.writer_id && 
          form.value.products.length > 0
 })
@@ -306,59 +275,32 @@ const openPlanModal = () => {
   showPlanModal.value = true
 }
 
-const openEmployeeModal = (type) => {
-  employeeModalType.value = type
-  showEmployeeModal.value = true
-}
-
 const openProductModal = () => {
   showProductModal.value = true
 }
 
-const selectWorkOrder = (workOrder) => {
-  form.value.work_order_no = workOrder.work_order_no
-  form.value.plan_id = workOrder.plan_id
-  form.value.write_date = workOrder.write_date
-  form.value.start_date = workOrder.start_date
-  form.value.end_date = workOrder.end_date
-  form.value.order_remark = workOrder.order_remark
-  
-  // 상세 정보 로드
-  loadWorkOrderDetail(workOrder.work_order_no)
-  isEditMode.value = true
-  showWorkOrderModal.value = false
-}
-
 const selectPlan = (plan) => {
   form.value.plan_id = plan.plan_id
-  
-  // 계획의 제품들을 작업지시서로 복사
   loadPlanProducts(plan.plan_id)
   showPlanModal.value = false
 }
 
-const selectEmployee = (employee) => {
-  if (employeeModalType.value === 'writer') {
-    form.value.writer_id = employee.employee_id
-    form.value.writer_name = employee.emp_name
-  } else if (employeeModalType.value === 'manager') {
-    form.value.manager_id = employee.employee_id
-    form.value.manager_name = employee.emp_name
-  }
-  showEmployeeModal.value = false
-}
-
+// 제품 추가 시 process_group_code 자동 입력
 const addProduct = (product) => {
+  console.log('선택된 제품 데이터:', product) // 디버깅 로그 추가
+  
   const newProduct = {
-    seq_no: form.value.products.length + 1,
     product_code: product.product_code,
     product_name: product.product_name,
-    product_qty: 1,
     product_unit: product.product_unit,
     product_stand: product.product_stand,
-    process_code: '',
+    process_code: product.process_group_code || '', // 공정그룹코드 자동 입력
+    work_order_priority: null,
+    order_detail_remark: '',
     selected: false
   }
+  
+  console.log('추가될 제품 데이터:', newProduct) // 디버깅 로그 추가
   form.value.products.push(newProduct)
   showProductModal.value = false
 }
@@ -372,62 +314,36 @@ const removeSelectedProducts = () => {
   }
   
   form.value.products = form.value.products.filter(product => !product.selected)
-  
-  // 순번 재정렬
-  form.value.products.forEach((product, index) => {
-    product.seq_no = index + 1
-  })
+  sortProductsByPriority()
 }
 
-const loadWorkOrderDetail = async (workOrderNo) => {
-  try {
-    const res = await axios.get(`/workOrder/${workOrderNo}`)
-    if (res.data && res.data.master) {
-      const master = res.data.master
-      const products = res.data.products || []
-      
-      form.value = {
-        work_order_no: master.work_order_no,
-        plan_id: master.plan_id,
-        writer_id: master.writer_id,
-        writer_name: master.writer_name,
-        manager_id: master.manager_id,
-        manager_name: master.manager_name,
-        write_date: master.write_date,
-        start_date: master.start_date,
-        end_date: master.end_date,
-        order_remark: master.order_remark,
-        products: products.map(product => ({
-          seq_no: product.seq_no,
-          product_code: product.product_code,
-          product_name: product.product_name,
-          product_qty: product.product_qty,
-          product_unit: product.product_unit,
-          product_stand: product.product_stand,
-          process_code: product.process_code || '',
-          selected: false
-        }))
-      }
+const sortProductsByPriority = () => {
+  form.value.products.sort((a, b) => {
+    if (a.work_order_priority && b.work_order_priority) {
+      return a.work_order_priority - b.work_order_priority
     }
-  } catch (err) {
-    console.error('작업지시서 상세 조회 오류:', err)
-    alert('작업지시서 정보를 불러오는데 실패했습니다.')
-  }
+    if (a.work_order_priority && !b.work_order_priority) {
+      return -1
+    }
+    if (!a.work_order_priority && b.work_order_priority) {
+      return 1
+    }
+    return 0
+  })
 }
 
 const loadPlanProducts = async (planId) => {
   try {
     const res = await axios.get(`/workOrder/plan/${planId}`)
     if (res.data && res.data.length > 0) {
-      // 계획의 제품들로 제품 목록 초기화
-      form.value.products = res.data.map((item, index) => ({
-        seq_no: index + 1,
+      form.value.products = res.data.map((item) => ({
         product_code: item.product_code,
         product_name: item.product_name,
-        product_qty: item.plan_qty || 1,
         product_unit: item.product_unit,
         product_stand: item.product_stand,
-        process_code: '',
+        process_code: item.process_group_code || '', // 공정그룹코드 자동 입력
+        work_order_priority: null,
+        order_detail_remark: '',
         selected: false
       }))
     }
@@ -448,17 +364,16 @@ const saveWorkOrder = async () => {
       master: {
         work_order_no: form.value.work_order_no,
         plan_id: form.value.plan_id,
-        writer_id: form.value.writer_id,
-        manager_id: form.value.manager_id,
-        start_date: form.value.start_date,
-        end_date: form.value.end_date,
+        writer_id: form.value.writer_id || 'TEMP_USER',
+        order_start_dt: form.value.order_start_dt,
+        order_end_dt: form.value.order_end_dt,
         order_remark: form.value.order_remark
       },
       products: form.value.products.map(product => ({
         product_code: product.product_code,
-        product_qty: product.product_qty,
-        process_code: product.process_code,
-        seq_no: product.seq_no
+        work_order_priority: product.work_order_priority || null,
+        order_detail_remark: product.order_detail_remark,
+        process_group_code: product.process_code // process_group_code로 저장
       }))
     }
 
@@ -479,25 +394,40 @@ const saveWorkOrder = async () => {
 
 const resetForm = () => {
   form.value = {
-    work_order_no: '',
+    work_order_no: form.value.work_order_no, // 현재 번호 유지
     plan_id: '',
-    writer_id: '',
-    writer_name: '',
-    manager_id: '',
-    manager_name: '',
-    write_date: '',
-    start_date: '',
-    end_date: '',
+    writer_id: '2',
+    writer_name: '김홍인',
+    write_date: new Date().toISOString().split('T')[0],
+    order_start_dt: '',
+    order_end_dt: '',
     order_remark: '',
     products: []
   }
   isEditMode.value = false
 }
 
-// 컴포넌트 마운트 시 작성일 자동 설정
+// 작업지시서 번호 자동 생성 (DB 조회)
+const generateWorkOrderNo = async () => {
+  try {
+    const res = await axios.get('/workOrder/generate-no')
+    return res.data.work_order_no
+  } catch (err) {
+    console.error('작업지시서 번호 생성 오류:', err)
+    // 에러 시 기본값
+    const today = new Date().toISOString().slice(0, 10).replace(/-/g, '')
+    return `WO${today}001`
+  }
+}
+
 onMounted(() => {
   const today = new Date().toISOString().split('T')[0]
   form.value.write_date = today
+  form.value.writer_name = '김홍인'
+  form.value.writer_id = '2'
+  
+  // 작업지시서 번호는 빈 값으로 시작 (저장시 자동생성)
+  form.value.work_order_no = ''
 })
 </script>
 
@@ -510,7 +440,6 @@ input:focus, select:focus {
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
-/* 스크롤바 스타일링 */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -530,7 +459,6 @@ input:focus, select:focus {
   background: #94a3b8;
 }
 
-/* 버튼 hover 효과 */
 button {
   transition: all 0.15s ease-in-out;
 }
