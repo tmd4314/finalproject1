@@ -1,34 +1,31 @@
-// sqls/workOrder.js - 매퍼에 맞게 수정된 구조
+// sqls/workOrder.js 
 
-// 1. 사원 검색 (모달용) - 수정됨
-const searchEmployees = `SELECT e.employee_id, e.employee_name as emp_name, d.department_name as dept_name, e.position
-        FROM employees e
-        LEFT JOIN department d ON e.department_code = d.department_code
-        WHERE (? = '' OR e.employee_name LIKE CONCAT('%', ?, '%') 
-                     OR e.employee_id LIKE CONCAT('%', ?, '%'))
-        ORDER BY d.department_name, e.employee_name;`;
+// 2. 제품 검색 (모달) 
+const searchProducts = `SELECT p.product_code, p.product_name, p.product_unit, p.product_stand,
+                               (SELECT pg.process_group_code 
+                                FROM process_group pg 
+                                WHERE pg.product_code = p.product_code 
+                                LIMIT 1) as process_group_code
+        FROM product p
+        WHERE (? = '' OR p.product_name LIKE CONCAT('%', ?, '%') 
+                     OR p.product_code LIKE CONCAT('%', ?, '%'))
+        ORDER BY p.product_name;`;
 
-// 2. 제품 검색 (모달용)
-const searchProducts = `SELECT product_code, product_name, product_unit, product_stand, product_pay
-        FROM product 
-        WHERE (? = '' OR product_name LIKE CONCAT('%', ?, '%') 
-                     OR product_code LIKE CONCAT('%', ?, '%'))
-        ORDER BY product_name;`;
-
-// 3. 작업지시서 검색 (모달용)
+// 3. 작업지시서 검색 (모달) 
 const searchWorkOrders = `SELECT 
             work_order_no, 
             plan_id, 
+            writer_id,
             write_date,
-            start_date,
-            end_date,
+            order_start_dt,
+            order_end_dt,
             order_remark
         FROM work_order_master 
         WHERE (? = '' OR work_order_no LIKE CONCAT('%', ?, '%')
                      OR order_remark LIKE CONCAT('%', ?, '%'))
         ORDER BY write_date DESC, work_order_no DESC;`;
 
-// 4. 계획 검색 (모달용) - 수정됨
+// 4. 계획 검색 (모달)
 const searchPlans = `SELECT 
             pm.plan_id,
             pm.writer_id,
@@ -36,12 +33,30 @@ const searchPlans = `SELECT
             pm.plan_start_dt,
             pm.plan_end_dt,
             pm.plan_remark,
-            e.employee_name as writer_name
+            e.employee_name as writer_name,
+            CONCAT(
+                (SELECT p2.product_name 
+                 FROM production_plan_detail pd2 
+                 LEFT JOIN product p2 ON pd2.product_code = p2.product_code 
+                 WHERE pd2.plan_id = pm.plan_id 
+                 LIMIT 1),
+                CASE 
+                    WHEN (SELECT COUNT(*) FROM production_plan_detail pd3 WHERE pd3.plan_id = pm.plan_id) > 1 
+                    THEN CONCAT(' 외 ', (SELECT COUNT(*) - 1 FROM production_plan_detail pd4 WHERE pd4.plan_id = pm.plan_id), '건')
+                    ELSE ''
+                END
+            ) as product_summary,
+            (SELECT SUM(pd5.plan_qty) FROM production_plan_detail pd5 WHERE pd5.plan_id = pm.plan_id) as total_qty
         FROM production_plan_master pm
             LEFT JOIN employees e ON pm.writer_id = e.employee_id
-        WHERE (? = '' OR pm.plan_id LIKE CONCAT('%', ?, '%')
-                     OR pm.plan_remark LIKE CONCAT('%', ?, '%'))
-        ORDER BY pm.plan_reg_dt DESC, pm.plan_id DESC;`;
+            LEFT JOIN production_plan_detail pd ON pm.plan_id = pd.plan_id
+            LEFT JOIN product p ON pd.product_code = p.product_code
+        WHERE pm.plan_status = '대기'
+            AND (? = '' OR pm.plan_id LIKE CONCAT('%', ?, '%')
+                        OR p.product_name LIKE CONCAT('%', ?, '%')
+                        OR pm.plan_start_dt = ?)
+        GROUP BY pm.plan_id
+        ORDER BY pm.plan_end_dt ASC;`;
 
 // 5. 계획 정보 불러오기
 const getPlanInfo = `SELECT 
@@ -55,78 +70,88 @@ const getPlanInfo = `SELECT
             pd.plan_qty,
             p.product_name,
             p.product_unit,
-            p.product_stand
+            p.product_stand,
+            (SELECT pg.process_group_code 
+             FROM process_group pg 
+             WHERE pg.product_code = p.product_code 
+             LIMIT 1) as process_group_code
         FROM production_plan_master pm
             LEFT JOIN production_plan_detail pd ON pm.plan_id = pd.plan_id
             LEFT JOIN product p ON pd.product_code = p.product_code
         WHERE pm.plan_id = ?;`;
 
-// 6. 기존 작업지시서 불러오기 (수정됨)
+// 6. 기존 작업지시서 불러오기
 const getWorkOrderInfo = `SELECT 
             wom.work_order_no,
             wom.plan_id,
             wom.writer_id,
             wom.write_date,
-            wom.manager_id,
-            wom.start_date,
-            wom.end_date,
+            wom.order_start_dt,
+            wom.order_end_dt,
             wom.order_remark,
-            e1.employee_name as writer_name,
-            e2.employee_name as manager_name
+            e.employee_name as writer_name
         FROM work_order_master wom
-            LEFT JOIN employees e1 ON wom.writer_id = e1.employee_id
-            LEFT JOIN employees e2 ON wom.manager_id = e2.employee_id
+            LEFT JOIN employees e ON wom.writer_id = e.employee_id
         WHERE wom.work_order_no = ?;`;
 
-// 7. 작업지시서 제품 목록 조회 (공정코드 포함)
+// 7. 작업지시서 제품 목록 조회
 const getWorkOrderProducts = `SELECT 
-            wop.product_code,
-            wop.product_qty,
-            wop.process_code,
-            wop.seq_no,
+            wod.work_order_detail_id,
+            wod.product_code,
+            wod.work_order_priority,
+            wod.order_detail_remark,
+            wod.work_order_no,
+            wod.process_group_code,
             p.product_name,
             p.product_unit,
-            p.product_stand,
-            pc.process_name
-        FROM work_order_product wop
-            LEFT JOIN product p ON wop.product_code = p.product_code
-            LEFT JOIN process pc ON wop.process_code = pc.process_code
-        WHERE wop.work_order_no = ?
-        ORDER BY wop.seq_no;`;
+            p.product_stand
+        FROM work_order_detail wod
+            LEFT JOIN product p ON wod.product_code = p.product_code
+        WHERE wod.work_order_no = ?
+        ORDER BY wod.work_order_priority, wod.work_order_detail_id;`;
 
-// 8. 작업지시서 저장 (수정됨 - 공정코드, 시작/종료예정 추가)
+// 8. 작업지시서 저장
 const saveWorkOrder = `INSERT INTO work_order_master (
             work_order_no, plan_id, writer_id, write_date,
-            manager_id, start_date, end_date, order_remark
-        ) VALUES (?, ?, ?, NOW(), ?, ?, ?, ?)
+            order_start_dt, order_end_dt, order_remark
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
         ON DUPLICATE KEY UPDATE
             plan_id = VALUES(plan_id),
             writer_id = VALUES(writer_id),
             write_date = VALUES(write_date),
-            manager_id = VALUES(manager_id),
-            start_date = VALUES(start_date),
-            end_date = VALUES(end_date),
+            order_start_dt = VALUES(order_start_dt),
+            order_end_dt = VALUES(order_end_dt),
             order_remark = VALUES(order_remark);`;
 
-// 9. 제품 정보 저장 (기존 삭제 후 재입력)
-const deleteWorkOrderProducts = `DELETE FROM work_order_product WHERE work_order_no = ?;`;
+// 9. 제품 정보 저장
+const deleteWorkOrderProducts = `DELETE FROM work_order_detail WHERE work_order_no = ?;`;
 
-const insertWorkOrderProduct = `INSERT INTO work_order_product (
-            work_order_no, product_code, product_qty, process_code, seq_no
+const insertWorkOrderProduct = `INSERT INTO work_order_detail (
+            work_order_no, product_code, work_order_priority, 
+            order_detail_remark, process_group_code
         ) VALUES (?, ?, ?, ?, ?);`;
 
-// 10. 작업지시서 목록 조회 (불러오기용)
+// 10. 작업지시서 목록 조회
 const getWorkOrderList = `SELECT 
             work_order_no, plan_id, write_date,
-            start_date, end_date, order_remark
+            order_start_dt, order_end_dt, order_remark
         FROM work_order_master 
         WHERE (? = '' OR work_order_no LIKE CONCAT('%', ?, '%')
                      OR order_remark LIKE CONCAT('%', ?, '%'))
         ORDER BY write_date DESC, work_order_no DESC;`;
 
+// 11. 작업지시서 번호 자동 생성
+const generateWorkOrderNo = `
+  SELECT 
+    CONCAT('WO', DATE_FORMAT(NOW(), '%Y%m%d'), 
+           LPAD(COALESCE(MAX(CAST(SUBSTRING(work_order_no, 11, 3) AS UNSIGNED)), 0) + 1, 3, '0')
+    ) as next_work_order_no
+  FROM work_order_master 
+  WHERE work_order_no LIKE CONCAT('WO', DATE_FORMAT(NOW(), '%Y%m%d'), '%')
+`;
+
 // 모든 쿼리 객체 내보내기
 module.exports = {
-  searchEmployees,
   searchProducts,
   searchWorkOrders,
   searchPlans,
@@ -136,5 +161,6 @@ module.exports = {
   saveWorkOrder,
   deleteWorkOrderProducts,
   insertWorkOrderProduct,
-  getWorkOrderList
+  getWorkOrderList,
+  generateWorkOrderNo, 
 };

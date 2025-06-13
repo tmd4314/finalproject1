@@ -4,18 +4,20 @@ const express = require('express');
 const router = express.Router();
 const workOrderService = require('../services/workOrderService');
 
-// ========== 검색 API ==========
+// ========== 번호 생성 API ==========
 
-// [GET] /work-order/employees/search - 사원 검색 (모달용)
-router.get('/employees/search', async (req, res) => {
+// [GET] /work-order/generate-no - 작업지시서 번호 자동 생성
+router.get('/generate-no', async (req, res) => {
   try {
-    const { q } = req.query;
-    const result = await workOrderService.searchEmployees(q || '');
-    res.json(result);
+    const workOrderNo = await workOrderService.generateWorkOrderNo();
+    res.json({ work_order_no: workOrderNo });
   } catch (err) {
+    console.error('작업지시서 번호 생성 오류:', err);
     res.status(500).json({ error: err.message });
   }
 });
+
+// ========== 검색 API ==========
 
 // [GET] /work-order/products/search - 제품 검색 (모달용)
 router.get('/products/search', async (req, res) => {
@@ -190,5 +192,7 @@ router.post('/products', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+
 
 module.exports = router;
