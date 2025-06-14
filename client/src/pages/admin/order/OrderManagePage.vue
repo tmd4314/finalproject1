@@ -106,7 +106,7 @@
             <tr v-for="(item, index) in form.products" :key="index">
               <td>
                 <va-select
-                  v-model="item.productId"
+                  v-model="item.productName"
                   :options="uniqueProductName"
                   placeholder="제품 선택"
                   @update:model-value="(val) => updateProduct(val, index)"
@@ -116,6 +116,10 @@
               <td>
                 <va-select
                   v-model="item.spec"
+                  :options="getSpecsByProductName(item.productName)"
+                  placeholder="규격 선택"
+                  @update:model-value="(val) => updateProductBySpec(item.productName, val, index)"
+                  :disabled="!item.productName"
                 />
 
               </td>
@@ -217,14 +221,22 @@ const customerOptions = computed(() =>
 //   }))
 // )
 
-// 제품명 중복제거
 const uniqueProductName = computed(() => {
+// 제품명 중복제거
   const uniqueNames = [...new Set(products.value.map(p => p.product_name))]
   return uniqueNames.map(name => ({
     value: name,
     text: name
   }))
 })
+
+// 제품 규격 선택
+function getSpecsByProductName(productName: string) {
+  return products.value
+    .filter(p => p.product_name === productName)
+    .map(p => ({ value: p.product_stand,
+                 text: p.product_stand }))
+}
 
 // 초기 데이터 로드
 onMounted(() => {
@@ -363,10 +375,25 @@ function updateProduct(productId: string, index: number) {
     form.value.products[index] = {
       productId: product.product_id,
       productName: product.product_name,
-      spec: product.product_atc,
+      spec: product.product_stand,
       quantity: form.value.products[index].quantity || 1,
       productCode: product.product_code
     }
+  }
+}
+
+function updateProductBySpec(productName: string, spec: string, index: number){
+  const product = products.value.find(
+    p => p.product_name === productName && p.product_stand === spec
+  )
+  if (product){
+    form.value.products[index] = {
+    productId: product.product_id,
+    productName: product.product_name,
+    spec: product.product_stand,
+    quantity: form.value.products[index].quantity || 1,
+    productCode: product.product_code
+   }
   }
 }
 
