@@ -13,17 +13,33 @@ const searchProducts = `SELECT p.product_code, p.product_name, p.product_unit, p
 
 // 3. 작업지시서 검색 (모달) 
 const searchWorkOrders = `SELECT 
-            work_order_no, 
-            plan_id, 
-            writer_id,
-            write_date,
-            order_start_dt,
-            order_end_dt,
-            order_remark
-        FROM work_order_master 
-        WHERE (? = '' OR work_order_no LIKE CONCAT('%', ?, '%')
-                     OR order_remark LIKE CONCAT('%', ?, '%'))
-        ORDER BY write_date DESC, work_order_no DESC;`;
+            wom.work_order_no, 
+            wom.plan_id, 
+            wom.writer_id,
+            wom.write_date,
+            wom.order_start_dt,
+            wom.order_end_dt,
+            wom.order_remark,
+            CONCAT(
+                (SELECT p2.product_name 
+                 FROM work_order_detail wod2 
+                 LEFT JOIN product p2 ON wod2.product_code = p2.product_code 
+                 WHERE wod2.work_order_no = wom.work_order_no 
+                 ORDER BY wod2.work_order_priority, wod2.work_order_detail_id
+                 LIMIT 1),
+                CASE 
+                    WHEN (SELECT COUNT(*) FROM work_order_detail wod3 WHERE wod3.work_order_no = wom.work_order_no) > 1 
+                    THEN CONCAT(' 외 ', (SELECT COUNT(*) - 1 FROM work_order_detail wod4 WHERE wod4.work_order_no = wom.work_order_no), '건')
+                    ELSE ''
+                END
+            ) as product_summary
+        FROM work_order_master wom
+            LEFT JOIN work_order_detail wod ON wom.work_order_no = wod.work_order_no
+            LEFT JOIN product p ON wod.product_code = p.product_code
+        WHERE (? = '' OR wom.work_order_no LIKE CONCAT('%', ?, '%')
+                     OR p.product_name LIKE CONCAT('%', ?, '%'))
+        GROUP BY wom.work_order_no
+        ORDER BY wom.write_date DESC, wom.work_order_no DESC;`;
 
 // 4. 계획 검색 (모달)
 const searchPlans = `SELECT 
@@ -52,6 +68,11 @@ const searchPlans = `SELECT
             LEFT JOIN production_plan_detail pd ON pm.plan_id = pd.plan_id
             LEFT JOIN product p ON pd.product_code = p.product_code
         WHERE pm.plan_status = '대기'
+            AND pm.plan_id NOT IN (
+                SELECT DISTINCT wom.plan_id 
+                FROM work_order_master wom 
+                WHERE wom.plan_id IS NOT NULL AND wom.plan_id != ''
+            )
             AND (? = '' OR pm.plan_id LIKE CONCAT('%', ?, '%')
                         OR p.product_name LIKE CONCAT('%', ?, '%')
                         OR pm.plan_start_dt = ?)
