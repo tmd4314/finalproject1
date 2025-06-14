@@ -97,13 +97,14 @@
               <th style="width: 120px;">규격 (정)</th>
               <th>수량 (box)</th>
               <th>제품코드</th>
-              <th>단가</th>
-              <th>주문가격</th>
+              <th>단가 (원)</th>
+              <th>주문가격 (원)</th>
               <th style="width: 50px; text-align: center;">삭제</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="(item, index) in form.products" :key="index">
+              <!-- 제품명 -->
               <td>
                 <va-select
                   v-model="item.productName"
@@ -115,13 +116,12 @@
               <!-- 규격 -->
               <td>
                 <va-select
-                  v-model="item.spec"
-                  :options="getSpecsByProductName(item.productName)"
+                  v-model="item.productStand"
+                  :options="getProductStandOptions(item.productName)"
                   placeholder="규격 선택"
-                  @update:model-value="(val) => updateProductBySpec(item.productName, val, index)"
+                  @update:model-value="(val) => updateProductByProductStand(item.productName, val, index)"
                   :disabled="!item.productName"
                 />
-
               </td>
               <!-- 수량 -->
               <td>
@@ -129,22 +129,18 @@
                   v-model.number="item.quantity" 
                   type="number"
                   min="1"
+                  @input="onQuantityInput(index)"
                 />
               </td>
 
               <td>{{ item.productCode }}</td>
-              
-              <!-- 단가 (수정필요!!!!!!!!!!!!!!!!!!) -->
+              <!-- 단가 -->
               <td>
-                <va-input 
-                  v-model="item.quantity"
-                />
+                  {{ item.unitPrice }}
               </td>
-              <!-- 주문가격 (수정필요!!!!!!!!!!!!!!!!!!) -->
+              <!-- 주문가격 -->
               <td>
-                <va-input 
-                  v-model="item.quantity"
-                />
+                {{ computedOrderPrices[index] }}
               </td>
               <td style="text-align: center;">
                 <va-button 
@@ -191,8 +187,15 @@ const form = ref({
   orderDate: new Date(),
   deliveryDate: new Date(),
   createdBy: '',
+
   products: [
-    { productId: '', productName: '', spec: '', quantity: 1, productCode: '' }
+    { 
+      productCode: '', 
+      productName: '', 
+      productStand: '', 
+      quantity: 1,
+      unitPrice: 0
+    }
   ]
 })
 
@@ -224,19 +227,39 @@ const customerOptions = computed(() =>
 const uniqueProductName = computed(() => {
 // 제품명 중복제거
   const uniqueNames = [...new Set(products.value.map(p => p.product_name))]
-  return uniqueNames.map(name => ({
-    value: name,
-    text: name
-  }))
+  return uniqueNames
 })
 
 // 제품 규격 선택
-function getSpecsByProductName(productName: string) {
+function getProductStandOptions(productName: string) {
+  console.log('getProductStandOptions 실행!')
+  console.log('입력된 productName: ', productName)
+  console.log('productName 타입: ', typeof productName)
+  if (!productName) {
+    console.log('제품명이 비어있음') 
+    return []
+  }
+  
   return products.value
     .filter(p => p.product_name === productName)
-    .map(p => ({ value: p.product_stand,
-                 text: p.product_stand }))
+    .map(p => (p.product_stand))
 }
+
+// 수량 마이너스 선택 못하게!
+function onQuantityInput(index: number) {
+  const q = form.value.products[index].quantity
+  if(q<1 || isNaN(q)) {
+    form.value.products[index].quantity = 1
+  }
+}
+
+
+
+// 주문 가격 computed!!!!
+const computedOrderPrices = computed(() => {
+  return form.value.products.map(item => item.unitPrice * item.quantity)
+})
+
 
 // 초기 데이터 로드
 onMounted(() => {
@@ -327,7 +350,7 @@ async function editOrder(order: any) {
       products: items.map((item: any) => ({
         productId: '',  // 제품 ID를 찾아야 함
         productName: item.product_name,
-        spec: item.spec,
+        productStand: item.productStand,
         quantity: item.order_qty,
         productCode: item.product_code
       }))
@@ -354,11 +377,11 @@ async function deleteOrder(order: any) {
 // 제품 추가/삭제
 function addProduct() {
   form.value.products.push({
-    productId: '',
     productName: '',
-    spec: '',
+    productStand: '',
     quantity: 1,
-    productCode: ''
+    productCode: '',
+    unitPrice: 0
   })
 }
 
@@ -369,32 +392,40 @@ function removeProduct(index: number) {
 }
 
 // 제품 선택 시 정보 업데이트
-function updateProduct(productId: string, index: number) {
-  const product = products.value.find(p => p.product_id === productId)
+function updateProduct(productName: string, index: number) {
+  const product = products.value.find(p => p.product_name == productName)
   if (product) {
+    
+
     form.value.products[index] = {
-      productId: product.product_id,
+      productCode: '',
       productName: product.product_name,
-      spec: product.product_stand,
-      quantity: form.value.products[index].quantity || 1,
-      productCode: product.product_code
+      productStand: '',
+      quantity: 1,
+      unitPrice: 0
     }
   }
 }
-
-function updateProductBySpec(productName: string, spec: string, index: number){
+// 제품명, 규격 선택 시 나머지 데이터 자동입력
+function updateProductByProductStand(productName: string, productStand: string, index: number){
+  console.log('규격 업데이트 됨!!!!!!!!!!!!')
   const product = products.value.find(
-    p => p.product_name === productName && p.product_stand === spec
+    p => p.product_name === productName && p.product_stand === productStand
   )
   if (product){
+    const quantity = form.value.products[index].quantity
+    const unitPrice = product.product_pay
+    const orderPrice = unitPrice * quantity
+
     form.value.products[index] = {
-    productId: product.product_id,
+    productCode: product.product_code,
     productName: product.product_name,
-    spec: product.product_stand,
+    productStand: product.product_stand,
     quantity: form.value.products[index].quantity || 1,
-    productCode: product.product_code
+    unitPrice: unitPrice
    }
   }
+  console.log(productStand)
 }
 
 // 폼 초기화
@@ -405,7 +436,11 @@ function resetForm() {
     deliveryDate: new Date(),
     createdBy: '',
     products: [
-      { productId: '', productName: '', spec: '', quantity: 1, productCode: '' }
+      { productName: '', 
+      productStand: '', 
+      quantity: 1, 
+      productCode: '',
+      unitPrice:0 }
     ]
   }
 }
@@ -418,7 +453,7 @@ async function saveOrder() {
     return
   }
   
-  if (form.value.products.some(p => !p.productId || !p.quantity)) {
+  if (form.value.products.some(p => !p.productCode || !p.quantity)) {
     alert('제품 정보를 모두 입력하세요.')
     return
   }
@@ -430,7 +465,6 @@ async function saveOrder() {
       deliveryDate: form.value.deliveryDate,
       createdBy: form.value.createdBy || '관리자',
       products: form.value.products.map(p => ({
-      productId: p.productId,
       productCode: p.productCode,
       quantity: p.quantity
       }))
