@@ -29,7 +29,9 @@ const proxyPaths = [
   'puOrder',
   'purchase',
   'workOrder',
-  'purchaseCheck'
+  'purchaseCheck',
+   'delivery',
+   'deliveryCheck'
 
 ]
 

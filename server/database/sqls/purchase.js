@@ -61,6 +61,7 @@ const purchaseCheck =
           po.purchase_order_name,
           m.material_code,
           m.material_name,
+          m.material_pay,
           po.purchase_order_quantity,
           m.material_unit,
           po.purchase_order_date,

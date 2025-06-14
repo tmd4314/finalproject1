@@ -56,7 +56,7 @@
           <td>{{ item.purchase_order_quantity }}</td>
           <td>{{ item.material_unit }}</td>
           <td>{{ formatToKST(item.material_expiration_date) }}</td>
-          <td><input type="text" v-model="item.lot_number" placeholder="예: TEMP-LOT001" /></td>
+          <td>{{ generateLotNumber(item.material_code) }}</td>
           <td><button @click="saveMaterialLot(item)" class="btn">입고</button></td>
         </tr>
       </tbody>
@@ -119,12 +119,26 @@ const fetchOrder = async () => {
   }
 }
 
+function generateLotNumber(materialCode: string): string {
+  const now = new Date()
+  const yyyy = now.getFullYear()
+  const mm = String(now.getMonth() + 1).padStart(2, '0')
+  const dd = String(now.getDate()).padStart(2, '0')
+  return `LOT${materialCode}-${yyyy}${mm}${dd}`
+}
+
+function toDateOnly(iso: string): string {
+  return iso.split('T')[0];  // '2025-06-27T15:00:00.000Z' → '2025-06-27'
+}
+
 const saveMaterialLot = async (item: MaterialReceipt): Promise<void> => {
 
+  const lotNum = generateLotNumber(item.material_code)
+
   const payload = {
-    lot_number: item.lot_number,
+    lot_number: lotNum,
     material_code: item.material_code,
-    material_expiration_date: item.material_expiration_date,
+    expiry_date: toDateOnly(item.material_expiration_date),
     quantity: item.purchase_order_quantity,
     purchase_order_id: item.purchase_order_id
   }

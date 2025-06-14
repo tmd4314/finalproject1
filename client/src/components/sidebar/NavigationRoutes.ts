@@ -111,6 +111,10 @@ export default {
       },
       children: [
         {
+          name: 'material-check',
+          displayName: 'menu.자재 조회'
+        },
+        {
           name: 'receiving-management',
           displayName: 'menu.입고 관리'
         },
@@ -130,6 +134,14 @@ export default {
         {
           name: 'purchase-check',
           displayName: 'menu.발주 조회'
+        },
+        {
+          name: 'delivery-management',
+          displayName: 'menu.출고 관리'
+        },
+        {
+          name: 'delivery-check',
+          displayName: 'menu.출고 조회'
         }
       ],
     },

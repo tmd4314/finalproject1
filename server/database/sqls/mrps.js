@@ -43,7 +43,7 @@ const needMaterialList =
     FROM material_lot
     GROUP BY material_code
   ) AS stock ON stock.material_code = m.material_code
-  WHERE pm.plan_id = 'plan-1'
+  WHERE pm.plan_id = ?
   HAVING shortage_qty > 0
   ORDER BY shortage_qty DESC
 `

@@ -25,10 +25,8 @@
         <va-data-table
           :items="orderList"
           :columns="columns"
-          :per-page="5"
-          :virtual-scroller="false"
-          :fixed-header="true"
-          style="min-width: 1400px"
+          :per-page="perPage"
+          :current-page.sync="page"
           track-by="purchase_order_id"
         >
         <!-- 발주 가격 숫자 포맷팅 -->
@@ -45,6 +43,12 @@
             {{ formatDateForView(row.source.due_date) }}
           </template>
         </va-data-table>
+
+        <va-pagination
+          v-model="page"
+          :pages="Math.max(1, Math.ceil(orderList.length / perPage))"
+          class="mt-2"
+        />
       </div>
       <div class="button-group mt-3">
         <va-button color="primary" @click="createPurchasePDF">발주 생성</va-button>
@@ -57,24 +61,39 @@
 
       <div class="top-tables">
         <table class="info-table">
-          <tr><th>구분</th><th>내용</th></tr>
-          <tr><td>상호</td><td>{{ firstOrder?.account_name || '-' }}</td></tr>
-          <tr><td>사업자 번호</td><td>{{ firstOrder?.business_no || '-' }}</td></tr>
-          <tr><td>대표자</td><td>{{ firstOrder?.charger_name || '-' }}</td></tr>
-          <tr><td>주소</td><td>{{ firstOrder?.address || '-' }}</td></tr>
+          <thead>
+            <tr>
+              <th>구분</th>
+              <th>내용</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>상호</td><td>{{ firstOrder?.account_name || '-' }}</td></tr>
+            <tr><td>사업자 번호</td><td>{{ firstOrder?.business_no || '-' }}</td></tr>
+            <tr><td>대표자</td><td>{{ firstOrder?.charger_name || '-' }}</td></tr>
+            <tr><td>주소</td><td>{{ firstOrder?.address || '-' }}</td></tr>
+          </tbody>
         </table>
 
         <table class="info-table">
-          <tr><th>구분</th><th>내용</th></tr>
-          <tr><td>발주일</td><td>{{ formatDate(firstOrder?.purchase_order_date || '-') }}</td></tr>
-          <tr><td>납기일</td><td>{{ formatDate(firstOrder?.due_date || '-') }}</td></tr>
-          <tr><td>합계 금액</td><td>{{ totalPrice.toLocaleString() }}원</td></tr>
-          <tr><td>발주 담당자</td><td>{{ firstOrder?.name || '-' }}</td></tr>
+          <thead>
+            <tr>
+              <th>구분</th>
+              <th>내용</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>발주일</td><td>{{ formatDate(firstOrder?.purchase_order_date || '-') }}</td></tr>
+            <tr><td>납기일</td><td>{{ formatDate(firstOrder?.due_date || '-') }}</td></tr>
+            <tr><td>합계 금액</td><td>{{ totalPrice.toLocaleString() }}원</td></tr>
+            <tr><td>발주 담당자</td><td>{{ firstOrder?.name || '-' }}</td></tr>
+          </tbody>
         </table>
       </div>
 
       <p class="request-text">
-        아래 내용으로 발주를 신청합니다 &nbsp;&nbsp; <u>{{ firstOrder?.name || '-' }}</u> &nbsp;&nbsp; 담당자 (인)
+        아래 내용으로 발주를 신청합니다 &nbsp;&nbsp;
+        <u>{{ firstOrder?.name || '-' }}</u> &nbsp;&nbsp; 담당자 (인)
       </p>
 
       <table class="item-table">
@@ -105,7 +124,7 @@
 import axios from 'axios'
 import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas'
-import { ref, nextTick, computed, onMounted } from 'vue'
+import { ref, nextTick, computed, onMounted, watch } from 'vue'
 
 interface Order {
   purchase_order_id: string
@@ -138,6 +157,9 @@ const orderList = ref<Order[]>([])
 const allOrders = ref<Order[]>([])
 const selectedIds = ref<string[]>([])
 const showPDF = ref(false)
+const perPage = 5
+
+const page = ref(1)
 
 const selectedOrders = computed(() =>
   orderList.value.filter(order => selectedIds.value.includes(order.purchase_order_id))
@@ -172,6 +194,9 @@ const fetchPurchase = async () => {
     const res = await axios.get('/purchaseCheck')
     allOrders.value = Array.isArray(res.data) ? res.data : []
     orderList.value = [...allOrders.value]
+    console.log("allOrders: ", res.data)
+    console.log("order: ", orderList.value)
+    
   } catch (err) {
     console.error('계획 조회 실패', err)
     allOrders.value = []
@@ -229,6 +254,7 @@ function searchOrders() {
       matchesDueDate
     )
   })
+  page.value = 1
 }
 
 function createPurchasePDF() {
@@ -287,7 +313,7 @@ onMounted(() => {
 <style scoped>
 .order-search-page {
   padding: 20px;
-  max-width: 600px;
+  max-width: 1400px;
   margin: auto;
 }
 .section-title {
@@ -312,8 +338,8 @@ onMounted(() => {
   width: 100%;
 }
 .table-wrapper {
-  overflow-x: auto;
-  max-width: 800px;
+  width: 100%;
+  overflow-x: auto; /* 필요 시만 스크롤 생김 */
 }
 .order-page {
   padding: 20px;

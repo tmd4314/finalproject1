@@ -13,6 +13,12 @@ const materialService =require('../services/materialService.js');
   res.send(materialList);
  });
 
+  router.get('/materialCheck', async(req, res)=>{
+    let materialCheckList = await materialService.findCheckAll()
+                                          .catch(err => console.log(err));
+    res.send(materialCheckList);
+  });
+
  // 이미지 저장 설정
  const storage = multer.diskStorage({
    destination: (req, file, cb) => {
@@ -70,6 +76,7 @@ const materialService =require('../services/materialService.js');
     res.send(resInfo);
  })
 
+ 
   
 // 실제 라우팅 등록 영역
 // 해당 javascript 파일의 마지막 코드, 모듈화
