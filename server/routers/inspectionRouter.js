@@ -8,6 +8,12 @@ router.get('/list', async(req, res) => {
   res.send(inspectionList);
 });
 
+// 상품명만 조회
+router.get('/productList', async(req, res) => {
+  const productList = await inspectionService.productAll().catch((err) => console.log(err));
+  res.send(productList);
+});
+
 router.post('/insert',async(req, res) => {
   try {
     const insertInspection = req.body;
