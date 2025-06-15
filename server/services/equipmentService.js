@@ -85,9 +85,24 @@ const getEquipmentList = async () => {
 };
 
 const getEquipmentDetail = async (equipmentId) => {
-  const [equipment] = await mariadb.query('selectEquipmentDetail', [equipmentId]);
-  return convertData(equipment);
-};
+  const [equipment] = await mariadb.query('selectEquipmentDetail', [equipmentId])
+  console.log('DB에서 가져온 equipment:', equipment) 
+  const downtime = await mariadb.query('selectRecentDowntimeByEqId', [equipmentId])
+  const inspection = await mariadb.query('selectRecentInspectionByEqId', [equipmentId])
+  const cleaning = await mariadb.query('selectRecentCleaningByEqId', [equipmentId])
+
+  return {
+    equipment: convertData(equipment),
+    downtime: convertData(downtime),
+    inspection: convertData(inspection),
+    cleaning: convertData(cleaning),
+  }
+}
+
+const getEquipmentOnly = async (equipmentId) => {
+  const [equipment] = await mariadb.query('selectEquipmentDetail', [equipmentId])
+  return convertData(equipment)
+}
 
 const updateEquipment = async (equipmentId, formData) => {
   const [existing] = await mariadb.query('selectEquipmentDetail', [equipmentId]);
@@ -190,6 +205,7 @@ module.exports = {
   insertEquipment,
   getEquipmentList,
   getEquipmentDetail,
+  getEquipmentOnly,
   updateEquipment,
   deleteEquipment,
   deleteMultipleEquipments,

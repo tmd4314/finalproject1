@@ -1,6 +1,7 @@
 const product =require('./sqls/product.js');
 const material =require('./sqls/material.js');
 const equipment = require('./sqls/equipment.js')
+const equipmentInspection = require('./sqls/equipmentInspection.js')
 const commonCode = require('./sqls/commonCode.js');
 const order = require('./sqls/order.js');
 const inspection = require('./sqls/inspection.js');
@@ -23,6 +24,7 @@ const purchaseOrder = require('./sqls/purchase.js');
      ...product, 
      ...material,
      ...equipment,
+     ...equipmentInspection,
      ...commonCode,
      ...order,
      ...bom,
