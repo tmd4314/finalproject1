@@ -1,4 +1,4 @@
-// routers/packageRouter.js (작업번호 조회 기능 포함)
+// routers/packageRouter.js (mapper 방식에 맞춘 안전한 버전)
 const express = require('express');
 const router = express.Router();
 const packageService = require('../services/packageService');
@@ -12,19 +12,45 @@ router.get('/health', (req, res) => {
   });
 });
 
-// 🔥 작업번호 목록 조회 (포장 작업 수행 페이지의 셀렉트박스용)
+// 🔥 작업번호 목록 조회
 router.get('/works', async (req, res) => {
   try {
-    console.log('📡 작업번호 목록 조회 API 호출됨');
+    const { package_type } = req.query;
     
-    const workList = await packageService.getWorkList();
+    console.log('📡 작업번호 목록 조회 API 호출됨');
+    console.log('포장타입 필터:', package_type);
+    
+    const workList = await packageService.getWorkList(package_type);
+    
+    console.log(`✅ 작업 목록 조회 성공: ${workList.length}건`);
+    
+    // 조인 통계 계산
+    const joinStats = packageService.calculateWorkStats(workList);
     
     res.json({
       success: true,
       message: '작업번호 목록 조회 성공',
       data: workList,
       count: workList.length,
-      timestamp: new Date().toISOString()
+      package_type: package_type || 'ALL',
+      timestamp: new Date().toISOString(),
+      
+      // 조인 메타데이터
+      join_metadata: {
+        total_works: workList.length,
+        join_success_rates: joinStats.join_success_rate,
+        data_quality: {
+          with_real_product_names: workList.filter(w => 
+            w.product_name && w.product_name !== '제품정보없음'
+          ).length,
+          with_order_data: workList.filter(w => 
+            w.join_info?.has_order
+          ).length,
+          with_employee_data: workList.filter(w => 
+            w.join_info?.has_employee
+          ).length
+        }
+      }
     });
     
   } catch (err) {
@@ -38,54 +64,42 @@ router.get('/works', async (req, res) => {
   }
 });
 
-// 🔥 작업번호 선택 옵션 조회 (셀렉트박스 전용)
-router.get('/works/options', async (req, res) => {
+// 🔥 개별 작업 상세 조회 (안전 처리)
+router.get('/:workNo', async (req, res) => {
   try {
-    console.log('📡 작업번호 옵션 조회 API 호출됨');
+    const { workNo } = req.params;
     
-    const options = await packageService.getWorkOptions();
+    console.log(`📡 개별 작업 조회: ${workNo}`);
+    
+    // 🔥 부분완료 처리 포함 상세 조회 사용
+    const workDetail = await packageService.getWorkDetailWithPartialHandling(workNo);
+    
+    if (!workDetail) {
+      console.log(`❌ 작업번호 ${workNo}를 찾을 수 없습니다.`);
+      return res.status(404).json({
+        success: false,
+        message: `작업번호 ${workNo}를 찾을 수 없습니다.`,
+        error: '데이터베이스에 해당 작업이 존재하지 않습니다.',
+        data: null
+      });
+    }
+    
+    console.log(`✅ 작업 상세 조회 성공: ${workNo}`);
     
     res.json({
       success: true,
-      message: '작업번호 옵션 조회 성공',
-      data: options,
-      count: options.length,
+      message: `작업번호 ${workNo} 상세 조회 성공`,
+      data: workDetail,
       timestamp: new Date().toISOString()
     });
     
   } catch (err) {
-    console.error('❌ 작업번호 옵션 조회 실패:', err);
+    console.error(`❌ 작업 상세 조회 실패 (${req.params.workNo}):`, err);
     res.status(500).json({
       success: false,
-      message: '작업번호 옵션 조회 실패',
+      message: `작업번호 ${req.params.workNo} 상세 조회 실패`,
       error: err.message,
-      data: []
-    });
-  }
-});
-
-// 🔥 진행 중인 작업 목록 조회 (실시간 진행 상황)
-router.get('/works/active', async (req, res) => {
-  try {
-    console.log('📡 진행 중인 작업 목록 조회 API 호출됨');
-    
-    const activeWorks = await packageService.getActiveWorks();
-    
-    res.json({
-      success: true,
-      message: '진행 중인 작업 목록 조회 성공',
-      data: activeWorks,
-      count: activeWorks.length,
-      timestamp: new Date().toISOString()
-    });
-    
-  } catch (err) {
-    console.error('❌ 진행 중인 작업 목록 조회 실패:', err);
-    res.status(500).json({
-      success: false,
-      message: '진행 중인 작업 목록 조회 실패',
-      error: err.message,
-      data: []
+      data: null
     });
   }
 });
@@ -93,166 +107,60 @@ router.get('/works/active', async (req, res) => {
 // 🔥 작업 등록
 router.post('/works', async (req, res) => {
   try {
-    const {
-      work_no,
-      line_id,
-      work_line,
-      work_step,
-      step_name,
-      input_qty,
-      eq_code,
-      employee_id,
-      employee_name
-    } = req.body;
+    console.log('📡 작업 등록 요청:', req.body);
     
-    console.log(`=== 작업 등록: ${work_no} ===`);
-    console.log('요청 데이터:', req.body);
+    const workData = await packageService.createWork(req.body);
     
-    // 필수 필드 검증
-    if (!work_no || !input_qty || !employee_id) {
-      return res.status(400).json({
-        success: false,
-        message: '필수 항목이 누락되었습니다.',
-        required: ['work_no', 'input_qty', 'employee_id'],
-        received: req.body
-      });
-    }
+    console.log('✅ 작업 등록 성공:', workData.work_no);
     
-    // Service를 통한 작업 등록
-    const result = await packageService.createWork({
-      work_no,
-      line_id,
-      work_line,
-      work_step,
-      step_name,
-      input_qty,
-      eq_code,
-      employee_id,
-      employee_name
-    });
-    
-    console.log('작업 등록 성공');
-    res.status(201).json({
+    res.json({
       success: true,
-      message: '작업이 등록되었습니다.',
-      data: result
+      message: '작업 등록 성공',
+      data: workData,
+      timestamp: new Date().toISOString()
     });
     
-  } catch (error) {
-    console.error('작업 등록 실패:', error);
-    
-    // 비즈니스 로직 에러 처리
-    if (error.message.includes('이미 존재하는')) {
-      return res.status(409).json({
-        success: false,
-        message: error.message
-      });
-    }
-    
-    if (error.message.includes('필수 데이터') || error.message.includes('투입수량')) {
-      return res.status(400).json({
-        success: false,
-        message: error.message
-      });
-    }
-    
+  } catch (err) {
+    console.error('❌ 작업 등록 실패:', err);
     res.status(500).json({
       success: false,
-      message: '작업 등록에 실패했습니다.',
-      error: error.message
+      message: '작업 등록 실패',
+      error: err.message,
+      data: null
     });
   }
 });
 
-// 🔥 작업 시작
-router.put('/:workNo/start', async (req, res) => {
+// 🔥 작업 업데이트 (service.js 함수 사용)
+router.put('/:workNo', async (req, res) => {
   try {
     const { workNo } = req.params;
-    console.log(`=== 작업 시작: ${workNo} ===`);
     
-    const result = await packageService.startWork(workNo);
+    console.log(`📡 ===== PUT 작업 업데이트 시작: ${workNo} =====`);
+    console.log('요청 데이터:', JSON.stringify(req.body, null, 2));
     
-    console.log('작업 시작 성공');
+    // 🔥 service.js의 안전한 업데이트 함수 사용
+    const updateResult = await packageService.updateWorkSafe(workNo, req.body);
+    
+    console.log(`✅ 작업 업데이트 성공: ${workNo}`);
+    console.log(`📡 ===== PUT 작업 업데이트 완료: ${workNo} =====`);
+    
     res.json({
       success: true,
-      message: '작업이 시작되었습니다.',
-      data: result
+      message: '작업 업데이트 성공',
+      data: updateResult,
+      timestamp: new Date().toISOString()
     });
     
-  } catch (error) {
-    console.error('작업 시작 실패:', error);
-    
-    if (error.message.includes('찾을 수 없습니다')) {
-      return res.status(404).json({
-        success: false,
-        message: error.message
-      });
-    }
-    
-    if (error.message.includes('상태가')) {
-      return res.status(400).json({
-        success: false,
-        message: error.message
-      });
-    }
+  } catch (err) {
+    console.error(`❌ ===== PUT 작업 업데이트 실패: ${req.params.workNo} =====`);
+    console.error('에러 상세:', err);
     
     res.status(500).json({
       success: false,
-      message: '작업 시작에 실패했습니다.',
-      error: error.message
-    });
-  }
-});
-
-// 🔥 작업 진행률 업데이트
-router.put('/:workNo/progress', async (req, res) => {
-  try {
-    const { workNo } = req.params;
-    const { output_qty, step_status } = req.body;
-    
-    console.log(`=== 작업 진행률 업데이트: ${workNo} ===`);
-    console.log('요청 데이터:', req.body);
-    
-    if (output_qty === undefined || output_qty < 0) {
-      return res.status(400).json({
-        success: false,
-        message: '유효한 생산수량이 필요합니다.'
-      });
-    }
-    
-    const result = await packageService.updateWorkProgress(workNo, {
-      output_qty,
-      step_status
-    });
-    
-    console.log('작업 진행률 업데이트 성공');
-    res.json({
-      success: true,
-      message: '작업 진행률이 업데이트되었습니다.',
-      data: result
-    });
-    
-  } catch (error) {
-    console.error('작업 진행률 업데이트 실패:', error);
-    
-    if (error.message.includes('찾을 수 없습니다')) {
-      return res.status(404).json({
-        success: false,
-        message: error.message
-      });
-    }
-    
-    if (error.message.includes('완료된 작업')) {
-      return res.status(400).json({
-        success: false,
-        message: error.message
-      });
-    }
-    
-    res.status(500).json({
-      success: false,
-      message: '작업 진행률 업데이트에 실패했습니다.',
-      error: error.message
+      message: `작업번호 ${req.params.workNo} 업데이트 실패`,
+      error: err.message,
+      timestamp: new Date().toISOString()
     });
   }
 });
@@ -261,149 +169,273 @@ router.put('/:workNo/progress', async (req, res) => {
 router.put('/:workNo/complete', async (req, res) => {
   try {
     const { workNo } = req.params;
-    const { input_qty, output_qty } = req.body;
     
-    console.log(`=== 작업 완료: ${workNo} ===`);
-    console.log('요청 데이터:', req.body);
+    console.log(`📡 작업 완료 처리: ${workNo}`, req.body);
     
-    const result = await packageService.completeWork(workNo, {
-      input_qty,
-      output_qty
-    });
+    // 🔥 packageService의 안전한 업데이트 사용 (시간 형식 자동 변환)
+    const completeData = {
+      step_status: '완료',
+      output_qty: req.body.output_qty || 0,
+      end_time: new Date().toISOString(), // ISO 형식으로 전달 (service에서 변환됨)
+      employee_id: req.body.employee_id || 2
+    };
     
-    console.log('작업 완료 성공');
+    const result = await packageService.updateWorkSafe(workNo, completeData);
+    
+    console.log(`✅ 작업 완료 처리 성공: ${workNo}`);
+    
     res.json({
       success: true,
-      message: '작업이 완료되었습니다.',
-      data: result
+      message: '작업 완료 처리 성공',
+      data: { work_no: workNo, status: '완료', ...result },
+      timestamp: new Date().toISOString()
     });
     
-  } catch (error) {
-    console.error('작업 완료 실패:', error);
-    
-    if (error.message.includes('찾을 수 없습니다')) {
-      return res.status(404).json({
-        success: false,
-        message: error.message
-      });
-    }
-    
-    if (error.message.includes('이미 완료된')) {
-      return res.status(400).json({
-        success: false,
-        message: error.message
-      });
-    }
-    
+  } catch (err) {
+    console.error(`❌ 작업 완료 처리 실패 (${req.params.workNo}):`, err);
     res.status(500).json({
       success: false,
-      message: '작업 완료 처리에 실패했습니다.',
-      error: error.message
+      message: `작업번호 ${req.params.workNo} 완료 처리 실패`,
+      error: err.message,
+      data: null
     });
   }
 });
 
-// 🔥 작업 일시정지
-router.put('/:workNo/pause', async (req, res) => {
+// 🔥 부분완료 처리 (service.js 함수 사용)
+router.put('/:workNo/partial-complete', async (req, res) => {
   try {
     const { workNo } = req.params;
-    console.log(`=== 작업 일시정지: ${workNo} ===`);
     
-    const result = await packageService.pauseWork(workNo);
+    console.log(`📡 부분완료 처리: ${workNo}`, req.body);
     
-    console.log('작업 일시정지 성공');
+    // 🔥 service.js 함수 사용
+    const result = await packageService.updateWorkPartialComplete(workNo, req.body);
+    
+    console.log(`✅ 부분완료 처리 성공: ${workNo}`);
+    
     res.json({
       success: true,
-      message: '작업이 일시정지되었습니다.',
-      data: result
-    });
-    
-  } catch (error) {
-    console.error('작업 일시정지 실패:', error);
-    
-    if (error.message.includes('찾을 수 없습니다')) {
-      return res.status(404).json({
-        success: false,
-        message: error.message
-      });
-    }
-    
-    res.status(500).json({
-      success: false,
-      message: '작업 일시정지에 실패했습니다.',
-      error: error.message
-    });
-  }
-});
-
-// 🔥 작업 재시작
-router.put('/:workNo/resume', async (req, res) => {
-  try {
-    const { workNo } = req.params;
-    console.log(`=== 작업 재시작: ${workNo} ===`);
-    
-    const result = await packageService.resumeWork(workNo);
-    
-    console.log('작업 재시작 성공');
-    res.json({
-      success: true,
-      message: '작업이 재시작되었습니다.',
-      data: result
-    });
-    
-  } catch (error) {
-    console.error('작업 재시작 실패:', error);
-    
-    if (error.message.includes('찾을 수 없습니다')) {
-      return res.status(404).json({
-        success: false,
-        message: error.message
-      });
-    }
-    
-    res.status(500).json({
-      success: false,
-      message: '작업 재시작에 실패했습니다.',
-      error: error.message
-    });
-  }
-});
-
-// 🔥 작업 상세 조회 (마지막에 위치 - 다른 라우트와 충돌 방지)
-router.get('/:workNo', async (req, res) => {
-  try {
-    const { workNo } = req.params;
-    console.log(`=== 작업 상세 조회: ${workNo} ===`);
-    
-    if (!workNo) {
-      return res.status(400).json({
-        success: false,
-        message: '작업번호가 필요합니다.'
-      });
-    }
-    
-    const result = await packageService.getWorkDetail(workNo);
-    
-    if (!result) {
-      return res.status(404).json({
-        success: false,
-        message: '작업을 찾을 수 없습니다.'
-      });
-    }
-    
-    console.log('작업 상세 조회 성공');
-    res.json({
-      success: true,
+      message: '부분완료 처리 성공',
       data: result,
       timestamp: new Date().toISOString()
     });
     
-  } catch (error) {
-    console.error('작업 상세 조회 실패:', error);
+  } catch (err) {
+    console.error(`❌ 부분완료 처리 실패 (${req.params.workNo}):`, err);
     res.status(500).json({
       success: false,
-      message: '작업 상세 조회에 실패했습니다.',
-      error: error.message
+      message: `작업번호 ${req.params.workNo} 부분완료 처리 실패`,
+      error: err.message,
+      data: null
+    });
+  }
+});
+
+// 🔥 일시정지 처리 (service.js 함수 사용)
+router.put('/:workNo/pause', async (req, res) => {
+  try {
+    const { workNo } = req.params;
+    
+    console.log(`📡 일시정지 처리: ${workNo}`, req.body);
+    
+    // 🔥 service.js 함수 사용
+    const result = await packageService.updateWorkPause(workNo, req.body);
+    
+    console.log(`✅ 일시정지 처리 성공: ${workNo}`);
+    
+    res.json({
+      success: true,
+      message: '일시정지 처리 성공',
+      data: result,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (err) {
+    console.error(`❌ 일시정지 처리 실패 (${req.params.workNo}):`, err);
+    res.status(500).json({
+      success: false,
+      message: `작업번호 ${req.params.workNo} 일시정지 처리 실패`,
+      error: err.message,
+      data: null
+    });
+  }
+});
+
+// 🔥 내포장 완료 정보 조회
+router.get('/workflow/inner-completed', async (req, res) => {
+  try {
+    const { base_line_name } = req.query;
+    
+    console.log(`📡 내포장 완료 정보 조회: ${base_line_name}`);
+    
+    if (!base_line_name) {
+      return res.status(400).json({
+        success: false,
+        message: 'base_line_name 파라미터가 필요합니다.',
+        data: null
+      });
+    }
+    
+    // 🔥 새 쿼리 사용
+    const db = require('../database/mapper');
+    const result = await db.query('selectInnerCompletionByLineCode', [base_line_name]);
+    
+    if (result.length === 0) {
+      console.log(`⚠️ ${base_line_name}의 내포장 완료 정보 없음`);
+      return res.json({
+        success: false,
+        message: `${base_line_name}의 내포장 완료 정보를 찾을 수 없습니다.`,
+        data: null
+      });
+    }
+    
+    console.log(`✅ 내포장 완료 정보 조회 성공: ${base_line_name}`);
+    
+    res.json({
+      success: true,
+      message: '내포장 완료 정보 조회 성공',
+      data: result[0],
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (err) {
+    console.error('❌ 내포장 완료 정보 조회 실패:', err);
+    res.status(500).json({
+      success: false,
+      message: '내포장 완료 정보 조회 실패',
+      error: err.message,
+      data: null
+    });
+  }
+});
+
+// 🔥 외포장 연계 업데이트 API
+router.post('/workflow/update-outer-linkage', async (req, res) => {
+  try {
+    const {
+      base_line_name,
+      inner_work_no,
+      inner_output_qty,
+      inner_completion_time,
+      completion_type = 'complete',
+      completed_by
+    } = req.body;
+    
+    console.log(`📡 외포장 연계 업데이트: ${base_line_name}`, req.body);
+    
+    if (!base_line_name || !inner_work_no || !inner_output_qty) {
+      return res.status(400).json({
+        success: false,
+        message: '필수 파라미터가 누락되었습니다. (base_line_name, inner_work_no, inner_output_qty)',
+        data: null
+      });
+    }
+    
+    const db = require('../database/mapper');
+    
+    // 🔥 시간 형식 변환
+    const formattedCompletionTime = inner_completion_time ? 
+      packageService.formatDateTimeForDB(inner_completion_time) : 
+      packageService.formatDateTimeForDB(new Date());
+    
+    // 🔥 1단계: 외포장 라인에 내포장 완료수량 연계
+    try {
+      await db.query('linkInnerToOuter', [inner_output_qty, base_line_name]);
+      console.log(`✅ 외포장 라인에 수량 연계 완료: ${inner_output_qty}개`);
+    } catch (linkError) {
+      console.log(`⚠️ linkInnerToOuter 쿼리 실패, 직접 UPDATE 시도:`, linkError.message);
+      
+      // 🔥 직접 UPDATE 시도
+      await db.query(`
+        UPDATE tablets.package_work w
+        INNER JOIN tablets.package_line l ON w.work_no = l.curr_work_no
+        SET 
+          w.input_qty = ?,
+          w.upd_date = NOW()
+        WHERE 
+          l.pkg_type = 'OUTER'
+          AND l.line_code = ?
+          AND w.step_status IN ('READY', '준비')
+      `, [inner_output_qty, base_line_name]);
+      
+      console.log(`✅ 직접 UPDATE로 외포장 연계 완료`);
+    }
+    
+    // 🔥 2단계: 워크플로우 상태 기록 (선택사항 - 테이블이 없으면 스킵)
+    try {
+      await db.query('updateWorkflowStatus', [
+        base_line_name,
+        base_line_name,
+        inner_work_no,
+        null, // outer_work_no는 나중에 업데이트
+        inner_output_qty,
+        formattedCompletionTime, // 🔥 변환된 시간 사용
+        'inner_completed',
+        completed_by || 2
+      ]);
+      console.log(`✅ 워크플로우 상태 기록 완료`);
+    } catch (statusError) {
+      console.log(`⚠️ 워크플로우 상태 기록 실패 (무시): ${statusError.message}`);
+      // workflow_linkage 테이블이 없을 수 있으므로 무시
+    }
+    
+    res.json({
+      success: true,
+      message: '외포장 연계 업데이트 성공',
+      data: {
+        base_line_name,
+        inner_work_no,
+        inner_output_qty,
+        completion_type,
+        linked_at: new Date().toISOString()
+      },
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (err) {
+    console.error('❌ 외포장 연계 업데이트 실패:', err);
+    res.status(500).json({
+      success: false,
+      message: '외포장 연계 업데이트 실패',
+      error: err.message,
+      data: null
+    });
+  }
+});
+
+// 🔥 워크플로우 상태 조회 API (디버깅용)
+router.get('/workflow/status/:lineCode', async (req, res) => {
+  try {
+    const { lineCode } = req.params;
+    
+    console.log(`📡 워크플로우 상태 조회: ${lineCode}`);
+    
+    const db = require('../database/mapper');
+    const result = await db.query('selectWorkflowByLineCode', [lineCode]);
+    
+    if (result.length === 0) {
+      return res.json({
+        success: false,
+        message: `${lineCode}의 워크플로우 정보를 찾을 수 없습니다.`,
+        data: null
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: '워크플로우 상태 조회 성공',
+      data: result[0],
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (err) {
+    console.error('❌ 워크플로우 상태 조회 실패:', err);
+    res.status(500).json({
+      success: false,
+      message: '워크플로우 상태 조회 실패',
+      error: err.message,
+      data: null
     });
   }
 });

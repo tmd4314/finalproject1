@@ -3,6 +3,61 @@ const express = require('express');
 const router = express.Router();
 const lineService = require('../services/lineService.js');
 
+// 🔥 로그인 사원 정보 추출 미들웨어
+const extractEmployeeInfo = (req, res, next) => {
+  try {
+    // 세션 방식
+    if (req.session && req.session.user) {
+      req.currentEmployee = {
+        employee_id: req.session.user.employee_id,
+        employee_name: req.session.user.employee_name
+      };
+    }
+    // JWT 토큰 방식 (예시)
+    else if (req.headers.authorization) {
+      // JWT 디코딩 로직 (실제 구현에 맞게 수정)
+      const token = req.headers.authorization.split(' ')[1];
+      // const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      // req.currentEmployee = decoded.user;
+      
+      // 임시로 기본값 설정 (실제 JWT 디코딩 로직으로 교체 필요)
+      req.currentEmployee = {
+        employee_id: 2,
+        employee_name: '관리자'
+      };
+    }
+    // 쿠키 방식 (예시)
+    else if (req.cookies && req.cookies.user_info) {
+      try {
+        const userInfo = JSON.parse(req.cookies.user_info);
+        req.currentEmployee = {
+          employee_id: userInfo.employee_id,
+          employee_name: userInfo.employee_name
+        };
+      } catch (cookieError) {
+        console.warn('쿠키 파싱 실패:', cookieError);
+      }
+    }
+    // 개발용 기본값 (실제 운영에서는 제거)
+    else {
+      console.warn('⚠️ 로그인 정보 없음 - 개발용 기본값 사용');
+      req.currentEmployee = {
+        employee_id: 2,
+        employee_name: '관리자'
+      };
+    }
+    
+    console.log('🔍 추출된 사원 정보:', req.currentEmployee);
+    next();
+  } catch (error) {
+    console.error('사원 정보 추출 실패:', error);
+    res.status(401).json({
+      success: false,
+      message: '로그인이 필요합니다.'
+    });
+  }
+};
+
 // ========== 프론트엔드용 메인 API ==========
 
 // 전체 라인 목록 조회 (통합: 마스터 + 최신 상태)
@@ -11,7 +66,6 @@ router.get('/list', async (req, res) => {
     console.log('📋 라인 목록 조회 API 호출');
     const lineList = await lineService.getLineList();
     
-    // 성공 응답 (프론트엔드 형식)
     res.json({
       success: true,
       data: lineList,
@@ -53,13 +107,37 @@ router.get('/available-ids', async (req, res) => {
   }
 });
 
-// 라인 등록 (통합: 마스터 + 상태 동시 생성)
-router.post('/', async (req, res) => {
+// 🔥 현재 로그인 사원 정보 조회 API 추가
+router.get('/current-employee', extractEmployeeInfo, async (req, res) => {
+  try {
+    res.json({
+      success: true,
+      data: req.currentEmployee,
+      message: '현재 로그인 사원 정보 조회 성공'
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: '사원 정보 조회 실패'
+    });
+  }
+});
+
+// 🔥 라인 등록 (로그인 사원 정보 추가)
+router.post('/', extractEmployeeInfo, async (req, res) => {
   try {
     console.log('➕ 라인 등록 API 호출');
     console.log('요청 데이터:', req.body);
+    console.log('현재 사원:', req.currentEmployee);
     
-    const result = await lineService.insertIntegratedLine(req.body);
+    // 🔥 로그인 사원 정보를 요청 데이터에 추가
+    const requestData = {
+      ...req.body,
+      employee_id: req.currentEmployee.employee_id,
+      employee_name: req.currentEmployee.employee_name
+    };
+    
+    const result = await lineService.insertIntegratedLine(requestData);
     
     res.status(201).json({
       success: true,
@@ -70,7 +148,6 @@ router.post('/', async (req, res) => {
   } catch (err) {
     console.error('❌ 라인 등록 실패:', err);
     
-    // 중복 라인 ID 에러 처리
     if (err.message.includes('이미 존재하는 라인')) {
       res.status(409).json({
         success: false,
@@ -87,13 +164,21 @@ router.post('/', async (req, res) => {
   }
 });
 
-// 내포장/외포장 동시 등록 API - 🔥 새로 추가
-router.post('/dual', async (req, res) => {
+// 🔥 내포장/외포장 동시 등록 API (로그인 사원 정보 추가)
+router.post('/dual', extractEmployeeInfo, async (req, res) => {
   try {
     console.log('➕ 내포장/외포장 동시 등록 API 호출');
     console.log('요청 데이터:', req.body);
+    console.log('현재 사원:', req.currentEmployee);
     
-    const result = await lineService.insertDualPackagingLine(req.body);
+    // 🔥 로그인 사원 정보를 요청 데이터에 추가
+    const requestData = {
+      ...req.body,
+      employee_id: req.currentEmployee.employee_id,
+      employee_name: req.currentEmployee.employee_name
+    };
+    
+    const result = await lineService.insertDualPackagingLine(requestData);
     
     res.status(201).json({
       success: true,
@@ -151,14 +236,22 @@ router.get('/:lineId', async (req, res) => {
   }
 });
 
-// 라인 수정 (통합: 마스터 + 상태 동시 업데이트)
-router.put('/:lineId', async (req, res) => {
+// 🔥 라인 수정 (로그인 사원 정보 추가)
+router.put('/:lineId', extractEmployeeInfo, async (req, res) => {
   try {
     const { lineId } = req.params;
     console.log('✏️ 라인 수정 API 호출:', lineId);
     console.log('수정 데이터:', req.body);
+    console.log('현재 사원:', req.currentEmployee);
     
-    const result = await lineService.updateIntegratedLine(lineId, req.body);
+    // 🔥 로그인 사원 정보를 요청 데이터에 추가
+    const requestData = {
+      ...req.body,
+      employee_id: req.currentEmployee.employee_id,
+      employee_name: req.currentEmployee.employee_name
+    };
+    
+    const result = await lineService.updateIntegratedLine(lineId, requestData);
     
     res.json({
       success: true,

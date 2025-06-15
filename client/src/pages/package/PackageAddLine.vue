@@ -14,6 +14,11 @@
         <div class="header-info">
           <h1>포장 라인 관리</h1>
           <p>포장 라인을 등록, 수정, 삭제할 수 있습니다.</p>
+          <!-- 🔥 현재 로그인 사용자 표시 -->
+          <div v-if="currentEmployee" class="current-user-info">
+            <span class="material-icons">account_circle</span>
+            <span>{{ currentEmployee.employee_name }}님으로 로그인됨</span>
+          </div>
         </div>
         <!-- 🔥 라인 등록 버튼 (동시 등록만) -->
         <button @click="openDualModal()" class="btn-primary btn-add">
@@ -189,6 +194,7 @@
                 </div>
               </th>
               <th class="capacity-col">생산능력</th>
+              <th class="employee-col">담당자</th>
             </tr>
           </thead>
           <tbody>
@@ -226,6 +232,7 @@
                   <div class="capacity-sub">현재: {{ line.current_speed || 0 }}정/초</div>
                 </div>
               </td>
+              <td class="employee-col">{{ line.employee_name || '-' }}</td>
             </tr>
           </tbody>
         </table>
@@ -331,15 +338,16 @@
                 <div v-if="editErrors.current_speed" class="error-message">{{ editErrors.current_speed }}</div>
               </div>
 
-              <!-- 담당자 -->
+              <!-- 담당자 (로그인 사용자 자동 설정) -->
               <div class="form-group">
                 <label class="form-label">담당자</label>
                 <input
-                  v-model="editFormData.employee_name"
+                  :value="currentEmployee?.employee_name || '로그인 필요'"
                   type="text"
-                  placeholder="예: 김포장"
-                  class="form-input"
+                  class="form-input disabled"
+                  disabled
                 />
+                <div class="form-help">현재 로그인한 사용자로 자동 설정됩니다</div>
               </div>
 
               <!-- 설명 -->
@@ -385,6 +393,10 @@
                 <h4>동시 등록 안내</h4>
                 <p>선택한 라인 ID로 <strong>내포장</strong>과 <strong>외포장</strong> 라인이 동시에 등록됩니다.</p>
                 <p>이미 존재하는 라인은 건너뛰고, 새로운 라인만 등록됩니다.</p>
+                <!-- 🔥 현재 사용자 정보 표시 -->
+                <p v-if="currentEmployee" class="current-user-note">
+                  <strong>담당자:</strong> {{ currentEmployee.employee_name }}님으로 자동 설정됩니다.
+                </p>
               </div>
             </div>
           </div>
@@ -416,7 +428,7 @@
                   <option value="">설비 선택</option>
                   <option value="10정용 블리스터 포장기">10정용 블리스터 포장기</option>
                   <option value="30정용 블리스터 포장기">30정용 블리스터 포장기</option>
-                  <option value="30정용 블리스터 포장기">30정용 블리스터 포장기</option>
+                  <option value="50정용 블리스터 포장기">50정용 블리스터 포장기</option>
                 </select>
                 <div v-if="dualErrors.inner_eq_name" class="error-message">{{ dualErrors.inner_eq_name }}</div>
               </div>
@@ -488,17 +500,6 @@
                 <div v-if="dualErrors.outer_speed" class="error-message">{{ dualErrors.outer_speed }}</div>
               </div>
 
-              <!-- 담당자 -->
-              <div class="form-group">
-                <label class="form-label">담당자</label>
-                <input
-                  v-model="dualFormData.employee_name"
-                  type="text"
-                  placeholder="예: 김포장"
-                  class="form-input"
-                />
-              </div>
-
               <!-- 설명 -->
               <div class="form-group full-width">
                 <label class="form-label">설명</label>
@@ -548,6 +549,9 @@ const loading = ref(false)
 const saving = ref(false)
 const loadingMessage = ref('데이터를 불러오는 중...')
 
+// 🔥 현재 로그인한 사용자 정보
+const currentEmployee = ref(null)
+
 // 연결 상태
 const isConnected = ref(false)
 const lastUpdated = ref(null)
@@ -573,8 +577,8 @@ const editFormData = ref({
   line_status: 'AVAILABLE',
   max_capacity: 1000,
   current_speed: 30,
-  employee_name: '',
   description: ''
+  // 🔥 employee_name 제거 - 서버에서 자동 설정
 })
 
 // 동시 등록용 폼 데이터
@@ -586,8 +590,8 @@ const dualFormData = ref({
   outer_capacity: 800,
   inner_speed: 30,
   outer_speed: 25,
-  employee_name: '',
   description: ''
+  // 🔥 employee_name 제거 - 서버에서 자동 설정
 })
 
 // 유효성 검사 에러
@@ -607,7 +611,7 @@ const getEditEquipmentOptions = computed(() => {
     return [
       '10정용 블리스터 포장기',
       '30정용 블리스터 포장기',
-      '30정용 블리스터 포장기'
+      '50정용 블리스터 포장기'
     ]
   } else {
     return [
@@ -670,6 +674,7 @@ const sortedLines = computed(() => {
 // ====== 라이프사이클 ======
 onMounted(() => {
   console.log('🚀 포장 라인 관리 컴포넌트 마운트')
+  loadCurrentEmployee()  // 🔥 현재 사용자 정보 로드
   loadLines()
   loadAvailableLineIds()
 })
@@ -684,6 +689,31 @@ watch([selectedLines, sortedLines], () => {
 }, { deep: true })
 
 // ====== API 함수들 ======
+
+// 🔥 현재 로그인한 사용자 정보 로드
+async function loadCurrentEmployee() {
+  try {
+    console.log('👤 현재 사용자 정보 로드 시작...')
+    const response = await axios.get(`${API_BASE_URL}/current-employee`)
+    
+    if (response.data && response.data.success) {
+      currentEmployee.value = response.data.data
+      console.log('✅ 현재 사용자 정보 로드 성공:', currentEmployee.value)
+    } else {
+      console.warn('⚠️ 사용자 정보 응답이 올바르지 않습니다:', response.data)
+      currentEmployee.value = { employee_name: '로그인 필요', employee_id: null }
+    }
+  } catch (error) {
+    console.error('❌ 현재 사용자 정보 로드 실패:', error)
+    currentEmployee.value = { employee_name: '로그인 필요', employee_id: null }
+    
+    if (error.response?.status === 401) {
+      setApiStatus('error', '로그인이 필요합니다.')
+    } else {
+      setApiStatus('error', '사용자 정보를 불러올 수 없습니다.')
+    }
+  }
+}
 
 // API 상태 설정
 function setApiStatus(type, message, icon = '') {
@@ -813,7 +843,7 @@ async function loadAvailableLineIds() {
   }
 }
 
-// 🔥 라인 수정 저장 (단순화)
+// 🔥 라인 수정 저장 (로그인 사용자 정보 포함)
 async function saveLine() {
   if (!validateEditForm()) return
   
@@ -822,21 +852,24 @@ async function saveLine() {
   
   try {
     console.log('💾 라인 수정 시작:', editingLine.value.line_id)
-    console.log('📤 수정할 데이터:', editFormData.value)
     
-    const updateUrl = `${API_BASE_URL}/${editingLine.value.line_id}`
-    console.log('📝 PUT 요청 URL:', updateUrl)
-    
-    const response = await axios.put(updateUrl, {
+    const updateData = {
       line_id: editingLine.value.line_id,
       line_type: editingLine.value.line_type,
       eq_name: editFormData.value.eq_name,
       line_status: editFormData.value.line_status,
       max_capacity: editFormData.value.max_capacity,
       current_speed: editFormData.value.current_speed,
-      employee_name: editFormData.value.employee_name,
-      description: editFormData.value.description
-    })
+      description: editFormData.value.description,
+      // 🔥 현재 로그인 사용자 정보는 서버에서 자동 설정
+    }
+    
+    console.log('📤 수정할 데이터:', updateData)
+    
+    const updateUrl = `${API_BASE_URL}/${editingLine.value.line_id}`
+    console.log('📝 PUT 요청 URL:', updateUrl)
+    
+    const response = await axios.put(updateUrl, updateData)
     
     console.log('✅ 라인 수정 API 응답:', response.data)
     
@@ -885,17 +918,23 @@ async function dualRegisterLine() {
   
   try {
     console.log('💾 내포장/외포장 동시 등록 시작')
-    console.log('📤 저장할 데이터:', dualFormData.value)
+    
+    const requestData = {
+      line_id: dualFormData.value.line_id,
+      inner_eq_name: dualFormData.value.inner_eq_name,
+      outer_eq_name: dualFormData.value.outer_eq_name,
+      inner_capacity: dualFormData.value.inner_capacity,
+      outer_capacity: dualFormData.value.outer_capacity,
+      inner_speed: dualFormData.value.inner_speed,
+      outer_speed: dualFormData.value.outer_speed,
+      description: dualFormData.value.description
+      // 🔥 현재 로그인 사용자 정보는 서버에서 자동 설정
+    }
+    
+    console.log('📤 저장할 데이터:', requestData)
     
     // 동시 등록용 API 호출
-    const response = await axios.post(`${API_BASE_URL}/dual`, {
-      line_id: dualFormData.value.line_id,
-      max_capacity: dualFormData.value.inner_capacity,  // 내포장 기준으로 설정
-      employee_name: dualFormData.value.employee_name,
-      eq_name: dualFormData.value.inner_eq_name,  // 내포장 설비명을 기본으로
-      current_speed: dualFormData.value.inner_speed,  // 내포장 속도를 기본으로
-      description: dualFormData.value.description
-    })
+    const response = await axios.post(`${API_BASE_URL}/dual`, requestData)
     
     console.log('✅ 동시 등록 API 응답:', response.data)
     
@@ -1118,9 +1157,9 @@ function openEditModal(line) {
     eq_name: line.eq_name || '',
     line_status: line.line_status,
     max_capacity: line.max_capacity || 1000,
-    current_speed: line.current_speed || 0,
-    employee_name: line.employee_name || '',
+    current_speed: line.current_speed || 30,
     description: line.description || ''
+    // 🔥 employee_name 제거 - 서버에서 자동 설정
   }
   
   editErrors.value = {}
@@ -1138,8 +1177,8 @@ async function openDualModal() {
     outer_capacity: 800,
     inner_speed: 30,
     outer_speed: 25,
-    employee_name: '',
     description: ''
+    // 🔥 employee_name 제거 - 서버에서 자동 설정
   }
   
   dualErrors.value = {}
@@ -1155,12 +1194,31 @@ function closeEditModal() {
   showEditModal.value = false
   editingLine.value = null
   editErrors.value = {}
+  // 🔥 폼 데이터도 초기화
+  editFormData.value = {
+    eq_name: '',
+    line_status: 'AVAILABLE',
+    max_capacity: 1000,
+    current_speed: 30,
+    description: ''
+  }
 }
 
 // 동시 등록 모달 닫기
 function closeDualModal() {
   showDualModal.value = false
   dualErrors.value = {}
+  // 🔥 폼 데이터도 초기화
+  dualFormData.value = {
+    line_id: '',
+    inner_eq_name: '',
+    outer_eq_name: '',
+    inner_capacity: 1000,
+    outer_capacity: 800,
+    inner_speed: 30,
+    outer_speed: 25,
+    description: ''
+  }
 }
 
 // 필터 초기화
@@ -1240,6 +1298,34 @@ defineOptions({
   min-height: 100vh;
   background-color: #f8fafc;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* 🔥 현재 사용자 정보 표시 스타일 */
+.current-user-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 8px 16px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #1e40af;
+}
+
+.current-user-info .material-icons {
+  font-size: 18px;
+}
+
+.current-user-note {
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: #f0f9ff;
+  border-left: 3px solid #0ea5e9;
+  border-radius: 4px;
+  font-size: 13px;
+  color: #0c4a6e;
 }
 
 /* API 상태 표시 */
@@ -1332,7 +1418,7 @@ defineOptions({
 .header-content {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   padding: 24px;
 }
 
@@ -1356,6 +1442,7 @@ defineOptions({
   padding: 12px 24px;
   font-size: 16px;
   font-weight: 600;
+  flex-shrink: 0;
 }
 
 /* 동시 등록 안내 카드 */
@@ -1935,5 +2022,11 @@ defineOptions({
 .sort-desc .material-icons::before {
   content: 'keyboard_arrow_down';
   color: #3b82f6;
+}
+
+/* 담당자 컬럼 추가 */
+.employee-col {
+  width: 100px;
+  text-align: center;
 }
 </style>
