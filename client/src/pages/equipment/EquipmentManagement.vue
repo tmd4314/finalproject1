@@ -149,6 +149,7 @@ const resetSearch = async () => {
   await loadEquipments()
 }
 
+// 설비 관리 페이지의 handleEdit 함수
 const handleEdit = async () => {
   if (selectedRows.value.length !== 1) {
     alert('수정할 설비 1개를 선택해주세요.')
@@ -156,11 +157,13 @@ const handleEdit = async () => {
   }
 
   const id = selectedRows.value[0].eq_id
+  console.log('🔗 수정 버튼 클릭. 이동할 ID:', id) // 이 로그 추가
+  
   router.push({
     path: '/faq/equipment-register',
     query: {
       mode: 'edit',
-      eq_id: id
+      eq_id: id  // 이 값이 제대로 설정되는지 확인
     }
   })
 }

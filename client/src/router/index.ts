@@ -63,6 +63,26 @@ const routes: Array<RouteRecordRaw> = [
             path: 'equipment-inspection',
             component: () => import('../pages/equipment/EquipmentInspection.vue')
           },
+          {
+          name: 'equipment-cleaning',
+          path: 'equipment-cleaning',
+          component: () => import('../pages/equipment/EquipmentCleaning.vue'),
+          },
+          {
+          name: 'equipment-stop',
+          path: 'equipment-stop',
+          component: () => import('../pages/equipment/EquipmentStop.vue'),
+          },
+          {
+          name: 'equipment-history',
+          path: 'equipment-history',
+          component: () => import('../pages/equipment/EquipmentHistory.vue'),
+          },
+          {
+            path: '/equipments/:id',
+            name: 'equipment-detail',
+            component: () => import('../pages/equipment/EquipmentDetail.vue')
+          },
         ],
       },
       {

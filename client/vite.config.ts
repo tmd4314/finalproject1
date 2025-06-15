@@ -10,6 +10,7 @@ const proxyPaths = [
   'product',
   'common-codes',
   'equipments',
+  'equipment-inspection',
   'material',
   'bom',
   'process',
@@ -28,8 +29,8 @@ const proxyPaths = [
   'mrps',
   'puOrder',
   'purchase',
-  'workOrder'
-
+  'workOrder',
+  'uploads',
 ]
 
 // ✅ 공통 proxy 설정 생성 함수
