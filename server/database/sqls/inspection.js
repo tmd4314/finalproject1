@@ -17,24 +17,33 @@ ORDER BY insp_code`
 ;
 
 const productNameList = 
-`SELECT product_code,
-        product_name
- FROM   product
+`  SELECT product_name, product_code 
+  FROM product
+  ORDER BY product_name
 `
 ;
 
 const insertInspection =
-`INSERT INTO inspection_itme(insp_code, insp_name, insp_value_type, insp_ref_value,
-                             insp_quantita_value, insp_qualita_value, insp_unit,
-                             insp_quantita_min, insp_quantita_max, insp_range, insp_remark)
+`INSERT INTO inspection_item (
+  product_code,          
+  insp_code,
+  insp_name,
+  insp_value_type,
+  insp_ref_value,
+  insp_quantita_value,
+  insp_qualita_value,
+  insp_unit,
+  insp_quantita_min,
+  insp_quantita_max,
+  insp_range,
+  insp_remark
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 `
 ;
 
-
-
-
 module.exports = {
   selectInspectionList,
-  productNameList
+  productNameList,
+  insertInspection
 }

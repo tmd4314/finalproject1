@@ -14,24 +14,26 @@ const productAll = async () => {
 
 // 검사항목 추가
 const insertOne = async (data) => {
-  try {
-    const result = await mariadb.query("insertInspectionList", [
-      data.insp_code,
-      data.item_type,
-      data.insp_name,
-      data.insp_stad_val,
-      data.insp_unit,
-      data.insp_judt_type,
-      data.insp_remark
-    ]);
-    return result;
-    } catch (err) {
-      if(err.code === 'ER_DUP_ENTRY') {
-        return { duplicate : true};
-      }
-      throw err;
-    }
-  };
+  const params = [
+    data.product_code,
+    data.insp_code,
+    data.insp_name,
+    data.insp_value_type,
+    data.insp_ref_value,
+    data.insp_quantita_value,
+    data.insp_qualita_value,
+    data.insp_unit,
+    data.insp_quantita_min,
+    data.insp_quantita_max,
+    data.insp_range,
+    data.insp_remark
+  ];
+  console.log("쿼리 파라미터:", params);
+  // 이 배열이 정확히 컬럼 수와 타입에 맞는지 확인
+  const result = await mariadb.query("insertInspection", params);
+  return result;
+};
+
 
 // 검사항목 수정
 const updateOne = async (data) => {
