@@ -1,60 +1,45 @@
 <template>
   <div class="material-inquiry-page">
-    <h2>자재 입고 조회</h2>
+    <h2 class="page-title">자재 입고 조회</h2>
 
-    <div class="search-area">
-      <select v-model="filters.material_code">
-        <option value="">자재코드</option>
-        <option v-for="code in uniqueCodes('material_code')" :key="code">{{ code }}</option>
-      </select>
+    <!-- 검색 필터 -->
+    <div class="search-form">
+      <va-input v-model="filters.material_code" label="자재코드" />
+      <va-input v-model="filters.material_name" label="자재명" />
+      <va-input v-model="filters.lot_number" label="LOT번호" />
+      <va-date-input
+        v-model="filters.received_date"
+        label="입고일자"
+        :manual-input="false"
+        :clearable="true"
+      />
+      <va-input v-model="filters.material_unit" label="단위" />
+      <va-input v-model="filters.material_cls" label="분류" />
 
-      <select v-model="filters.material_name">
-        <option value="">자재명</option>
-        <option v-for="name in uniqueCodes('material_name')" :key="name">{{ name }}</option>
-      </select>
-
-      <select v-model="filters.received_date">
-        <option value="">입고일자</option>
-        <option v-for="date in uniqueCodes('received_date')" :key="date">{{ date }}</option>
-      </select>
-
-      <select v-model="filters.material_unit">
-        <option value="">단위</option>
-        <option v-for="unit in uniqueCodes('material_unit')" :key="unit">{{ unit }}</option>
-      </select>
-
-      <select v-model="filters.material_cls">
-        <option value="">분류</option>
-        <option v-for="cat in uniqueCodes('material_cls')" :key="cat">{{ cat }}</option>
-      </select>
-
-      <button class="btn" @click="resetFilters">초기화</button>
+      <div class="button-group">
+        <va-button @click="searchMaterials">검색</va-button>
+        <va-button color="secondary" @click="resetFilters">초기화</va-button>
+      </div>
     </div>
 
-    <table class="material-table">
-      <thead>
-        <tr>
-          <th style="min-width: 180px;">LOT번호</th>
-          <th>자재코드</th>
-          <th>자재명</th>
-          <th>입고 수량</th>
-          <th>단위</th>
-          <th>분류</th>
-          <th>입고일자</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="item in filteredList" :key="item.lot_number">
-          <td>{{ item.lot_number }}</td>
-          <td>{{ item.material_code }}</td>
-          <td>{{ item.material_name }}</td>
-          <td>{{ item.quantity }}</td>
-          <td>{{ item.material_unit }}</td>
-          <td>{{ item.material_cls }}</td>
-          <td>{{ formatToKST(item.received_date) }}</td>
-        </tr>
-      </tbody>
-    </table>
+    <!-- 입고 내역 테이블 -->
+    <va-data-table
+      :items="filteredList"
+      :columns="columns"
+      :per-page="10"
+      :current-page.sync="page"
+      track-by="lot_number"
+    >
+      <template #cell(received_date)="{ row }">
+        {{ formatToKST(row.source.received_date) }}
+      </template>
+    </va-data-table>
+
+    <va-pagination
+      v-model="page"
+      :pages="Math.ceil(filteredList.length / 10)"
+      class="mt-4"
+    />
   </div>
 </template>
 
@@ -72,108 +57,133 @@ interface MaterialLot {
   received_date: string
 }
 
-const formatToKST = (isoDate: string): string => {
-  const date = new Date(isoDate);
-  // KST 적용 (UTC+9)
-  const kst = new Date(date.getTime() + 9 * 60 * 60 * 1000);
-
-  const yyyy = kst.getFullYear();
-  const mm = String(kst.getMonth() + 1).padStart(2, '0');
-  const dd = String(kst.getDate()).padStart(2, '0');
-  const hh = String(kst.getHours()).padStart(2, '0');
-  const mi = String(kst.getMinutes()).padStart(2, '0');
-
-  return `${yyyy}-${mm}-${dd} ${hh}:${mi}`;
-};
-
 const lotList = ref<MaterialLot[]>([])
+const filteredList = ref<MaterialLot[]>([])
+const page = ref(1)
+
 const filters = ref({
   material_code: '',
   material_name: '',
-  received_date: '',
+  lot_number: '',
+  received_date: null as Date | null,
   material_unit: '',
-  material_cls: ''
+  material_cls: '',
 })
 
-const uniqueCodes = (key: keyof MaterialLot): string[] => {
-  return [...new Set(lotList.value.map(item => String(item[key])))]
+const columns = [
+  { key: 'lot_number', label: 'LOT번호' },
+  { key: 'material_code', label: '자재코드' },
+  { key: 'material_name', label: '자재명' },
+  { key: 'quantity', label: '입고 수량' },
+  { key: 'material_unit', label: '단위' },
+  { key: 'material_cls', label: '분류' },
+  { key: 'received_date', label: '입고일자' },
+]
+
+const formatToKST = (isoDate: string): string => {
+  const date = new Date(isoDate)
+  const kst = new Date(date.getTime() + 9 * 60 * 60 * 1000)
+  const yyyy = kst.getFullYear()
+  const mm = String(kst.getMonth() + 1).padStart(2, '0')
+  const dd = String(kst.getDate()).padStart(2, '0')
+  const hh = String(kst.getHours()).padStart(2, '0')
+  const mi = String(kst.getMinutes()).padStart(2, '0')
+  return `${yyyy}-${mm}-${dd} ${hh}:${mi}`
 }
 
-const filteredList = computed(() => {
-  return lotList.value.filter(item =>
-    (!filters.value.material_code || item.material_code === filters.value.material_code) &&
-    (!filters.value.material_name || item.material_name === filters.value.material_name) &&
-    (!filters.value.received_date || item.received_date === filters.value.received_date) &&
-    (!filters.value.material_unit || item.material_unit === filters.value.material_unit) &&
-    (!filters.value.material_cls || item.material_cls === filters.value.material_cls)
+const isSameDate = (d1: Date, d2: Date): boolean => {
+  return (
+    d1.getFullYear() === d2.getFullYear() &&
+    d1.getMonth() === d2.getMonth() &&
+    d1.getDate() === d2.getDate()
   )
-})
+}
+
+const searchMaterials = () => {
+  const {
+    material_code,
+    material_name,
+    lot_number,
+    received_date,
+    material_unit,
+    material_cls,
+  } = filters.value
+
+  filteredList.value = lotList.value.filter((item) => {
+    const matchesCode = !material_code || item.material_code.includes(material_code)
+    const matchesName = !material_name || item.material_name.includes(material_name)
+    const matchesLot = !lot_number || item.lot_number.includes(lot_number)
+    const matchesDate =
+      !received_date || isSameDate(new Date(item.received_date), new Date(received_date))
+    const matchesUnit = !material_unit || item.material_unit.includes(material_unit)
+    const matchesCls = !material_cls || item.material_cls.includes(material_cls)
+
+    return (
+      matchesCode &&
+      matchesName &&
+      matchesLot &&
+      matchesDate &&
+      matchesUnit &&
+      matchesCls
+    )
+  })
+
+  page.value = 1
+}
 
 const resetFilters = () => {
   filters.value = {
     material_code: '',
     material_name: '',
-    received_date: '',
+    lot_number: '',
+    received_date: null,
     material_unit: '',
-    material_cls: ''
+    material_cls: '',
   }
+  filteredList.value = [...lotList.value]
+  page.value = 1
 }
 
 const fetchMaterialsLot = async () => {
   try {
     const res = await axios.get('/materialLotList')
     lotList.value = res.data
-    console.log(res.data);
+    filteredList.value = [...res.data]
   } catch (err) {
-    console.log('❌ 발주 목록 조회 실패:', err);
+    console.error('❌ 입고 내역 조회 실패:', err)
   }
 }
 
-onMounted(() =>{
+onMounted(() => {
   fetchMaterialsLot()
 })
 </script>
 
 <style scoped>
 .material-inquiry-page {
-  padding: 24px;
-  font-family: 'Pretendard', sans-serif;
-  background-color: #fff;
+  padding: 1.5rem;
+  max-width: 1000px;
+  margin: 0 auto;
 }
-h2 {
-  font-size: 24px;
+
+.page-title {
+  font-size: 1.5rem;
   font-weight: bold;
-  margin-bottom: 20px;
+  margin-bottom: 2rem;
 }
-.btn{
-  padding: 6px 12px;
-  background-color: #575a5f;
-  color: #fff;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
+
+.search-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 20px;
+  row-gap: 16px;
+  margin-bottom: 1.5rem;
 }
-.search-area {
+
+.button-group {
+  grid-column: span 2;
   display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin-bottom: 20px;
-}
-.search-area select, .search-area button {
-  padding: 6px 10px;
-  font-size: 14px;
-}
-.material-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-.material-table th, .material-table td {
-  border: 1px solid #ccc;
-  padding: 8px;
-  text-align: center;
-}
-.material-table th {
-  background-color: #f5f5f5;
-  font-weight: bold;
+  justify-content: flex-end;
+  gap: 1rem;
 }
 </style>

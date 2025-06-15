@@ -20,7 +20,7 @@
 
     <!-- 발주 요청 리스트 -->
     <div class="result-section">
-      <h3 class="section-title">부족 수량 발주 요청 리스트</h3>
+      <h3 class="section-title">출고 리스트</h3>
       <div class="table-wrapper">
         <va-data-table
           :items="outboundList"
