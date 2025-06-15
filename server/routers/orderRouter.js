@@ -29,43 +29,31 @@ router.get("/:order_id/details", async (req, res) => {
 
 
 // [주문 등록] POST /api/orders
-router.post("/", async (req, res) => {
-    try {
-        const orderData = req.body;
-        console.log("주문 등록 요청 데이터:", orderData);
-        
-        // 필수 데이터 검증
-        if (!orderData.customerId || !orderData.orderDate || !orderData.deliveryDate) {
-            return res.status(400).json({
-                success: false,
-                message: "필수 정보가 누락되었습니다."
-            });
-        }
-        
-        if (!orderData.products || orderData.products.length === 0) {
-            return res.status(400).json({
-                success: false,
-                message: "제품 정보가 없습니다."
-            });
-        }
-        
-        // orderService에서 처리
-        const result = await orderService.createOrder(orderData);
-        
-        res.status(201).json({
-            success: true,
-            message: "주문이 등록되었습니다.",
-            orderId: result.orderId
-        });
-        
-    } catch (error) {
-        console.error("주문 등록 실패:", error);
-        res.status(500).json({
-            success: false,
-            message: "주문 등록에 실패했습니다.",
-            error: error.message
-        });
+router.post('/', async (req, res) => {
+  const orderData = req.body;
+
+  try {
+    const result = await orderService.addOrderTransaction(orderData);
+
+    if (result.isSuccessed) {
+      res.status(201).json({
+        success: true,
+        orderId: result.orderId,
+        message: '주문 등록 성공'
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: '주문 등록 실패'
+      });
     }
+  } catch (err) {
+    console.error('주문 등록 중 에러 발생:', err);
+    res.status(500).json({
+      success: false,
+      message: '서버 에러 발생'
+    });
+  }
 });
 
 // [주문 수정] PUT /api/orders/:order_id

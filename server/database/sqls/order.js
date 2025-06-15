@@ -56,19 +56,31 @@ module.exports = {
   `,
 
 
-// 주문 등록
-orderInsert: `INSERT INTO order_detail ( order_detail_id,
-                                                order_id,
-                                                product_code,
-                                                order_qty,
-                                                order_date,
-                                                delivery_date,
-                                                progress_status,
-                                                delivery_qty,
-                                                remain_qty,
-                                                reamarks,
-                                                reg_date )
-                     VALUES(?,?,?,?,?,?,?,?,?,?,?)`,
+// 주문 마스터 등록
+insertOrderMaster: `
+  INSERT INTO order_master (
+    account_id,
+    order_date,
+    delivery_date,
+    status,
+    remarks,
+    created_by
+  ) VALUES (?, ?, ?, ?, ?, ?)
+`,
+
+// 주문 상세 등록
+insertOrderDetail: `
+  INSERT INTO order_detail (
+    order_id,
+    product_code,
+    order_qty,
+    order_price,
+    progress_status,
+    delivery_qty,
+    remain_qty,
+    remarks
+  ) VALUES(?, ?, ?, ?, ?, ?, ?, ?)
+`
 
                      
 };

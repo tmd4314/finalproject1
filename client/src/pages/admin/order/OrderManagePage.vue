@@ -38,9 +38,9 @@
             <td>{{ formatDate(order.order_date) }}</td>
             <td>{{ formatDate(order.delivery_date) }}</td>
             <td>{{ order.product_name }}</td>
-            <td>규격규격규격</td>
-            <td>수량수량수량</td>
-            <td>제품코오오드</td>
+            <td>{{ order.product_stand }}</td>
+            <td>{{ order.order_qty }}</td>
+            <td>{{ order.product_code }}</td>
             <td>
               <va-chip :color="getStatusColor(order.status)" size="small">
                 {{ order.status }}
@@ -348,7 +348,6 @@ async function editOrder(order: any) {
       deliveryDate: new Date(orderInfo.delivery_date),
       createdBy: orderInfo.created_by || '',
       products: items.map((item: any) => ({
-        productId: '',  // 제품 ID를 찾아야 함
         productName: item.product_name,
         productStand: item.productStand,
         quantity: item.order_qty,
@@ -453,28 +452,31 @@ async function saveOrder() {
     return
   }
   
-  if (form.value.products.some(p => !p.productCode || !p.quantity)) {
+  if (form.value.products.some(p => !p.productCode)) {
     alert('제품 정보를 모두 입력하세요.')
     return
   }
   
-  try {
+  
     const orderData = {
       customerId: form.value.customerId,
       orderDate: form.value.orderDate,
       deliveryDate: form.value.deliveryDate,
       createdBy: form.value.createdBy || '관리자',
-      products: form.value.products.map(p => ({
-      productCode: p.productCode,
-      quantity: p.quantity
+      products: form.value.products.map((p, index) => ({
+        productCode: p.productCode,
+        quantity: p.quantity,
+        orderPrice: computedOrderPrices.value[index]
       }))
     }
-    
+  
     console.log('저장할 데이터:', orderData)
-    
+    try {
     if (editMode.value) {
+      // 수정모드
       await axios.put(`http://localhost:3000/api/orders/${selectedOrderId.value}`, orderData)
       alert('수정되었습니다.')
+      // 등록모드
     } else {
       await axios.post('http://localhost:3000/api/orders', orderData)
       alert('등록되었습니다.')
