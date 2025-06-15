@@ -11,6 +11,18 @@ const routes: Array<RouteRecordRaw> = [
     redirect: { name: 'dashboard' },
   },
   {
+  path: '/auth',
+  component: AuthLayout,
+  children: [
+    {
+      path: 'login',
+      name: 'login',
+      component: () => import('../pages/auth/Login.vue'),
+    },
+  ],
+},
+
+  {
     name: 'admin',
     path: '/',
     component: AppLayout,
@@ -108,14 +120,14 @@ const routes: Array<RouteRecordRaw> = [
             component: () => import('../pages/workorder/WorkOrderCheck.vue'),
           },
           {
-            name: 'recover-password',
-            path: 'recover-password',
-            component: () => import('../pages/auth/RecoverPassword.vue'),
+            name: 'prod_plan_manager',
+            path: 'prod_plan_manager',
+            component: () => import('../pages/prodPlan/ProdPlanManager.vue'),
           },
           {
-            name: 'recover-password-email',
-            path: 'recover-password-email',
-            component: () => import('../pages/auth/CheckTheEmail.vue'),
+            name: 'prod_plan_check',
+            path: 'prod_plan_check',
+            component: () => import('../pages/prodPlan/ProdPlanCheck.vue'),
           },
         ],
       },

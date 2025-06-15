@@ -138,6 +138,7 @@
                 <th class="border border-gray-200 px-2 py-1.5 text-left font-medium text-gray-700">단위</th>
                 <th class="border border-gray-200 px-2 py-1.5 text-left font-medium text-gray-700">규격</th>
                 <th class="border border-gray-200 px-2 py-1.5 text-left font-medium text-gray-700">공정코드</th>
+                <th class="border border-gray-200 px-2 py-1.5 text-center font-medium text-gray-700">수량</th>
                 <th class="border border-gray-200 px-2 py-1.5 text-left font-medium text-gray-700">우선순위</th>
                 <th class="border border-gray-200 px-2 py-1.5 text-left font-medium text-gray-700">비고</th>
               </tr>
@@ -152,6 +153,16 @@
                 <td class="border border-gray-200 px-2 py-1.5">{{ product.product_unit }}</td>
                 <td class="border border-gray-200 px-2 py-1.5">{{ product.product_stand }}</td>
                 <td class="border border-gray-200 px-2 py-1.5">{{ product.process_code }}</td>
+                <td class="border border-gray-200 px-2 py-1.5">
+                  <input 
+                    v-model.number="product.work_order_qty" 
+                    type="number" 
+                    min="1"
+                    step="1"
+                    class="w-20 px-1 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 text-center"
+                    placeholder="수량"
+                  />
+                </td>
                 <td class="border border-gray-200 px-2 py-1.5">
                   <input 
                     v-model.number="product.work_order_priority" 
@@ -285,6 +296,7 @@ const addProduct = (product) => {
     product_unit: product.product_unit,
     product_stand: product.product_stand,
     process_code: product.process_group_code || '',
+    work_order_qty: null,  // 🚨 수량 필드 추가
     work_order_priority: null,
     order_detail_remark: '',
     selected: false
@@ -332,6 +344,7 @@ const loadPlanProducts = async (planId) => {
         product_unit: item.product_unit,
         product_stand: item.product_stand,
         process_code: item.process_group_code || '',
+        work_order_qty: item.plan_qty || null,  // 🚨 계획 수량을 기본값으로 설정
         work_order_priority: null,
         order_detail_remark: '',
         selected: false
@@ -363,6 +376,7 @@ const saveWorkOrder = async () => {
       },
       products: form.value.products.map(product => ({
         product_code: product.product_code,
+        work_order_qty: product.work_order_qty || null,              // 🚨 수량 필드 추가
         work_order_priority: product.work_order_priority || null,
         order_detail_remark: product.order_detail_remark || '',
         process_group_code: product.process_code || ''
@@ -464,6 +478,7 @@ const selectWorkOrder = async (workOrder) => {
           product_unit: product.product_unit,
           product_stand: product.product_stand,
           process_code: product.process_group_code || '',
+          work_order_qty: product.work_order_qty || null,  
           work_order_priority: product.work_order_priority,
           order_detail_remark: product.order_detail_remark || '',
           selected: false

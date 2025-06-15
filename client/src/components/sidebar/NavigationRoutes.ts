@@ -144,8 +144,12 @@ export default {
           displayName: 'menu.작업지시 조회',
         },
         {
-          name: 'recover-password',
-          displayName: 'menu.recover-password',
+          name: 'prod_plan_manager',
+          displayName: 'menu.생산계획 관리',
+        },
+        {
+          name: 'prod_plan_check',
+          displayName: 'menu.생산계획 조회',
         },
       ],
     },

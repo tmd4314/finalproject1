@@ -3,7 +3,7 @@
     <div class="bg-white rounded-lg w-[700px] h-[500px] flex flex-col">
       <!-- 헤더 -->
       <div class="flex justify-between items-center p-4 border-b">
-        <h3 class="text-lg font-semibold">계획 선택</h3>
+        <h3 class="text-lg font-semibold">생산계획 선택</h3>
         <button @click="$emit('close')" class="text-xl">&times;</button>
       </div>
 
@@ -12,7 +12,7 @@
         <input 
           v-model="searchTerm"
           @input="searchPlans"
-          placeholder="계획 ID또는 제품명 입력"
+          placeholder="계획 ID 또는 제품명"
           class="w-full px-3 py-2 border"
         />
       </div>
@@ -64,7 +64,7 @@ const searchResults = ref([])
 
 const searchPlans = async () => {
   try {
-    const res = await axios.get('/workOrder/plans/search', {
+    const res = await axios.get('/prodPlan/search', {
       params: { q: searchTerm.value }
     })
     searchResults.value = res.data || []
