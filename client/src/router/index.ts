@@ -91,6 +91,11 @@ const routes: Array<RouteRecordRaw> = [
         component: RouteViewComponent,
         children: [
           {
+            name: 'material-check',
+            path: 'material-check',
+            component: () => import('../pages/material/materialCheckPage.vue'),
+          },
+          {
             name: 'receiving-management',
             path: 'receiving-management',
             component: () => import('../pages/material/receivingManagementPage.vue'),
@@ -109,6 +114,21 @@ const routes: Array<RouteRecordRaw> = [
             name: 'purchase-order',
             path:'purchase-order',
             component: () => import('../pages/material/purchaseOrderPage.vue')
+          },
+          {
+            name: 'purchase-check',
+            path:'purchase-check',
+            component: () => import('../pages/material/purchaseCheckPage.vue')
+          },
+          {
+            name: 'delivery-management',
+            path:'delivery-management',
+            component: () => import('../pages/material/deliveryManagementPage.vue')
+          },
+          {
+            name: 'delivery-check',
+            path:'delivery-check',
+            component: () => import('../pages/material/deliveryCheckPage.vue')
           },
         ],
       },

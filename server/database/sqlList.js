@@ -15,6 +15,7 @@ const materialLot = require('./sqls/materialLot.js');
 const workOrder = require('./sqls/workOrder.js');
 const mrp = require('./sqls/mrps.js');
 const purchaseOrder = require('./sqls/purchase.js');
+const delivery = require('./sqls/delivery.js')
 
 
 
@@ -37,6 +38,7 @@ const purchaseOrder = require('./sqls/purchase.js');
      ...materialLot,
      ...workOrder,
      ...mrp,
-     ...purchaseOrder
+     ...purchaseOrder,
+     ...delivery
  }
 

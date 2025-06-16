@@ -153,6 +153,12 @@ const updateProcessDetailInfo = async(processCode) => {
   };
 }
 
+const checkProcessGroup = async(processGroupCode) => {
+  let list = await mariadb.query("processGroupSelect", processGroupCode)
+                            .catch(err => console.log(err));
+  return list;
+}
+
 const removeProcessInfo = async(processCode) => {
   let result = await mariadb.query("processDELETE", processCode)
                             .catch(err => console.log(err));
@@ -181,5 +187,6 @@ module.exports = {
   removeProcessInfo,
   removeProcessDetailInfo,
   modifyProcess,
-  updateProcessDetailInfo
+  updateProcessDetailInfo,
+  checkProcessGroup
 };

@@ -30,7 +30,13 @@ const proxyPaths = [
   'puOrder',
   'purchase',
   'workOrder',
+  'purchaseCheck',
+  'delivery',
+  'deliveryCheck',
+  'receiveQty',
+  'qualityTest'
   'uploads',
+
 ]
 
 // ✅ 공통 proxy 설정 생성 함수

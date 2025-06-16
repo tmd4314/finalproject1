@@ -13,6 +13,12 @@ const findOrderCheck = async() => {
   return list;
 }
 
+const receiveQtyCheck = async(purchaseId) => {
+  let list = await mariadb.query("receiveQtyCheck", purchaseId)
+                          .catch(err => console.log(err));
+  return list;
+}
+
 const findListAll = async() => {
   let list = await mariadb.query("selectLotList")
                           .catch(err => console.log(err));
@@ -62,6 +68,54 @@ const updateMaterialOrder = async(materialOrderCode) => {
   return result;
 }
 
+const receiveQty = async(purchaseId, body) => {
+  const updateColumns = ['receive_qty'];
+  const values = convertObjToAry(body, updateColumns);
+  const data = [...values, purchaseId];
+
+  try {
+    const resInfo = await mariadb.query("receiveQty", data);
+    return {
+      isUpdated: resInfo.affectedRows > 0,
+      message: resInfo.affectedRows > 0 ? '수정 성공' : '변경된 데이터 없음',
+    };
+  } catch (err) {
+    console.error('❌ 수정 쿼리 오류:', err);
+    return {
+      isUpdated: false,
+      message: '쿼리 실행 오류',
+    };
+  }
+}
+
+const qualityTest = async (quality) => {
+  const insertColums = [
+    'material_qual_num',
+    'material_code',
+    'purchase_order_id'
+  ];
+
+  const values = convertObjToAry(quality, insertColums);
+
+  const resInfo = await mariadb.query("qualityTest", values)
+  .catch(err => {
+    console.error('❌ insert 실패:', err);
+    return null;
+  });
+
+  let result = null;
+  if (resInfo.affectedRows > 0) {
+    result = {
+      isSuccessed: true
+    }
+  }else{
+    result = {
+      isSuccessed: false
+    }
+  }
+  return result;
+};
+
 const updateMaterialOrderCheck = async(materialOrderCode) => {
 
   const data = [materialOrderCode]; // WHERE 조건 맨 뒤에
@@ -92,5 +146,8 @@ module.exports = {
   updateMaterialOrder,
   findListAll,
   findOrderCheck,
-  updateMaterialOrderCheck
+  updateMaterialOrderCheck,
+  receiveQtyCheck,
+  receiveQty,
+  qualityTest
 };
