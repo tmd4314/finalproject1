@@ -40,7 +40,7 @@ router.put('/puOrder/:purchase_order_id', async(req, res) => {
     const res1  = await purchaseService.updatePurchase(puOrderId, purchaseInfo);
     const res2 = await purchaseService.stockStatusUpdate(puOrderId);
     res.send(res1);
-    res.sned(res2);
+    res.send(res2);
   }catch (err) {
     console.error('수정 실패:', err);
     res.status(500).send({ isSuccessed: false, message: '서버 오류' });

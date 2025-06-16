@@ -6,6 +6,12 @@ const selectAll = async () => {
   return list;
 };
 
+// 제품명만 전체 조회
+const productAll = async () => {
+  const list = await mariadb.query("productNameList").catch((err) => console.log(err));
+  return list;
+};
+
 // 검사항목 추가
 const insertOne = async (data) => {
   try {
@@ -53,6 +59,7 @@ const deleteInspection = async (data) => {
 
 module.exports ={
   selectAll,
+  productAll,
   insertOne,
   updateOne,
   deleteInspection

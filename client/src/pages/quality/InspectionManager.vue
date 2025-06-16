@@ -6,7 +6,12 @@
       <h3 class="form-title">기본정보</h3>
       <br>
         <div class="input-row">
-          <va-input v-model="form.prodName" label="제품명" class="quarter-width"/>
+          <va-select
+            v-model="form.productCode" 
+            :options="productOptions"
+            label="제품명"
+            class="quarter-width"
+          />
           <va-input v-model="form.inspCode" label="항목코드" class="quarter-width" />
           <va-input v-model="form.inspName" label="항목명" class="quarter-width" />
           <va-input v-model="form.inspValueType" label="판정방식" class="quarter-width" />
@@ -91,12 +96,10 @@
           <tr v-for="item in inspectionList" :key="item.insp_code">
             <td>{{ item.insp_code }}</td>
             <td>{{ item.insp_name }}</td>
-            <td>{{ item.insp_code }}</td>
-            <td>{{ item.insp_code }}</td>
-            <td>{{ item.insp_code }}</td>
-            <td>{{ item.insp_code }}</td>
-            <td>{{ item.insp_code }}</td>
-            <td>{{ item.insp_code }}</td>
+            <td>{{ item.insp_value_type }}</td>
+            <td>{{ item.insp_quantita_value }}</td>
+            <td>{{ item.insp_unit }}</td>
+            <td>{{ item.insp_remark }}</td>
           </tr>
         </tbody>
       </table>
@@ -144,6 +147,21 @@ const form = ref({
   supplementary: ''         
 })
 
+const productOptions = ref<{ label: string; value: string }[]>([])
+
+const fetchProductNameList = async () => {
+  try {
+    const res = await axios.get('/inspections/productList') // ← 이 부분은 백엔드 API 경로에 맞게
+    productOptions.value = res.data.map((item: any) => ({
+      label: item.product_name, // 사용자에게 보이는 값
+      value: item.product_code  // 실제로 저장되는 값
+    }))
+  } catch (err) {
+    console.error('제품명 리스트 조회 실패:', err)
+  }
+}
+
+
 const isQuantitative = computed(() => form.value.inspRefValue === '정량')
 const isQualitative = computed(() => form.value.inspRefValue === '정성')
 
@@ -167,7 +185,8 @@ const fetchInspectionList = async () => {
 
 
 onMounted(() => {
-  fetchInspectionList()
+  fetchInspectionList(),
+  fetchProductNameList()
 })
 </script>
 

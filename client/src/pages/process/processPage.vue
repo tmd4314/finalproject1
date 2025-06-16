@@ -2,17 +2,19 @@
   <div class="process-page">
     <h2 class="title">공정 흐름도 관리</h2>
 
-    <!-- 제품 선택 -->
-    <div class="product-select">
-      <label for="productCode">제품코드:</label>
-      <select id="productCode" v-model="selectedProductCode">
-        <option disabled value="">제품 선택</option>
-        <option v-for="product in products" :key="product.product_code" :value="product.product_code">
-          {{ product.product_code }}
-        </option>
-      </select>
-      <span class="product-label">제품명: {{ selectedProduct?.product_name || '-' }}</span>
-      <span class="product-label">규격: {{ selectedProduct?.product_stand || '-' }}</span>
+    <!-- 제품 검색 -->
+    <div class="product-search va-row va-gap-2 va-items-center">
+      <label>제품코드: </label>
+      <input v-model="search.product_code" placeholder="제품코드 입력" />
+
+      <label>제품명: </label>
+      <input v-model="search.product_name" placeholder="제품명 입력" />
+
+      <label>규격:</label>
+      <input v-model="search.product_stand" placeholder="규격 입력" />
+
+      <button class="btn search" @click="handleProductSearch">검색</button>
+      <button class="btn reset" @click="resetSearch">초기화</button>
       <button class="btn save" @click="saveProcesses">저장</button>
     </div>
 
@@ -54,12 +56,9 @@
                 </option>
               </select>
               <span v-else style="color: red;">🚫 설비 코드 없음</span>
-
             </td>
             <td>
-              <button class="btn save" 
-               @click="handlePopupOpen(process.process_code, index)"
-              >
+              <button class="btn save" @click="handlePopupOpen(process.process_code, index)">
                 상세추가
               </button>
             </td>
@@ -68,59 +67,26 @@
       </table>
     </div>
 
-      <!-- 상세 추가 팝업 -->
-    <div v-if="popupVisible" class="popup-overlay">
-      <div class="popup-content wide">
-        <div class="popup-header">
-          <div>
-            <button class="btn add" @click="addMaterial">재료추가</button>
-            <button class="btn delete" @click="deleteSelectedMaterials">재료삭제</button>
-          </div>
-        </div>
-
-        <table class="material-table">
-          <thead>
-            <tr>
-              <th><input type="checkbox" disabled/></th>
-              <th>자재코드</th>
-              <th>자재명</th>
-              <th>단위</th>
-              <th>투입량</th>
-              <th>담당자</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            <tr v-for="(row, index) in materialList" :key="index">
-              <td><input type="checkbox" v-model="row.selected" /></td>
-
-              <td>
-                <select v-model="row.material_code" @change="onMaterialCodeChange(row)">
-                  <option disabled value="">자재 선택</option>
-                  <option v-for="item in materialOptions" :key="item.material_code" :value="item.material_code">
-                    {{ item.material_code }}
-                  </option>
-                </select>
-              </td>
-
-              <td>{{ row.material_name }}</td>
-              <td>{{ row.material_unit }}</td>
-              <td>{{ row.usage_qty }}</td>
-              <td><input type="text" v-model="row.responsible" /></td>
-            </tr>
-          </tbody>
-        </table>
-
-        <div class="popup-footer">
-          <button class="btn save" @click="saveMaterial">저장</button>
-          <button class="btn" @click="popupVisible = false">취소</button>
-        </div>
-      </div>
-    </div>
+    <!-- 팝업 컴포넌트 -->
+    <PopupDetail
+      v-if="popupVisible"
+      :visible="popupVisible"
+      :processCode="popupProcessCode"
+      :productCode="popupProductCode"
+      :materialOptions="materialOptions"
+      :materialList="materialList"
+      :bomCode="bomCode"
+      @update:visible="popupVisible = $event"
+      @save="saveMaterial"
+      @materialCodeChange="onMaterialCodeChange"
+      @addMaterial="addMaterial"
+      @deleteSelectedMaterials="deleteSelectedMaterials"
+    />
   </div>
 </template>
 
 <script lang="ts" setup>
+import PopupDetail from '../modals/PopupDetail.vue'
 import axios from 'axios'
 import { onMounted ,computed, ref, watch } from 'vue'
 
@@ -186,6 +152,58 @@ const materialList = ref<MaterialRow[]>([])
 const materialOptions = ref<MaterialOption[]>([])
 const popupProductCode = ref<string>('')
 const bomCode = ref('')
+
+const search = ref({
+  product_code: '',
+  product_name: '',
+  product_stand: ''
+})
+
+const handleProductSearch = () => {
+  let found: Product | null = null
+
+  // 우선 제품코드로 찾기
+  if (search.value.product_code) {
+    found = products.value.find(p => p.product_code === search.value.product_code)
+  }
+
+  // 아니면 제품명 + 규격으로 찾기
+  if (!found && search.value.product_name && search.value.product_stand) {
+    found = products.value.find(p =>
+      p.product_name === search.value.product_name &&
+      p.product_stand === search.value.product_stand
+    )
+  }
+
+  if (!found) {
+    alert('해당 제품을 찾을 수 없습니다.')
+    return
+  }
+
+  // ✅ 작성 중 공정이 있고, 선택된 제품과 다른 경우 확인 알림
+  const isEditing = processes.value.length > 0
+  const isDifferentProduct = selectedProductCode.value && selectedProductCode.value !== found.product_code
+
+  if (isEditing && isDifferentProduct) {
+    const confirmed = confirm('현재 공정 정보를 작성 중입니다.\n제품을 변경하시겠습니까?')
+    if (!confirmed) {
+      return
+    }
+  }
+
+  // ✅ 제품 변경 실행
+  selectedProductCode.value = found.product_code
+}
+
+const resetSearch = () => {
+  search.value = {
+    product_code: '',
+    product_name: '',
+    product_stand: ''
+  }
+  selectedProductCode.value = ''
+  processes.value = []
+}
 
 const fetchProducts = async () => {
   try {
@@ -401,10 +419,18 @@ const saveProcesses = async (): Promise<void> => {
   });
 
   try {
+
+    const groupCheckRes = await axios.get(`/processG/${group_code}`); // 예: GET /processG/:group_code
+    const groupExists = Array.isArray(groupCheckRes.data) && groupCheckRes.data.length > 0;
+    console.log(`${group_code}`);
+    console.log(groupCheckRes);
+    console.log(groupExists);
     // 신규 등록 처리
     if (insertList.length > 0) {
-      const groupRes = await axios.post('/processG', groupItem);
-      if (!groupRes.data.isSuccessed) throw new Error('공정 그룹 등록 실패');
+      if (!groupExists) {
+        const groupRes = await axios.post('/processG', groupItem);
+        if (!groupRes.data.isSuccessed) throw new Error('공정 그룹 등록 실패');
+      }
 
       const processRes = await axios.post('/process', insertList);
       if (!processRes.data.isSuccessed) throw new Error('공정 등록 실패');
@@ -462,10 +488,12 @@ onMounted(() => {
   font-family: 'Pretendard', sans-serif;
   background: #fff;
 }
+
 .times {
   text-align: center;
 }
-h3{
+
+h3 {
   font-size: 24px;
   font-weight: bold;
 }
@@ -486,11 +514,6 @@ h2.title {
 .product-label {
   font-size: 14px;
   color: #333;
-}
-
-.product-select select {
-  padding: 6px;
-  font-size: 14px;
 }
 
 .btn {
@@ -548,54 +571,13 @@ h2.title {
   box-sizing: border-box;
 }
 
-.popup-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
+.btn.search {
+  background-color: #27ae60;
+  color: white;
 }
 
-.popup-content {
-  background: white;
-  padding: 30px;
-  border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
-  min-width: 300px;
-}
-
-.popup-content.popup-medium {
-  min-width: 60%;
-  max-width: 800px;
-  background: white;
-  padding: 20px;
-  border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
-}
-.popup-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 15px;
-}
-
-.material-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-bottom: 20px;
-}
-.material-table th,
-.material-table td {
-  border: 1px solid #ccc;
-  padding: 8px;
-  text-align: center;
-}
-.popup-footer {
-  text-align: center;
+.btn.reset {
+  background-color: #7f8c8d;
+  color: white;
 }
 </style>

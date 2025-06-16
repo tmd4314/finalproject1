@@ -16,10 +16,21 @@
           {{ formatToKST(row.source.plan_reg_dt) }}
         </template>
 
+        <template #cell(view)="{ row }">
+          <va-button size="small" color="info" @click="openDetailModal(row.source)">상세보기</va-button>
+        </template>
+
         <template #cell(action)="{ row }">
           <va-button size="small" @click="onCalculateMRP(row.source)">계산</va-button>
         </template>
       </va-data-table>
+
+      <!-- ✅ 여기! 테이블 바로 바깥에 단 한 번만 팝업 추가 -->
+      <PlanDetailModal
+        :isOpen="isDetailModalOpen"
+        :products="selectedDetailProducts"
+        @close="isDetailModalOpen = false"
+      />
     </div>
 
     <!-- 부족 자재 리스트 -->
@@ -39,6 +50,7 @@
 
 <script lang="ts" setup>
 import axios from 'axios'
+import PlanDetailModal from '../modals/PlanDetailModal.vue'
 import { ref, onMounted } from 'vue'
 
 interface Plan {
@@ -56,10 +68,14 @@ interface Shortage {
   shortage_qty: number
 }
 
+const allPlans = ref<any[]>([])
 const planList = ref<Plan[]>([])
 const shortageList = ref<Shortage[]>([])
 const selectedPlan = ref<Plan | null>(null)
 const page = ref(1)
+const isDetailModalOpen = ref(false)
+const selectedDetailPlan = ref<Plan | null>(null)
+const selectedDetailProducts = ref<any[]>([]) 
 
 const planColumns = [
   { key: 'plan_id', label: '계획번호' },
@@ -69,6 +85,7 @@ const planColumns = [
     label: '등록일',
     formatter: (value: string) => formatToKST(value)
   },
+  { key: 'view', label: '상세보기' },
   { key: 'action', label: '계산' }
 ]
 
@@ -78,8 +95,17 @@ const shortageColumns = [
   { key: 'current_stock_qty', label: '재고' },
   { key: 'material_unit', label: '단위' },
   { key: 'material_cls', label: '분류' },
-  { key: 'shortage_qty', label: '부족수량' }
+  { key: 'total_needed_qty', label: '필요 수량' },
+  { key: 'material_safty', label: '안재 재고 기준' },
+  { key: 'shortage_qty', label: '발주 수량' }
 ]
+
+const openDetailModal = (plan: Plan) => {
+  selectedDetailProducts.value = allPlans.value.filter(
+    p => p.plan_id === plan.plan_id
+  )
+  isDetailModalOpen.value = true
+}
 
 const formatToKST = (isoDate: string): string => {
   const date = new Date(isoDate);
@@ -99,7 +125,20 @@ const formatToKST = (isoDate: string): string => {
 const fetchPlans = async () => {
   try {
     const res = await axios.get('/mrps')
-    planList.value = res.data
+    allPlans.value = res.data
+
+    // plan_id 기준으로 중복 제거된 리스트 만들기
+    const uniquePlans = new Map<string, Plan>()
+    res.data.forEach((item: any) => {
+      if (!uniquePlans.has(item.plan_id)) {
+        uniquePlans.set(item.plan_id, {
+          plan_id: item.plan_id,
+          plan_name: item.plan_name,
+          plan_reg_dt: item.plan_reg_dt,
+        })
+      }
+    })
+    planList.value = Array.from(uniquePlans.values())
   } catch (err) {
     console.error('계획 조회 실패', err)
   }
@@ -127,12 +166,22 @@ const onRegisterOrder = async () => {
   //부족한 자재가 있음 → 발주 INSERT + is_ordered = 1
   if (shortageList.value.length > 0) {
     try {
-      const payload = shortageList.value.map(item => ({
-        purchase_order_id: `${item.material_code}-${item.shortage_qty}`,
-        purchase_order_name: `${item.material_name}-${item.shortage_qty}`,
-        purchase_order_quantity: item.shortage_qty,
-        material_code: item.material_code
-      }))
+      const payload = shortageList.value.map(item => {
+        const now = new Date()
+        const yyyy = now.getFullYear()
+        const mm = String(now.getMonth() + 1).padStart(2, '0')
+        const dd = String(now.getDate()).padStart(2, '0')
+        const dateStr = `${yyyy}${mm}${dd}`
+        const random = Math.floor(100 + Math.random() * 900)
+        const poId = `${item.material_code}-${dateStr}-${random}`
+
+        return {
+          purchase_order_id: poId,
+          purchase_order_name: `${item.material_name}-${item.shortage_qty}`,
+          purchase_order_quantity: item.shortage_qty,
+          material_code: item.material_code
+        }
+      })
 
       console.log("발주내용:", payload)
       try{
