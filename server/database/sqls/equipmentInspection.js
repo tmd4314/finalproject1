@@ -1,5 +1,3 @@
-//server/database/sqls/equipmentInspection.js
-
 module.exports = {
   // 점검 시작
   insertInspectionLog: `
@@ -21,11 +19,11 @@ module.exports = {
     WHERE inspection_log_id = ?
   `,
 
-  // 점검 항목 결과 저장
+  // 점검 항목 결과 저장 - 수정됨
   insertInspectPartResult: `
     INSERT INTO inspect_part_result (
-      inspection_log_id, inspect_part_id, result_code
-    ) VALUES (?, ?, ?)
+      inspection_log_id, inspect_part_id, result_code, inspection_remark, confirmer_id
+    ) VALUES (?, ?, ?, ?, ?)
   `,
 
   // 설비별 점검 항목 조회
@@ -39,12 +37,13 @@ module.exports = {
     ORDER BY inspect_part_id
   `,
 
-  // 직원 목록 조회 (점검 모듈에서 직접 처리)
+  // 직원 목록 조회 - 사원 정보 직접 조회
   selectEmployeesForInspection: `
     SELECT 
-      employee_id,
-      employee_name
+      employee_id as value,
+      CONCAT(employee_name, ' (', employee_id, ')') as label
     FROM employees
+    WHERE employee_status = 'active'
     ORDER BY employee_name ASC
   `,
 

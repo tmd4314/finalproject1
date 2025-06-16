@@ -1,5 +1,3 @@
-//server/services/equipmentInspectionService.js
-
 const mariadb = require('../database/mapper')
 
 // BigInt 변환 유틸리티
@@ -64,13 +62,15 @@ const completeInspection = async ({
       inspection_log_id
     ])
 
-    // 2. 점검 항목 결과 저장
+    // 2. 점검 항목 결과 저장 - 수정됨
     if (checked_parts && checked_parts.length > 0) {
       for (const part of checked_parts) {
         await mariadb.query('insertInspectPartResult', [
           inspection_log_id,
           part.inspect_part_id,
-          part.result_code
+          part.result_code,
+          part.inspection_remark || '',  // 항목별 비고
+          part.confirmer_id || null       // 항목별 확인자
         ])
       }
     }
@@ -99,17 +99,15 @@ const getInspectionParts = async (eqTypeCode) => {
   }
 }
 
-// 직원 목록 조회 (점검 모듈에서 직접 처리)
+// 직원 목록 조회 - 직접 쿼리 실행
 const getEmployeesDirect = async () => {
   try {
     const employees = await mariadb.query('selectEmployeesForInspection')
-    return convertBigIntToString(employees.map(emp => ({
-      value: emp.employee_id,
-      label: `${emp.employee_name} (${emp.employee_id})`
-    })))
+    return convertBigIntToString(employees)
   } catch (error) {
     console.error('직원 목록 조회 실패:', error)
-    throw error
+    // 에러 발생 시 빈 배열 반환
+    return []
   }
 }
 
