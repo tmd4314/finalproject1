@@ -469,7 +469,7 @@ async function saveOrder() {
         orderPrice: computedOrderPrices.value[index]
       }))
     }
-  
+    
     console.log('저장할 데이터:', orderData)
     try {
     if (editMode.value) {
