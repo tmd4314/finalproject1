@@ -45,6 +45,13 @@ const processDELETE =
    WHERE process_code = ?`
 ;
 
+const processGroupSelect =
+  `
+   SELECT process_group_code
+   FROM   process_group
+   WHERE  process_group_code = ?`
+;
+
 const processDetail =
   `INSERT INTO process_detail(
                               process_code,
@@ -96,5 +103,6 @@ module.exports ={
   processDELETE,
   processDetailDELETE,
   processUpdate,
-  processUpdateDetail
+  processUpdateDetail,
+  processGroupSelect
 }

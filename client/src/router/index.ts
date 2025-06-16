@@ -11,6 +11,18 @@ const routes: Array<RouteRecordRaw> = [
     redirect: { name: 'dashboard' },
   },
   {
+  path: '/auth',
+  component: AuthLayout,
+  children: [
+    {
+      path: 'login',
+      name: 'login',
+      component: () => import('../pages/auth/Login.vue'),
+    },
+  ],
+},
+
+  {
     name: 'admin',
     path: '/',
     component: AppLayout,
@@ -63,6 +75,26 @@ const routes: Array<RouteRecordRaw> = [
             path: 'equipment-inspection',
             component: () => import('../pages/equipment/EquipmentInspection.vue')
           },
+          {
+          name: 'equipment-cleaning',
+          path: 'equipment-cleaning',
+          component: () => import('../pages/equipment/EquipmentCleaning.vue'),
+          },
+          {
+          name: 'equipment-stop',
+          path: 'equipment-stop',
+          component: () => import('../pages/equipment/EquipmentStop.vue'),
+          },
+          {
+          name: 'equipment-history',
+          path: 'equipment-history',
+          component: () => import('../pages/equipment/EquipmentHistory.vue'),
+          },
+          {
+            path: '/equipments/:id',
+            name: 'equipment-detail',
+            component: () => import('../pages/equipment/EquipmentDetail.vue')
+          },
         ],
       },
       {
@@ -70,6 +102,11 @@ const routes: Array<RouteRecordRaw> = [
         path: '/faq',
         component: RouteViewComponent,
         children: [
+          {
+            name: 'material-check',
+            path: 'material-check',
+            component: () => import('../pages/material/materialCheckPage.vue'),
+          },
           {
             name: 'receiving-management',
             path: 'receiving-management',
@@ -90,6 +127,21 @@ const routes: Array<RouteRecordRaw> = [
             path:'purchase-order',
             component: () => import('../pages/material/purchaseOrderPage.vue')
           },
+          {
+            name: 'purchase-check',
+            path:'purchase-check',
+            component: () => import('../pages/material/purchaseCheckPage.vue')
+          },
+          {
+            name: 'delivery-management',
+            path:'delivery-management',
+            component: () => import('../pages/material/deliveryManagementPage.vue')
+          },
+          {
+            name: 'delivery-check',
+            path:'delivery-check',
+            component: () => import('../pages/material/deliveryCheckPage.vue')
+          },
         ],
       },
       {
@@ -108,14 +160,14 @@ const routes: Array<RouteRecordRaw> = [
             component: () => import('../pages/workorder/WorkOrderCheck.vue'),
           },
           {
-            name: 'recover-password',
-            path: 'recover-password',
-            component: () => import('../pages/auth/RecoverPassword.vue'),
+            name: 'prod_plan_manager',
+            path: 'prod_plan_manager',
+            component: () => import('../pages/prodPlan/ProdPlanManager.vue'),
           },
           {
-            name: 'recover-password-email',
-            path: 'recover-password-email',
-            component: () => import('../pages/auth/CheckTheEmail.vue'),
+            name: 'prod_plan_check',
+            path: 'prod_plan_check',
+            component: () => import('../pages/prodPlan/ProdPlanCheck.vue'),
           },
         ],
       },

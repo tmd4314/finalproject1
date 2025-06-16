@@ -12,7 +12,7 @@
         <input 
           v-model="searchTerm"
           @input="searchPlans"
-          placeholder="계획 ID, 제품명 또는 시작예정일"
+          placeholder="계획 ID또는 제품명 입력"
           class="w-full px-3 py-2 border"
         />
       </div>

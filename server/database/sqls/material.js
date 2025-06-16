@@ -58,11 +58,32 @@ const selectMaterialByCode = `
   SELECT * FROM material WHERE material_code = ?
 `;
 
+const MaterialAllList = 
+`
+  SELECT 
+    m.material_code,
+    m.material_name,
+    SUM(ml.quantity) AS quantity,
+    m.material_unit,
+    m.material_stand,
+    ml.received_date,
+    ml.expiry_date,
+    m.material_cls
+  FROM 
+    material m
+  JOIN 
+    material_lot ml ON m.material_code = ml.material_code
+  GROUP BY 
+    m.material_code, m.material_name, m.material_unit, m.material_stand, m.material_cls;
+`
+;
+
  module.exports ={
     selectMaterialList,
     materialInsert,
     materialUpdate,
     materialDelete,
     selectAllMaterials,
-    selectMaterialByCode
+    selectMaterialByCode,
+    MaterialAllList
  }

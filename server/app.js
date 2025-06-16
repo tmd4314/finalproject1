@@ -68,6 +68,12 @@ const mrpRouter = require('./routers/mrpsRouter.js');
 
 const purchaseRouter = require('./routers/purchaseRouter.js');
 
+
+const prodPlanRouter = require('./routers/prodPlanRouter.js');
+
+const deliveryRouter = require('./routers/deliveryRouter.js');
+
+
  // 기본 라우팅
 app.get('/', (req, res)=>{
   res.send('Welcome!!...');
@@ -85,6 +91,7 @@ app.use('/', accountRouter);
 //다산
 app.use('/bom', bomRouter);
 app.use('/workOrder', workOrderRouter);
+app.use('/prodPlan', prodPlanRouter);
 
  //승민
 app.use('/', productRouter);
@@ -93,6 +100,7 @@ app.use('/', processRouter);
 app.use('/', materialLotRouter);
 app.use('/', mrpRouter);
 app.use('/', purchaseRouter);
+app.use('/', deliveryRouter);
 
 
 
@@ -100,6 +108,8 @@ app.use('/', purchaseRouter);
 app.use('/equipments', equipmentRouter);
 app.use('/common-codes', commonCodeRouter);
 app.use('/img', express.static('../client/public/img'));
+app.use('/uploads', express.static('./uploads'));
+app.use('/equipment-inspection', inspectionRouter);
 
 //현석
 app.use('/lines', lineRouter);

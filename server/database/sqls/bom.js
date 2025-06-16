@@ -111,6 +111,8 @@ const getProcessBomList = `
     bd.material_code,
     m.material_name,
     m.material_unit,
+    m.material_stand,
+    m.material_cls,
     bd.usage_qty
   FROM tablets.bom_master bm
   JOIN tablets.product p 

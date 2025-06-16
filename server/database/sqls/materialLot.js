@@ -62,6 +62,7 @@ const orderCheck =
            m.material_name,
            m.material_unit,
            po.purchase_order_quantity,
+           po.received_quantity,
            po.purchase_order_date,
            po.account_id,
            ac.account_name
@@ -74,6 +75,35 @@ const orderCheck =
       ON   po.code_value = co.code_value
     WHERE  co.code_label = "발주완료"
   `
+;
+
+const receiveQty = 
+`
+  UPDATE purchase_order
+  SET    received_quantity = received_quantity + ?
+  WHERE  purchase_order_id = ?
+`
+;
+
+const qualityTest =
+`
+  INSERT INTO material_quality_test(
+                                   material_qual_num,
+                                   material_code,
+                                   purchase_order_id
+                                   )
+  VALUES(?, ?, ?)
+`
+;
+
+const receiveQtyCheck = 
+`
+  SELECT purchase_order_quantity,
+         received_quantity,
+         material_code
+  FROM   purchase_order
+  WHERE  purchase_order_id = ?
+`
 ;
 
 const orderCheckUpdate =
@@ -89,5 +119,8 @@ module.exports ={
   updateOrder,
   selectLotList,
   orderCheck,
-  orderCheckUpdate
+  orderCheckUpdate,
+  receiveQty,
+  qualityTest,
+  receiveQtyCheck
 }

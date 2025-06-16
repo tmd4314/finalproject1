@@ -7,6 +7,12 @@ const findAll = async() => {
   return list;
 }
 
+const findCheckAll = async() => {
+  let list = await mariadb.query("MaterialAllList")
+                          .catch(err => console.log(err));
+  return list;
+}
+
 const addMaterial = async(MaterialInfo) => {
   let insertColums = ['material_code', 'material_name', 'material_pay', 'material_cls', 'material_stand', 'material_unit', 'material_safty', 'material_img'];
   let data = convertObjToAry(MaterialInfo, insertColums);
@@ -83,5 +89,6 @@ module.exports = {
   findAll,
   addMaterial,
   updateMaterialInfo,
-  removeMaterialInfo
+  removeMaterialInfo,
+  findCheckAll
 };

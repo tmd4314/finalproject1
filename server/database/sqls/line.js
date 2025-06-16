@@ -1,63 +1,62 @@
-// server/database/sqls/line.js
 module.exports = {
   // ========== 라인 마스터 관리 ==========
-  
-  // 라인 마스터 등록 (실제 DB 구조에 맞춤 - location 제거)
+
+  // 라인 마스터 등록
   insertLineMaster: `
     INSERT INTO package_master (
-      line_id, line_name, eq_group_code, line_type, max_capacity, description, reg_date, result_id
-    ) VALUES (?, ?, ?, ?, ?, ?, NOW(), ?)
+      line_name, eq_group_code, line_type, reg_date, result_id, line_code, max_capacity, description
+    ) VALUES (?, ?, ?, NOW(), ?, ?, ?, ?)
   `,
 
   // 라인 마스터 목록
   selectLineMasterList: `
     SELECT
       line_masterid,
-      line_code,
       line_name,
       eq_group_code,
       line_type,
-      max_capacity,
-      description,
       DATE_FORMAT(reg_date, '%Y-%m-%d') as reg_date,
-      result_id
+      result_id,
+      line_code,
+      max_capacity,
+      description
     FROM package_master
-    ORDER BY line_id ASC
+    ORDER BY line_code ASC
   `,
 
   // 라인 마스터 상세
   selectLineMasterDetail: `
     SELECT
       line_masterid,
-      line_code,
       line_name,
       eq_group_code,
       line_type,
-      max_capacity,
-      description,
       DATE_FORMAT(reg_date, '%Y-%m-%d') as reg_date,
-      result_id
+      result_id,
+      line_code,
+      max_capacity,
+      description
     FROM package_master
     WHERE line_masterid = ?
   `,
 
-  // 라인 ID로 마스터 조회
+  // 라인 코드로 마스터 조회
   selectLineMasterByLineId: `
     SELECT
       line_masterid,
-      line_code,
       line_name,
       eq_group_code,
       line_type,
-      max_capacity,
-      description,
       DATE_FORMAT(reg_date, '%Y-%m-%d') as reg_date,
-      result_id
+      result_id,
+      line_code,
+      max_capacity,
+      description
     FROM package_master
-    WHERE line_id = ?
+    WHERE line_code = ?
   `,
 
-  // 라인 마스터 수정 (location 제거)
+  // 라인 마스터 수정
   updateLineMaster: `
     UPDATE package_master SET
       line_name = ?,
@@ -73,12 +72,19 @@ module.exports = {
     DELETE FROM package_master WHERE line_masterid = ?
   `,
 
-  // 라인 ID 중복 체크
+  // 라인 코드 중복 체크
   checkLineIdExists: `
     SELECT COUNT(*) as count FROM package_master WHERE line_code = ?
   `,
 
-  // 사용 가능한 라인 ID 목록 (A-Z 중 미사용)
+  // 라인 코드 + 타입 조합 중복 체크
+  checkLineIdExistsByType: `
+    SELECT COUNT(*) as count 
+    FROM package_master 
+    WHERE line_code = ? AND line_type = ?
+  `,
+
+  // 사용 가능한 라인 코드 목록 (A-Z 중 미사용)
   getAvailableLineIds: `
     SELECT 
       CHAR(65 + numbers.n) as line_code
@@ -98,25 +104,26 @@ module.exports = {
   // 라인(상태/실시간) 등록
   insertLine: `
     INSERT INTO package_line (
-      line_masterid, pkg_type, line_status, employee_name, eq_name, current_speed, curr_work_no, target_qty, reg_date
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
+      line_masterid, pkg_type, line_status, curr_work_no, target_qty, reg_date, 
+      eq_name, current_speed, line_code, employee_id
+    ) VALUES (?, ?, ?, ?, ?, NOW(), ?, ?, ?, ?)
   `,
 
-  // 프론트엔드용 통합 라인 목록 (마스터 + 최신 상태) - 실제 DB 구조 반영
+  // 🔥 프론트엔드용 통합 라인 목록 (마스터 + 최신 상태 + 사원명)
   selectLineList: `
     SELECT
       m.line_masterid,
-      m.line_id,
+      m.line_code as line_id,
       m.line_name,
       m.line_type,
       m.eq_group_code,
       m.max_capacity,
       COALESCE(m.description, '') as description,
       COALESCE(latest.line_status, 'AVAILABLE') as line_status,
+      COALESCE(e.employee_name, '') as employee_name,
+      COALESCE(latest.curr_work_no, '') as curr_work_no,
       COALESCE(latest.eq_name, '') as eq_name,
       COALESCE(latest.current_speed, 0) as current_speed,
-      COALESCE(latest.employee_name, '') as employee_name,
-      COALESCE(latest.curr_work_no, '') as curr_work_no,
       COALESCE(latest.target_qty, 0) as target_qty,
       DATE_FORMAT(m.reg_date, '%Y-%m-%d') as reg_date,
       m.result_id
@@ -127,30 +134,33 @@ module.exports = {
         line_status,
         eq_name,
         current_speed,
-        employee_name,
+        employee_id,
         curr_work_no,
         target_qty,
         ROW_NUMBER() OVER (PARTITION BY line_masterid ORDER BY reg_date DESC, line_id DESC) as rn
       FROM package_line
     ) latest ON m.line_masterid = latest.line_masterid AND latest.rn = 1
-    ORDER BY m.line_id ASC
+    LEFT JOIN tablets.employees e ON latest.employee_id = e.employee_id
+    ORDER BY m.line_code ASC
   `,
 
-  // 라인 상세 (상태/실적)
+  // 라인 상세 (상태/실적 + 사원명)
   selectLineDetail: `
     SELECT
-      line_id,
-      line_masterid,
-      pkg_type,
-      line_status,
-      employee_name,
-      eq_name,
-      current_speed,
-      curr_work_no,
-      target_qty,
-      DATE_FORMAT(reg_date, '%Y-%m-%d %H:%i:%s') as reg_date
-    FROM package_line
-    WHERE line_id = ?
+      l.line_id,
+      l.line_masterid,
+      l.pkg_type,
+      l.line_status,
+      l.employee_id,
+      e.employee_name,
+      l.eq_name,
+      l.current_speed,
+      l.curr_work_no,
+      l.target_qty,
+      DATE_FORMAT(l.reg_date, '%Y-%m-%d %H:%i:%s') as reg_date
+    FROM package_line l
+    LEFT JOIN tablets.employees e ON l.employee_id = e.employee_id
+    WHERE l.line_id = ?
   `,
 
   // 라인 수정
@@ -158,7 +168,7 @@ module.exports = {
     UPDATE package_line SET
       pkg_type = ?,
       line_status = ?,
-      employee_name = ?,
+      employee_id = ?,
       eq_name = ?,
       current_speed = ?,
       curr_work_no = ?,
@@ -175,7 +185,8 @@ module.exports = {
   selectLineWithMaster: `
     SELECT
       l.*,
-      m.line_id as master_line_id,
+      e.employee_name,
+      m.line_code as master_line_id,
       m.line_name,
       m.eq_group_code,
       m.line_type,
@@ -183,48 +194,51 @@ module.exports = {
       m.description
     FROM package_line l
     JOIN package_master m ON l.line_masterid = m.line_masterid
+    LEFT JOIN tablets.employees e ON l.employee_id = e.employee_id
     WHERE l.line_id = ?
   `,
 
-  // 특정 마스터 라인 ID로 상태 조회
+  // 특정 마스터 라인 코드로 상태 조회
   selectLineStatusByMasterId: `
     SELECT
       l.*,
-      m.line_id as master_line_id,
+      e.employee_name,
+      m.line_code as master_line_id,
       m.line_name,
       m.line_type,
       m.max_capacity
     FROM package_line l
     JOIN package_master m ON l.line_masterid = m.line_masterid
-    WHERE m.line_id = ?
+    LEFT JOIN tablets.employees e ON l.employee_id = e.employee_id
+    WHERE m.line_code = ?
     ORDER BY l.reg_date DESC
     LIMIT 1
   `,
 
-  // 라인 상태 업데이트 (특정 마스터 라인의 최신 상태만 업데이트)
+  // 라인 상태 업데이트 (특정 마스터 라인의 최신 상태만)
   updateLineByMasterId: `
     UPDATE package_line 
     SET 
       pkg_type = ?,
       line_status = ?,
-      employee_name = ?,
+      employee_id = ?,
       eq_name = ?,
       current_speed = ?,
       curr_work_no = ?,
       target_qty = ?
-    WHERE line_masterid = (SELECT line_masterid FROM package_master WHERE line_id = ?)
+    WHERE line_masterid = (SELECT line_masterid FROM package_master WHERE line_code = ?)
       AND line_id = (
         SELECT MAX(pl.line_id) 
         FROM package_line pl 
         JOIN package_master pm ON pl.line_masterid = pm.line_masterid 
-        WHERE pm.line_id = ?
+        WHERE pm.line_code = ?
       )
   `,
 
-  // 라인 상태 삭제 (마스터 라인 ID 기준)
+  // 라인 상태 삭제 (마스터 라인 코드 기준)
   deleteLineByMasterId: `
     DELETE FROM package_line 
-    WHERE line_masterid = (SELECT line_masterid FROM package_master WHERE line_id = ?)
+    WHERE line_masterid = (SELECT line_masterid FROM package_master WHERE line_code = ?)
   `,
 
   // ========== 통계 쿼리 ==========
@@ -253,16 +267,17 @@ module.exports = {
   // 현재 작업 중인 라인 목록
   selectWorkingLines: `
     SELECT
-      m.line_id,
+      m.line_code,
       m.line_name,
       m.line_type,
-      l.employee_name,
+      e.employee_name,
       l.curr_work_no,
       l.target_qty,
       l.current_speed,
       DATE_FORMAT(l.reg_date, '%Y-%m-%d %H:%i:%s') as work_start_time
     FROM package_master m
     JOIN package_line l ON m.line_masterid = l.line_masterid
+    LEFT JOIN tablets.employees e ON l.employee_id = e.employee_id
     WHERE l.line_status = 'WORKING'
       AND l.line_id = (
         SELECT MAX(pl.line_id) 

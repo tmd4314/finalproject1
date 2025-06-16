@@ -5,76 +5,82 @@
     <div class="form-section">
       <h3 class="form-title">기본정보</h3>
       <br>
-        <div class="input-row">
-          <va-input v-model="form.prodName" label="제품명" class="quarter-width"/>
-          <va-input v-model="form.inspCode" label="항목코드" class="quarter-width" />
-          <va-input v-model="form.inspName" label="항목명" class="quarter-width" />
-          <va-input v-model="form.inspValueType" label="판정방식" class="quarter-width" />
-        </div>
-        <div class="input-row">
-          <va-input v-model="form.supplementary" label="비고" class="half-width" />
-        </div>
+      <div class="input-row">
+        <va-select
+          v-if="productOptions.length > 0"
+          v-model="form.productCode"
+          :options="productOptions"
+          label="제품명"
+          class="quarter-width"
+        />
+        <va-input v-model="form.inspCode" label="항목코드" class="quarter-width" />
+        <va-input v-model="form.inspName" label="항목명" class="quarter-width" />
+        <va-input v-model="form.inspValueType" label="판정방식" class="quarter-width" />
+      </div>
+      <div class="input-row">
+        <va-input v-model="form.supplementary" label="비고" class="half-width" />
+      </div>
     </div>
+
     <div class="form-section">
       <h3 class="form-title">기준값 정보</h3>
       <br>
       <div class="input-row">
-          <va-select
-            v-model="form.inspRefValue"
-            :options="['정량', '정성']"
-            label="기준값 유형"
-            class="quarter-width"
-          />
-          <va-input
-            v-model="form.inspQuantitaValue"
-            label="정량 기준값"
-            class="quarter-width"
-            :disabled="!isQuantitative"
-          />
-          <va-input
-            v-model="form.inspQualitaValue"
-            label="정성 기준값"
-            class="quarter-width"
-            :disabled="!isQualitative"
-          />
+        <va-select
+          v-model="form.inspRefValue"
+          :options="['정량', '정성']"
+          label="기준값 유형"
+          class="quarter-width"
+        />
+        <va-input
+          v-model="form.inspQuantitaValue"
+          label="정량 기준값"
+          class="quarter-width"
+          :disabled="!isQuantitative"
+        />
+        <va-input
+          v-model="form.inspQualitaValue"
+          label="정성 기준값"
+          class="quarter-width"
+          :disabled="!isQualitative"
+        />
       </div>
       <div class="input-row">
-                    <va-input
-            v-model="form.inspUnit"
-            label="단위"
-            class="quarter-width"
-            :disabled="!isQuantitative"
-          />
-          <va-input
-            v-model="form.inspQuantitaMin"
-            label="최소범위"
-            class="quarter-width"
-            type="number"
-            :disabled="!isQuantitative"
-          />
-          <va-input
-            v-model="form.inspQuantitaMax"
-            label="최대범위"
-            class="quarter-width"
-            type="number"
-            :disabled="!isQuantitative"
-          />
-          <va-select
-            v-model="form.inspRange"
-            :options="['±', '≤']"
-            label="기준값범위"
-            class="quarter-width"
-            :disabled="!isQuantitative"
-          />
+        <va-input
+          v-model="form.inspUnit"
+          label="단위"
+          class="quarter-width"
+          :disabled="!isQuantitative"
+        />
+        <va-input
+          v-model="form.inspQuantitaMin"
+          label="최소범위"
+          class="quarter-width"
+          type="number"
+          :disabled="!isQuantitative"
+        />
+        <va-input
+          v-model="form.inspQuantitaMax"
+          label="최대범위"
+          class="quarter-width"
+          type="number"
+          :disabled="!isQuantitative"
+        />
+        <va-select
+          v-model="form.inspRange"
+          :options="['±', '≤']"
+          label="기준값범위"
+          class="quarter-width"
+          :disabled="!isQuantitative"
+        />
       </div>
       <div class="input-row">
         <div class="form-buttons">
-          <!-- <va-button @click="registerProduct" color="primary">등록</va-button>
-          <va-button @click="resetForm" color="secondary">초기화</va-button>
-          <va-button @click="deleteProduct" color="danger">삭제</va-button> -->
+          <va-button @click="submitForm" color="primary">등록</va-button>
         </div>
       </div>
     </div>
+
     <div class="form-section">
       <table class="custom-table">
         <thead>
@@ -91,12 +97,10 @@
           <tr v-for="item in inspectionList" :key="item.insp_code">
             <td>{{ item.insp_code }}</td>
             <td>{{ item.insp_name }}</td>
-            <td>{{ item.insp_code }}</td>
-            <td>{{ item.insp_code }}</td>
-            <td>{{ item.insp_code }}</td>
-            <td>{{ item.insp_code }}</td>
-            <td>{{ item.insp_code }}</td>
-            <td>{{ item.insp_code }}</td>
+            <td>{{ item.insp_value_type }}</td>
+            <td>{{ item.insp_quantita_value }}</td>
+            <td>{{ item.insp_unit }}</td>
+            <td>{{ item.insp_remark }}</td>
           </tr>
         </tbody>
       </table>
@@ -105,16 +109,17 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import axios from 'axios'
 
 interface InspectionItem {
   product_name: string;
+  product_code: string;
   insp_code: string;
-	insp_name: string;
+  insp_name: string;
   insp_value_type: string;
   insp_ref_value: string;
-  insp_quantita_value: string; 
+  insp_quantita_value: string;
   insp_qualita_value: string;
   insp_unit: string;
   insp_quantita_min: number;
@@ -128,24 +133,61 @@ interface InspectionItem {
 const inspectionList = ref<InspectionItem[]>([])
 
 const form = ref({
-  prodName: '',              
-  inspCode: '',               
-  inspName: '',               
-  inspValueType: '',        
-  inspRefValue: '',           
-  inspQuantitaValue: '', 
-  inspQualitaValue: '',       
-  inspUnit: '',             
-  inspQuantitaMin: 0,      
-  inspQuantitaMax: 0,      
-  inspRange: '',             
-  inspJudgment: '',          
-  inspRemark: '',          
-  supplementary: ''         
+  productCode: { label: '', value: '' }, // ⬅️ 객체 형태로 초기화
+  prodName: '',
+  inspCode: '',
+  inspName: '',
+  inspValueType: '',
+  inspRefValue: '',
+  inspQuantitaValue: '',
+  inspQualitaValue: '',
+  inspUnit: '',
+  inspQuantitaMin: 0,
+  inspQuantitaMax: 0,
+  inspRange: '',
+  inspJudgment: '',
+  inspRemark: '',
+  supplementary: ''
 })
 
-const isQuantitative = computed(() => form.value.inspRefValue === '정량')
-const isQualitative = computed(() => form.value.inspRefValue === '정성')
+const resetForm = () => {
+  form.value = {
+    productCode: { label: '', value: '' },
+    prodName: '',
+    inspCode: '',
+    inspName: '',
+    inspValueType: '',
+    inspRefValue: '',
+    inspQuantitaValue: '',
+    inspQualitaValue: '',
+    inspUnit: '',
+    inspQuantitaMin: 0,
+    inspQuantitaMax: 0,
+    inspRange: '',
+    inspJudgment: '',
+    inspRemark: '',
+    supplementary: ''
+  }
+}
+
+const productOptions = ref<{ label: string; value: string }[]>([])
+
+const fetchProductNameList = async () => {
+  try {
+    const res = await axios.get('/inspections/productList')
+    productOptions.value = res.data
+      .filter((item: any) => item.product_name && item.product_code)
+      .map((item: any) => ({
+        label: item.product_name,
+        value: item.product_code.toString()
+      }))
+  } catch (err) {
+    console.error('❌ 제품명 리스트 조회 실패:', err)
+  }
+}
+
+const isQuantitative = computed(() => form.value.inspRefValue?.toLowerCase() === '정량')
+const isQualitative = computed(() => form.value.inspRefValue?.toLowerCase() === '정성')
 
 const fetchInspectionList = async () => {
   try {
@@ -159,15 +201,40 @@ const fetchInspectionList = async () => {
   }
 }
 
+const submitForm = async () => {
+  try {
+    const payload = {
+      product_code: form.value.productCode,
+      insp_code: form.value.inspCode,
+      insp_name: form.value.inspName,
+      insp_value_type: form.value.inspValueType,
+      insp_ref_value: form.value.inspRefValue,
+      insp_quantita_value: isQuantitative.value ? form.value.inspQuantitaValue : null,
+      insp_qualita_value: isQualitative.value ? form.value.inspQualitaValue : null,
+      insp_unit: isQuantitative.value ? form.value.inspUnit : null,
+      insp_quantita_min: isQuantitative.value ? form.value.inspQuantitaMin : null,
+      insp_quantita_max: isQuantitative.value ? form.value.inspQuantitaMax : null,
+      insp_range: isQuantitative.value ? form.value.inspRange : null,
+      insp_remark: form.value.supplementary
+    }
 
-
-
-
-
-
+    const res = await axios.post('/inspections/insert', payload)
+    if (res.data.success) {
+      alert('✅ 검사항목이 등록되었습니다.')
+      fetchInspectionList()
+      resetForm()
+    } else {
+      alert('⚠️ 등록에 실패했습니다: ' + res.data.message)
+    }
+  } catch (err) {
+    console.error('❌ 등록 실패:', err)
+    alert('❌ 서버 오류로 등록에 실패했습니다.')
+  }
+}
 
 onMounted(() => {
   fetchInspectionList()
+  fetchProductNameList()
 })
 </script>
 
