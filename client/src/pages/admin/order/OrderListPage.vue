@@ -593,21 +593,22 @@ watch(itemsPerPage, () => {
 
 /* 전체 컨테이너 */
 .order-page-container {
-  display: flex;              /* flexbox 레이아웃 */
-  gap: 20px;                 /* 자식 요소 간 간격 */
+  display: grid;
+  grid-template-columns: 1fr 1.5fr; /* 좌 40%, 우 60% */
+  gap: 20px;
   padding: 20px;
-  height: calc(100vh - 100px); /* 뷰포트 높이 - 헤더 높이 */
+  height: calc(100vh - 100px);
   background-color: #f5f5f5;
 }
 
 /* 좌측 패널 */
 .order-list-panel {
-  flex: 1.2;                 /* 전체 너비의 1.2 비율 */
   background: white;
   border-radius: 8px;
   padding: 24px;
   display: flex;
-  flex-direction: column;    /* 세로 정렬 */
+  width: 500px;
+  flex-direction: column;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
@@ -711,7 +712,6 @@ watch(itemsPerPage, () => {
 
 /* 우측 패널 */
 .order-detail-panel {
-  flex: 1;
   background: white;
   border-radius: 8px;
   padding: 24px;

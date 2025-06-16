@@ -115,8 +115,8 @@
             <tr>
               <th style="width: 186px;">제품명</th>
               <th style="width: 120px;">규격 (정)</th>
-              <th>수량 (box)</th>
               <th>제품코드</th>
+              <th>수량 (box)</th>
               <th>단가 (원)</th>
               <th>주문가격 (원)</th>
               <th style="width: 50px; text-align: center;">삭제</th>
@@ -143,6 +143,8 @@
                   :disabled="!item.productName"
                 />
               </td>
+              <!-- 제품코드 -->
+              <td>{{ item.productCode }}</td>
               <!-- 수량 -->
               <td>
                 <va-input 
@@ -153,7 +155,7 @@
                 />
               </td>
 
-              <td>{{ item.productCode }}</td>
+              
               <!-- 단가 -->
               <td>
                   {{ item.unitPrice }}
