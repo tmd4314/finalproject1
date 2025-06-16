@@ -15,9 +15,9 @@ const searchWorkOrders = async (searchTerm = '') => {
     .catch(err => console.error(err));
 };
 
-// 계획 검색 (모달용)
+// 계획 검색 (모달용) - 파라미터 수정
 const searchPlans = async (searchTerm = '') => {
-  return await mariadb.query('searchPlans', [searchTerm, searchTerm, searchTerm, searchTerm])
+  return await mariadb.query('searchPlans', [searchTerm, searchTerm])
     .catch(err => console.error(err));
 };
 
@@ -83,6 +83,7 @@ const saveWorkOrderProducts = async (workOrderNo, products) => {
       const insertData = [
         workOrderNo,
         product.product_code,
+        product.work_order_qty || null,              // ✅ 수량 필드 추가
         product.work_order_priority || null,
         product.order_detail_remark || '',
         product.process_group_code || null
@@ -117,12 +118,12 @@ const generateWorkOrderNo = async () => {
   }
 };
 
-// 작업지시서 전체 저장 (마스터 + 제품) - 🚨 수정됨
+// 작업지시서 전체 저장 (마스터 + 제품)
 const saveWorkOrderComplete = async (workOrderData) => {
   try {
     const { master, products } = workOrderData;
     
-    // 🚨 신규 등록 시 번호가 없으면 자동 생성
+    // 신규 등록 시 번호가 없으면 자동 생성
     if (!master.work_order_no || master.work_order_no === '') {
       master.work_order_no = await generateWorkOrderNo();
     }
@@ -138,10 +139,34 @@ const saveWorkOrderComplete = async (workOrderData) => {
     return { 
       success: true, 
       message: '작업지시서 저장 완료',
-      work_order_no: master.work_order_no  // 🚨 생성된 번호 반환
+      work_order_no: master.work_order_no
     };
   } catch (err) {
     console.error('작업지시서 완전 저장 오류:', err);
+    throw err;
+  }
+};
+
+// 작업지시서 조회 페이지 
+const getWorkOrderListPage = async (searchConditions = {}) => {
+  try {
+    const {
+      workOrderNo = '',
+      productName = '',
+      writeDate = '',
+      startDate = '',
+      endDate = ''
+    } = searchConditions;
+
+    return await mariadb.query('getWorkOrderListPage', [
+      workOrderNo, workOrderNo,     // 작업지시서번호 
+      productName, productName,     // 제품명 
+      writeDate, writeDate,         // 작성일 
+      startDate, startDate,         // 시작예정일 
+      endDate, endDate              // 종료예정일 
+    ]);
+  } catch (err) {
+    console.error('작업지시서 조회 페이지 오류:', err);
     throw err;
   }
 };
@@ -166,4 +191,7 @@ module.exports = {
 
   // 번호 생성
   generateWorkOrderNo,
+
+  // 조회 페이지
+  getWorkOrderListPage,
 };

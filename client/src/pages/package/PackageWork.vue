@@ -513,14 +513,6 @@
                 <span class="info-label">사번</span>
                 <span class="info-value">{{ currentWork.employee_id || '-' }}</span>
               </div>
-              <div class="info-row">
-                <span class="info-label">부서</span>
-                <span class="info-value">{{ currentWork.department || '포장부' }}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">직급</span>
-                <span class="info-value">{{ currentWork.position || '작업자' }}</span>
-              </div>
             </div>
           </div>
 

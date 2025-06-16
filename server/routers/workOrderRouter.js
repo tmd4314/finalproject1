@@ -30,6 +30,17 @@ router.get('/products/search', async (req, res) => {
   }
 });
 
+// [GET] /workOrder/plans/search - 계획 검색 (모달용)
+router.get('/plans/search', async (req, res) => {
+  try {
+    const { q } = req.query;
+    const result = await workOrderService.searchPlans(q || '');
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // [GET] /workOrder/search - 작업지시서 검색 (모달용)
 router.get('/search', async (req, res) => {
   try {
@@ -41,11 +52,11 @@ router.get('/search', async (req, res) => {
   }
 });
 
-// [GET] /workOrder/plans/search - 계획 검색 (모달용)
-router.get('/plans/search', async (req, res) => {
+// [GET] /workOrder/list - 작업지시서 목록 (불러오기용)
+router.get('/list', async (req, res) => {
   try {
     const { q } = req.query;
-    const result = await workOrderService.searchPlans(q || '');
+    const result = await workOrderService.findWorkOrderList(q || '');
     res.json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -58,16 +69,6 @@ router.get('/plans/search', async (req, res) => {
 router.get('/plan/:planId', async (req, res) => {
   try {
     const result = await workOrderService.findPlanInfo(req.params.planId);
-    res.json(result);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// [GET] /workOrder/:workOrderNo - 작업지시서 상세 조회 (마스터 + 제품)
-router.get('/:workOrderNo', async (req, res) => {
-  try {
-    const result = await workOrderService.findWorkOrderDetailFull(req.params.workOrderNo);
     res.json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -94,25 +95,13 @@ router.get('/products/:workOrderNo', async (req, res) => {
   }
 });
 
-// [GET] /workOrder/list - 작업지시서 목록 (불러오기용)
-router.get('/list', async (req, res) => {
-  try {
-    const { q } = req.query;
-    const result = await workOrderService.findWorkOrderList(q || '');
-    res.json(result);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
 // ========== 저장 API ==========
 
-// [POST] /workOrder - 작업지시서 전체 저장 (신규) - 🚨 수정됨
+// [POST] /workOrder - 작업지시서 전체 저장 (신규)
 router.post('/', async (req, res) => {
   try {
     const { master, products } = req.body;
     
-    // 🚨 필수 필드 검증 완화 - work_order_no와 plan_id 제거
     if (!master) {
       return res.status(400).json({ 
         error: '마스터 정보가 필요합니다.' 
@@ -155,12 +144,11 @@ router.put('/', async (req, res) => {
   }
 });
 
-// [POST] /workOrder/master - 작업지시서 마스터만 저장 - 🚨 수정됨
+// [POST] /workOrder/master - 작업지시서 마스터만 저장
 router.post('/master', async (req, res) => {
   try {
     const masterData = req.body;
     
-    // 🚨 필수 필드 검증 완화
     if (!masterData) {
       return res.status(400).json({ 
         error: '마스터 정보가 필요합니다.' 
@@ -193,5 +181,44 @@ router.post('/products', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// [GET] /workOrder/list-page - 작업지시서 조회 페이지 (새로 추가)
+router.get('/list-page', async (req, res) => {
+  try {
+    const { 
+      workOrderNo, 
+      productName, 
+      writeDate, 
+      startDate, 
+      endDate 
+    } = req.query;
+
+    const searchConditions = {
+      workOrderNo: workOrderNo || '',
+      productName: productName || '',
+      writeDate: writeDate || '',
+      startDate: startDate || '',
+      endDate: endDate || ''
+    };
+
+    const result = await workOrderService.getWorkOrderListPage(searchConditions);
+    res.json(result);
+  } catch (err) {
+    console.error('작업지시서 조회 페이지 오류:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// [GET] /workOrder/:workOrderNo - 작업지시서 상세 조회 (마스터 + 제품)
+router.get('/:workOrderNo', async (req, res) => {
+  try {
+    const result = await workOrderService.findWorkOrderDetailFull(req.params.workOrderNo);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
 
 module.exports = router;

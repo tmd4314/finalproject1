@@ -12,7 +12,7 @@
         <input 
           v-model="searchTerm"
           @input="searchOrders"
-          placeholder="주문번호, 주문일, 제품명으로 검색"
+          placeholder="주문번호, 제품명으로 검색"
           class="w-full px-3 py-2 border"
         />
       </div>
@@ -82,14 +82,7 @@ const searchOrders = async () => {
     const response = await axios.get('/prodPlan/orders/search', {
       params: { q: searchTerm.value }
     })
-    
-    console.log('서버 응답:', response) // 디버깅
-    console.log('응답 데이터:', response.data) // 디버깅
-    console.log('전체 응답 객체:', response);
-console.log('응답 상태:', response.status);
-console.log('응답 헤더:', response.headers);
-console.log('응답 데이터 타입:', typeof response.data);
-console.log('응답 데이터 길이:', response.data ? response.data.length : 'undefined');
+
     
     if (response.data) {
       orderList.value = response.data

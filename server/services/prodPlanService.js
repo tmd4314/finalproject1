@@ -1,4 +1,4 @@
-// server/services/prodPlanService.js
+// server/services/prodPlanService.js - employee_name으로 변경
 
 const mariadb = require('../database/mapper.js');
 const { convertObjToAry } = require('../utils/converts.js');
@@ -33,27 +33,13 @@ const findPlanProducts = async (planId) => {
     .catch(err => console.error(err));
 };
 
-// 생산계획 전체 정보 조회 - plan_name과 order_id, plan_priority 추가
+// 생산계획 전체 정보 조회 - employee_name으로 변경
 const findPlanDetailFull = async (planId) => {
   try {
-    console.log('=== findPlanDetailFull 시작 ===');
-    console.log('요청된 planId:', planId);
-    console.log('planId 타입:', typeof planId);
-    
     // 작업지시와 동일하게 한 번의 쿼리로 모든 정보 조회
     const planInfo = await findPlanInfo(planId);
-    console.log('DB 쿼리 결과 원본:', planInfo);
-    console.log('계획 정보 개수:', planInfo ? planInfo.length : 0);
-    
-    // 각 행의 상세 정보 출력
-    if (planInfo && planInfo.length > 0) {
-      planInfo.forEach((row, index) => {
-        console.log(`행 ${index}:`, row);
-      });
-    }
     
     if (!planInfo || planInfo.length === 0) {
-      console.log('❌ 조회된 데이터가 없습니다.');
       return {
         master: null,
         products: []
@@ -65,28 +51,18 @@ const findPlanDetailFull = async (planId) => {
       plan_id: planInfo[0].plan_id,
       plan_name: planInfo[0].plan_name, 
       order_id: planInfo[0].order_id || '', // ✅ NULL일 때 빈 문자열로 처리
-      writer_id: planInfo[0].writer_id,
-      writer_name: planInfo[0].writer_name || planInfo[0].employee_name,
+      employee_name: planInfo[0].employee_name, // writer_id → employee_name
+      writer_name: planInfo[0].employee_name, // writer_name도 employee_name으로 통일
       plan_reg_dt: planInfo[0].plan_reg_dt,
       plan_start_dt: planInfo[0].plan_start_dt,
       plan_end_dt: planInfo[0].plan_end_dt,
-      plan_remark: planInfo[0].plan_remark,
-      plan_status: planInfo[0].plan_status
+      plan_remark: planInfo[0].plan_remark
     };
     
-    console.log('✅ 구성된 마스터 정보:', master);
-    
-    // 제품 정보들을 배열로 구성 (중복 제거) - plan_priority 추가
+    // 제품 정보들을 배열로 구성 (중복 제거)
     const productMap = new Map();
 
     planInfo.forEach(row => {
-      console.log('제품 행 처리:', {
-        product_code: row.product_code,
-        product_name: row.product_name,
-        plan_qty: row.plan_qty,
-        plan_priority: row.plan_priority
-      });
-      
       if (row.product_code) {
         productMap.set(row.product_code, {
           product_code: row.product_code,
@@ -101,16 +77,10 @@ const findPlanDetailFull = async (planId) => {
     
     const products = Array.from(productMap.values());
     
-    console.log('✅ 구성된 제품 정보:', products);
-    console.log('제품 개수:', products.length);
-    
     const result = {
       master: master,
       products: products
     };
-    
-    console.log('=== 최종 반환 데이터 ===');
-    console.log(JSON.stringify(result, null, 2));
     
     return result;
   } catch (err) {
@@ -154,7 +124,7 @@ const findOrderDetailFull = async (orderId) => {
   }
 };
 
-// 생산계획 마스터 저장 - order_id null 처리
+// 생산계획 마스터 저장 - employee_name으로 변경
 const savePlanMaster = async (planInfo) => {
   console.log('=== savePlanMaster 시작 ===');
   console.log('입력 데이터:', planInfo);
@@ -165,7 +135,7 @@ const savePlanMaster = async (planInfo) => {
   }
   
   const insertColumns = [
-    'plan_id', 'plan_name', 'order_id', 'writer_id', 'plan_reg_dt',
+    'plan_id', 'plan_name', 'order_id', 'employee_name', 'plan_reg_dt',
     'plan_start_dt', 'plan_end_dt', 'plan_remark'
   ];
   const values = convertObjToAry(planInfo, insertColumns);
@@ -183,7 +153,7 @@ const savePlanMaster = async (planInfo) => {
     });
 };
 
-// 생산계획 제품 저장 - plan_priority와 process_group_code 추가
+// 생산계획 제품 저장
 const savePlanProducts = async (planId, products) => {
   try {
     console.log('savePlanProducts - planId:', planId);
@@ -267,10 +237,31 @@ const savePlanComplete = async (planData) => {
   }
 };
 
+// 생산계획 통합조회
+const findPlanIntegratedList = async (searchParams = {}) => {
+  try {
+    const {
+      plan_id = '',
+      plan_name = '',
+      product_name = '',
+      start_date = '',
+      end_date = ''
+    } = searchParams;
 
+    const params = [
+      plan_id, plan_id,           // 계획번호
+      plan_name, plan_name,       // 계획명
+      product_name, product_name, // 제품명
+      start_date, start_date,     // 시작일
+      end_date, end_date          // 종료일
+    ];
 
-
-
+    return await mariadb.query('getProdPlanIntegratedList', params);
+  } catch (err) {
+    console.error('생산계획 통합조회 목록 조회 오류:', err);
+    throw err;
+  }
+};
 
 module.exports = {
   // 검색 관련
@@ -287,7 +278,6 @@ module.exports = {
   findOrderProducts,
   findOrderDetailFull,
 
-  
   // 저장 관련
   savePlanMaster,
   savePlanProducts,
@@ -295,4 +285,7 @@ module.exports = {
 
   // 번호 생성
   generatePlanId,
+
+  // 통합조회
+  findPlanIntegratedList,
 };
