@@ -16,9 +16,10 @@ const workOrder = require('./sqls/workOrder.js');
 const mrp = require('./sqls/mrps.js');
 const purchaseOrder = require('./sqls/purchase.js');
 const prodPlan = require('./sqls/prodPlan.js');
-const delivery = require('./sqls/delivery.js')
-const prodResult = require('./sqls/prod_result.js')
+const delivery = require('./sqls/delivery.js');
+const prodResult = require('./sqls/prod_result.js');
 const auth = require('./sqls/auth.js');
+const materialInspection = require('./sqls/materialInspection.js');
 
 
 
@@ -44,7 +45,8 @@ const auth = require('./sqls/auth.js');
      ...purchaseOrder,
      ...prodPlan,
      ...delivery,
-     ...prodResult
+     ...prodResult,
      ...auth,
+     ...materialInspection
  }
 
