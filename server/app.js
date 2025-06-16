@@ -44,6 +44,8 @@ const commonCodeRouter = require('./routers/commonCodeRouter');
 
 const equipmentRouter = require('./routers/equipmentRouter');
 
+const equipmentInspectionRouter = require('./routers/equipmentInspectionRouter');
+
 const materialRouter =require('./routers/materialRouter.js');
 
 const processRouter =require('./routers/processRouter.js');
@@ -75,6 +77,9 @@ const deliveryRouter = require('./routers/deliveryRouter.js');
 
 const prodResultRouter = require('./routers/prodResultRouter.js');
 
+const employeeRouter = require('./routers/employeeRouter.js')
+
+const authRouter =  require('./routers/authRouter.js');
 
  // 기본 라우팅
 app.get('/', (req, res)=>{
@@ -89,6 +94,7 @@ app.get('/', (req, res)=>{
  //홍인
 app.use('/api/orders', orderRouter);
 app.use('/', accountRouter);
+app.use('/', employeeRouter);
 
 //다산
 app.use('/bom', bomRouter);
@@ -112,12 +118,12 @@ app.use('/equipments', equipmentRouter);
 app.use('/common-codes', commonCodeRouter);
 app.use('/img', express.static('../client/public/img'));
 app.use('/uploads', express.static('./uploads'));
-app.use('/equipment-inspection', inspectionRouter);
+app.use('/equipment-inspection', equipmentInspectionRouter);
 
 //현석
 app.use('/lines', lineRouter);
 app.use('/packages', packageRouter);
-
+app.use('/auth', authRouter);
 
 //현기
 app.use('/inspections', inspectionRouter);

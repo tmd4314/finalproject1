@@ -15,7 +15,7 @@
               :name="isLoggedIn ? 'account_circle' : 'person'" 
               class="mr-2" 
             />
-            {{ isLoggedIn ? user?.employee_name || '사용자' : '계정' }}
+            {{ displayName }}
             <VaIcon name="expand_more" class="ml-1" />
           </span>
         </VaButton>
@@ -36,9 +36,10 @@
               />
               <VaIcon v-else name="account_circle" size="40" color="primary" />
               <div>
-                <div class="font-semibold text-sm">{{ user?.employee_name }}</div>
-                <div class="text-xs text-gray-500">{{ user?.employee_no }}</div>
-                <div class="text-xs text-gray-500">{{ user?.position }}</div>
+                <div class="font-semibold text-sm">{{ user?.employee_name || '사용자' }}</div>
+                <div class="text-xs text-gray-500">{{ user?.employee_id || '' }}</div>
+                <div class="text-xs text-gray-500">{{ user?.position || '' }}</div>
+                <div class="text-xs text-gray-500">{{ user?.department_name || user?.department_code || '' }}</div>
               </div>
             </div>
           </div>
@@ -60,7 +61,7 @@
             <VaListItem
               key="login"
               class="menu-item px-4 text-base cursor-pointer h-8"
-              v-bind="loginLink"
+              @click="goToLogin"
             >
               <VaIcon name="login" class="pr-1" color="secondary" />
               로그인
@@ -73,57 +74,187 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useColors } from 'vuestic-ui'
 import { useRouter } from 'vue-router'
+import { useToast } from 'vuestic-ui'
+import axios from 'axios'
 
+// ================================
+// 🔧 컴포넌트 설정
+// ================================
 const { colors, setHSLAColor } = useColors()
 const hoverColor = computed(() => setHSLAColor(colors.focus, { a: 0.1 }))
 const router = useRouter()
+const { init: showToast } = useToast()
 
-// User 타입 정의 (생략 가능)
-type User = {
-  employee_id: number
-  employee_no: string
-  employee_name: string
-  position: string
-  hire_date: string
-  phone: string
-  email: string
-  address: string
-  employment_status: string
-  reg_date: string
-  upd_date: string
-  gender: string
-  profile_img?: string
-  department_code: string
-}
-
-const props = withDefaults(
-  defineProps<{
-    isLoggedIn?: boolean
-    user?: User
-  }>(),
-  {
-    isLoggedIn: false,
-    user: undefined
-  }
-)
-
+// ================================
+// 🎯 상태 관리
+// ================================
+const user = ref<any>(null)
 const isShown = ref(false)
 
-const emit = defineEmits<{
-  logout: []
-}>()
+// ================================
+// 💡 계산된 속성
+// ================================
+const isLoggedIn = computed(() => !!user.value)
 
-// 로그인 버튼 링크 속성 (라우터 사용)
-const loginLink = { to: { name: 'login' } }
+const displayName = computed(() => {
+  if (isLoggedIn.value && user.value) {
+    return user.value.employee_name || `사원 ${user.value.employee_id}` || '사용자'
+  }
+  return '계정'
+})
 
-// 로그아웃 처리
-const handleLogout = () => {
-  emit('logout')
-  isShown.value = false
+// ================================
+// 🔐 인증 관련 함수들
+// ================================
+const AUTH_STORAGE_KEY = 'auth-store'
+
+// 인증 데이터 로드
+const loadAuthData = () => {
+  try {
+    let authDataStr = localStorage.getItem(AUTH_STORAGE_KEY) || sessionStorage.getItem(AUTH_STORAGE_KEY)
+    
+    if (!authDataStr) return null
+    
+    const authData = JSON.parse(authDataStr)
+    
+    if (authData?.user && authData?.token) {
+      return authData
+    }
+    
+    return null
+  } catch (error) {
+    console.error('ProfileDropdown: 인증 데이터 로드 에러:', error)
+    return null
+  }
 }
+
+// 인증 데이터 삭제
+const clearAuthData = () => {
+  localStorage.removeItem(AUTH_STORAGE_KEY)
+  sessionStorage.removeItem(AUTH_STORAGE_KEY)
+  
+  if (axios?.defaults?.headers?.common) {
+    delete axios.defaults.headers.common['Authorization']
+  }
+}
+
+// ================================
+// 🔐 인증 상태 확인 및 로드
+// ================================
+const checkAuthAndLoadUser = () => {
+  try {
+    const authData = loadAuthData()
+    
+    if (authData?.user) {
+      user.value = authData.user
+      console.log('ProfileDropdown: 사용자 정보 로드됨', authData.user.employee_name)
+    } else {
+      user.value = null
+      console.log('ProfileDropdown: 인증되지 않은 상태')
+    }
+    
+  } catch (error) {
+    console.error('ProfileDropdown: 인증 확인 중 에러:', error)
+    user.value = null
+  }
+}
+
+// ================================
+// 🚪 로그인/로그아웃 처리
+// ================================
+const goToLogin = () => {
+  isShown.value = false
+  router.push({ name: 'login' })
+}
+
+const handleLogout = async () => {
+  isShown.value = false
+  
+  try {
+    const authData = loadAuthData()
+    
+    showToast({
+      message: '로그아웃 중...',
+      color: 'info',
+      duration: 1000
+    })
+
+    // 서버에 로그아웃 요청
+    if (authData?.token) {
+      await axios.post('/auth/logout', {}, {
+        headers: { Authorization: `Bearer ${authData.token}` }
+      }).catch(err => console.warn('로그아웃 요청 실패:', err.message))
+    }
+    
+    clearAuthData()
+    user.value = null
+    
+    showToast({
+      message: '성공적으로 로그아웃되었습니다.',
+      color: 'success',
+      duration: 2000
+    })
+
+    // 상태 변경 이벤트 발생
+    window.dispatchEvent(new CustomEvent('auth-state-changed', { 
+      detail: { type: 'logout' } 
+    }))
+
+    // 로그인 페이지로 이동
+    router.push({ name: 'login' })
+    
+  } catch (error) {
+    console.error('ProfileDropdown: 로그아웃 에러:', error)
+    showToast({
+      message: '로그아웃 중 오류가 발생했습니다.',
+      color: 'danger',
+      duration: 3000
+    })
+  }
+}
+
+// ================================
+// 🎧 이벤트 리스너들
+// ================================
+const handleAuthStateChange = (event: any) => {
+  console.log('ProfileDropdown: 인증 상태 변경 감지', event.detail)
+  
+  if (event.detail?.type === 'login') {
+    // 로그인 이벤트
+    if (event.detail.user) {
+      user.value = event.detail.user
+    } else {
+      checkAuthAndLoadUser()
+    }
+  } else if (event.detail?.type === 'logout') {
+    // 로그아웃 이벤트
+    user.value = null
+  }
+}
+
+// ================================
+// 🚀 컴포넌트 초기화
+// ================================
+onMounted(() => {
+  // axios 기본 설정
+  if (typeof axios !== 'undefined') {
+    axios.defaults.baseURL = 'http://localhost:3000'
+  }
+  
+  // 초기 인증 상태 확인
+  checkAuthAndLoadUser()
+  
+  // 전역 이벤트 리스너 등록
+  window.addEventListener('auth-state-changed', handleAuthStateChange)
+})
+
+onUnmounted(() => {
+  // 이벤트 리스너 정리
+  window.removeEventListener('auth-state-changed', handleAuthStateChange)
+})
 </script>
 
 <style lang="scss">
@@ -140,5 +271,26 @@ const handleLogout = () => {
     display: inline-flex;
     align-items: center;
   }
+}
+
+.border-gray-200 {
+  border-color: #e5e7eb;
+}
+
+.space-x-3 > * + * {
+  margin-left: 0.75rem;
+}
+
+.text-xs {
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+
+.text-gray-500 {
+  color: #6b7280;
+}
+
+.font-semibold {
+  font-weight: 600;
 }
 </style>

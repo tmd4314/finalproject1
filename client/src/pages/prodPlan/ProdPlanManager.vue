@@ -243,13 +243,13 @@ const showProductModal = ref(false)
 const showOrderModal = ref(false)
 const showPlanModal = ref(false)
 
-// 폼 데이터
+// 폼 데이터 - employee_name 구조로 변경
 const form = ref({
   plan_id: '',
   plan_name: '',
   order_id: '',
-  writer_id: '',
-  writer_name: '',
+  employee_name: '', // writer_id → employee_name (DB에 저장될 사원명)
+  writer_name: '',   // 화면 표시용 (employee_name과 동일한 값)
   plan_reg_dt: '',
   plan_start_dt: '',
   plan_end_dt: '',
@@ -263,7 +263,7 @@ const hasSelectedProducts = computed(() => {
 })
 
 const canSave = computed(() => {
-  return form.value.writer_id && 
+  return form.value.employee_name && // writer_id → employee_name
          form.value.plan_name &&
          form.value.plan_start_dt &&
          form.value.plan_end_dt &&
@@ -312,7 +312,7 @@ const selectOrder = async (order) => {
   }
 }
 
-// 계획 선택 (불러오기) - 등록된 작성자명 유지
+// 계획 선택 (불러오기) - 저장된 사원명 불러오기
 const selectPlan = async (plan) => {
   try {
     console.log('선택된 계획:', plan)
@@ -330,13 +330,13 @@ const selectPlan = async (plan) => {
         return date.toISOString().split('T')[0]
       }
       
-      // 폼에 계획 정보 설정 - 기존 등록된 작성자명 유지
+      // 폼에 계획 정보 설정 - 저장된 사원명 불러오기
       form.value = {
         plan_id: master.plan_id || '',
         plan_name: master.plan_name || '',
         order_id: master.order_id || '',
-        writer_id: master.writer_id || '', // 기존 등록된 작성자 ID 유지
-        writer_name: master.writer_id || '', // 기존 등록된 작성자명 유지
+        employee_name: master.employee_name || '', // 저장된 사원명 불러오기
+        writer_name: master.employee_name || '',   // 화면 표시용
         plan_reg_dt: formatDate(master.plan_reg_dt),
         plan_start_dt: formatDate(master.plan_start_dt),
         plan_end_dt: formatDate(master.plan_end_dt),
@@ -402,9 +402,7 @@ const removeSelectedProducts = () => {
   form.value.products = form.value.products.filter(product => !product.selected)
 }
 
-// 우선순위 정렬 함수 제거 (사용하지 않음)
-
-// 생산계획 저장
+// 생산계획 저장 - employee_name으로 변경
 const savePlan = async () => {
   if (!canSave.value) {
     alert('계획명, 작성자, 시작일, 종료일, 제품을 모두 입력해주세요.')
@@ -418,7 +416,7 @@ const savePlan = async () => {
         ...(isEditMode.value && form.value.plan_id && { plan_id: form.value.plan_id }),
         plan_name: form.value.plan_name,
         order_id: form.value.order_id || null,
-        writer_id: form.value.writer_id,
+        employee_name: form.value.employee_name, // writer_id → employee_name
         plan_reg_dt: form.value.plan_reg_dt,
         plan_start_dt: form.value.plan_start_dt,
         plan_end_dt: form.value.plan_end_dt,
@@ -475,8 +473,8 @@ const resetForm = () => {
     plan_id: '',
     plan_name: '',
     order_id: '',
-    writer_id: '2', // 로그인된 사용자 ID (신규 등록 시만)
-    writer_name: '김홍인', // 로그인된 사용자명 (신규 등록 시만)
+    employee_name: '김홍인', // 로그인된 사용자명 (신규 등록 시)
+    writer_name: '김홍인',   // 화면 표시용
     plan_reg_dt: new Date().toISOString().split('T')[0],
     plan_start_dt: '',
     plan_end_dt: '',
@@ -486,11 +484,12 @@ const resetForm = () => {
   isEditMode.value = false
 }
 
+// 컴포넌트 마운트 시 로그인된 사용자 정보 설정
 onMounted(() => {
   const today = new Date().toISOString().split('T')[0]
   form.value.plan_reg_dt = today
-  form.value.writer_name = '김홍인'
-  form.value.writer_id = '2'
+  form.value.employee_name = '김홍인' // 로그인된 사용자명
+  form.value.writer_name = '김홍인'   // 화면 표시용
   form.value.plan_id = ''
 })
 </script>

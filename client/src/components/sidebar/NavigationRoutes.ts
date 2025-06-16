@@ -19,6 +19,10 @@ export default {
       },
       children: [
         {
+          name: 'employee-management',
+          displayName: 'menu.사원 관리',
+        },
+        {
           name: 'product-management',
           displayName: 'menu.제품 관리',
         },
