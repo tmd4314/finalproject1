@@ -155,7 +155,33 @@
                     <span class="display-unit">개</span>
                   </div>
                 </div>
-                
+              </div>
+
+              <div class="control-row">
+                <!-- 기투입량 -->
+                <div class="control-group">
+                  <label class="control-label">기투입량</label>
+                  <div class="control-display">
+                    <span class="display-value" :class="{ 'workflow-linked': workInfo.lineType === 'OUTER' && workflowInfo.innerOutputQty > 0 }">
+                      {{ formatNumber(currentWork.current_quantity) }}
+                    </span>
+                    <span class="display-unit">개</span>
+                  </div>
+                </div>
+
+                <!-- 미투입량 -->
+                <div class="control-group">
+                  <label class="control-label">미투입량</label>
+                  <div class="control-display">
+                    <span class="display-value remaining-qty" :class="{ 'remaining-qty-highlight': getRemainingQuantity() > 0 }">
+                      {{ formatNumber(currentWork.remaining_quantity) }}
+                    </span>
+                    <span class="display-unit">개</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="control-row">
                 <!-- 🔥 투입수량 (외포장 워크플로우 연계 강화) -->
                 <div class="control-group">
                   <label class="control-label">
@@ -296,30 +322,6 @@
           <div class="progress-panel">
             <h3>실시간 진행 상황</h3>
             <div class="progress-cards">
-              <div class="progress-card">
-                <div class="card-header">
-                  <span class="card-title">지시량</span>
-                  <span class="card-icon">📋</span>
-                </div>
-                <div class="card-value">{{ formatNumber(currentWork.target_quantity) }}</div>
-                <div class="card-unit">개</div>
-              </div>
-              <div class="progress-card">
-                <div class="card-header">
-                  <span class="card-title">기투입량</span>
-                  <span class="card-icon">📥</span>
-                </div>
-                <div class="card-value">{{ formatNumber(currentWork.current_quantity) }}</div>
-                <div class="card-unit">개</div>
-              </div>
-              <div class="progress-card info">
-                <div class="card-header">
-                  <span class="card-title">미투입량</span>
-                  <span class="card-icon">⏳</span>
-                </div>
-                <div class="card-value" :class="{ 'remaining-qty-highlight': getRemainingQuantity() > 0 }">{{ formatNumber(currentWork.remaining_quantity) }}</div>
-                <div class="card-unit">개</div>
-              </div>
               <div class="progress-card">
                 <div class="card-header">
                   <span class="card-title">생산수량</span>
@@ -2140,7 +2142,6 @@ function getRemainingWorkQuantity() {
   return currentWork.value.remaining_quantity
 }
 
-
 // 작업 정보 리셋
 function resetCurrentWork() {
   currentWork.value = {
@@ -2918,6 +2919,7 @@ function startWorkTimer() {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 20px;
+  margin-bottom: 20px;
 }
 
 .control-group {

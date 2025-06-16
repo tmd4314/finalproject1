@@ -20,22 +20,38 @@
       <div v-else-if="isLoading" class="text-gray-500">
         사용자 정보를 불러오는 중...
       </div>
-      <div v-else class="text-red-500">
-        사용자 정보를 불러올 수 없습니다.
+      <div v-else class="text-amber-600">
+        <p class="mb-3">🔐 로그인이 필요합니다.</p>
+        <VaButton 
+          color="primary" 
+          @click="goToLogin"
+          class="mr-2"
+        >
+          로그인하기
+        </VaButton>
       </div>
     </div>
 
-    <!-- 로그아웃 버튼 -->
+    <!-- 계정 관리 -->
     <div class="p-4 bg-gray-50 rounded shadow-md">
       <h2 class="text-xl font-semibold mb-2">🔧 계정 관리</h2>
-      <VaButton 
-        color="danger" 
-        @click="handleLogout"
-        :loading="isLoggingOut"
-        :disabled="!user"
-      >
-        로그아웃
-      </VaButton>
+      <div v-if="user">
+        <VaButton 
+          color="danger" 
+          @click="handleLogout"
+          :loading="isLoggingOut"
+        >
+          로그아웃
+        </VaButton>
+      </div>
+      <div v-else>
+        <VaButton 
+          color="primary" 
+          @click="goToLogin"
+        >
+          로그인
+        </VaButton>
+      </div>
     </div>
 
     <!-- 다른 대시보드 내용들... -->
@@ -143,12 +159,10 @@ const formatDate = (dateString: string): string => {
 }
 
 // ================================
-// 🔐 인증 상태 확인 및 로드
+// 🔐 인증 상태 확인 및 로드 (수동 로그인 버전)
 // ================================
 const checkAuthAndLoadUser = async () => {
   try {
-    isLoading.value = true
-    
     // axios 기본 설정
     if (typeof axios !== 'undefined') {
       axios.defaults.baseURL = 'http://localhost:3000'
@@ -157,30 +171,52 @@ const checkAuthAndLoadUser = async () => {
     const authData = loadAuthData()
     
     if (!authData?.user || !authData?.token) {
-      console.log('인증 데이터 없음, 로그인 페이지로 이동')
-      router.push({ name: 'login' })
+      console.log('인증 데이터 없음 - 로그인 버튼으로 수동 이동 가능')
+      // 자동 이동하지 않고 그냥 로딩 상태만 해제
+      isLoading.value = false
       return
     }
     
-    // 토큰 검증
-    const isValid = await verifyToken(authData.token)
+    // 일단 기존 사용자 정보로 대시보드 표시
+    user.value = authData.user
+    isLoading.value = false
+    console.log('대시보드 유저 정보 로드됨:', authData.user.employee_name)
     
-    if (isValid) {
-      user.value = authData.user
-      console.log('대시보드 유저 정보 로드됨:', authData.user.employee_name)
-    } else {
-      console.log('토큰이 유효하지 않음, 로그인 페이지로 이동')
-      clearAuthData()
-      router.push({ name: 'login' })
-    }
+    // 토큰 검증을 백그라운드에서 실행
+    verifyToken(authData.token).then((isValid) => {
+      if (!isValid) {
+        console.log('토큰이 유효하지 않음')
+        clearAuthData()
+        user.value = null // 사용자 정보 제거
+        showToast({
+          message: '세션이 만료되었습니다. 로그인 버튼을 눌러 다시 로그인해주세요.',
+          color: 'warning',
+          duration: 4000
+        })
+      }
+    }).catch((error) => {
+      console.error('토큰 검증 중 에러:', error)
+      // 네트워크 오류 등의 경우 그냥 기존 사용자 정보 사용
+      console.log('토큰 검증 실패 - 네트워크 오류 가능성, 기존 정보 유지')
+    })
     
   } catch (error) {
     console.error('인증 확인 중 에러:', error)
-    clearAuthData()
-    router.push({ name: 'login' })
-  } finally {
+    // 에러가 발생해도 대시보드는 보여주되, 경고 메시지 표시
     isLoading.value = false
+    showToast({
+      message: '인증 확인 중 오류가 발생했습니다.',
+      color: 'danger',
+      duration: 3000
+    })
   }
+}
+
+// ================================
+// 🚪 로그인 페이지로 이동
+// ================================
+const goToLogin = () => {
+  router.push({ name: 'login' })
 }
 
 // ================================
@@ -309,5 +345,9 @@ onUnmounted(() => {
 
 .text-red-500 {
   color: #ef4444;
+}
+
+.text-amber-600 {
+  color: #d97706;
 }
 </style>
