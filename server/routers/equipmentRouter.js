@@ -84,10 +84,13 @@ router.get('/', async (req, res) => {
   }
 });
 
-// 설비 상세 조회
-router.get('/:id', async (req, res) => {
+// 설비 상세 조회 (조회용)
+router.get('/:id/detail', async (req, res) => {
   try {
+    console.log('요청된 설비 ID:', req.params.id);
     const equipment = await equipmentService.getEquipmentDetail(req.params.id);
+    console.log('서비스에서 반환된 데이터:', equipment); 
+    
     if (!equipment) {
       return res.status(404).json({ isSuccessed: false, message: '설비를 찾을 수 없습니다.' });
     }
@@ -97,6 +100,20 @@ router.get('/:id', async (req, res) => {
     res.status(500).json({ isSuccessed: false, message: '설비 상세 조회 실패' });
   }
 });
+
+// 설비 상세 조회 (수정용)
+router.get('/:id', async (req, res) => {
+  try {
+    const equipment = await equipmentService.getEquipmentOnly(req.params.id)
+    if (!equipment) {
+      return res.status(404).json({ isSuccessed: false, message: '설비를 찾을 수 없습니다.' })
+    }
+    res.json({ isSuccessed: true, data: equipment })
+  } catch (err) {
+    console.error('단일 설비 조회 실패:', err)
+    res.status(500).json({ isSuccessed: false, message: '단일 설비 조회 실패' })
+  }
+})
 
 // 설비 수정
 router.put('/:id', upload.single('image'), async (req, res) => {

@@ -1,66 +1,73 @@
 <template>
-  <div class="material-receipt-page">
-    <!-- 발주 리스트 영역 (수령 전용) -->
-    <h2>발주 리스트</h2>
-    <div class="plan-table-wrapper">
-      <table class="plan-table">
-        <thead>
-          <tr>
-            <th>발주코드</th>
-            <th>자재코드</th>
-            <th>자재명</th>
-            <th>단위</th>
-            <th>발주 수량</th>
-            <th>발주일</th>
-            <th>거래처코드</th>
-            <th>거래처명</th>
-            <th>수령 수</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="(item, index) in orderCheckList" :key="index">
-            <td>{{ item.purchase_order_id }}</td>
-            <td>{{ item.material_code }}</td>
-            <td>{{ item.material_name }}</td>
-            <td>{{ item.material_unit }}</td>
-            <td>{{ item.purchase_order_quantity }}</td>
-            <td>{{ formatToKST(item.purchase_order_date) }}</td>
-            <td>{{ item.account_id }}</td>
-            <td>{{ item.account_name }}</td>
-            <td><button @click="handleReceive(item)" class="btn">수령</button></td>
-          </tr>
-        </tbody>
-      </table>
+  <div class="receipt-page">
+    <h2 class="page-title">자재 입고</h2>
+
+    <!-- 발주 리스트 -->
+    <div class="table-section">
+      <h3 class="table-title">발주 리스트</h3>
+      <va-data-table
+        :items="orderCheckList"
+        :columns="orderColumns"
+        :per-page="5"
+        :current-page.sync="orderPage"
+        track-by="purchase_order_id"
+      >
+        <template #cell(purchase_order_date)="{ row }">
+          {{ formatToKST(row.source.purchase_order_date) }}
+        </template>
+
+        <template #cell(receive_qty)="{ row }">
+          <va-input
+            v-model="row.source.receive_qty"
+            type="number"
+            min="1"
+            placeholder="수령 수"
+          />
+        </template>
+
+        <template #cell(select)="{ row }">
+          <va-checkbox
+            :model-value="selectedRows.some(r => r.purchase_order_id === row.source.purchase_order_id)"
+            @update:modelValue="checked => {
+              if (checked) {
+                selectedRows.push(row.source)
+              } else {
+                const index = selectedRows.findIndex(r => r.purchase_order_id === row.source.purchase_order_id)
+                if (index !== -1) selectedRows.splice(index, 1)
+              }
+            }"
+            :disabled="!row.source.receive_qty"
+          />
+        </template>
+      </va-data-table>
+      <va-button class="mt-4" @click="handleReceive" :disabled="selectedRows.length === 0">
+        선택 항목 수령
+      </va-button>
     </div>
 
-    <!-- 자재 입고 등록 영역 -->
-    <h2>자재 입고 등록</h2>
-    <table class="material-table">
-      <thead>
-        <tr>
-          <th>발주코드</th>
-          <th>자재코드</th>
-          <th>자재명</th>
-          <th>입고 수량</th>
-          <th>단위</th>
-          <th>유통기한</th>
-          <th>LOT번호</th>
-          <th>입고</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="(item, index) in materialOrderList" :key="index">
-          <td>{{ item.purchase_order_id }}</td>
-          <td>{{ item.material_code }}</td>
-          <td>{{ item.material_name }}</td>
-          <td>{{ item.purchase_order_quantity }}</td>
-          <td>{{ item.material_unit }}</td>
-          <td>{{ formatToKST(item.material_expiration_date) }}</td>
-          <td><input type="text" v-model="item.lot_number" placeholder="예: TEMP-LOT001" /></td>
-          <td><button @click="saveMaterialLot(item)" class="btn">입고</button></td>
-        </tr>
-      </tbody>
-    </table>
+    <!-- 자재 입고 등록 -->
+    <div class="table-section">
+      <h3 class="table-title">입고 자재</h3>
+      <va-data-table
+        :items="materialOrderList"
+        :columns="receiptColumns"
+        :per-page="5"
+        :current-page.sync="receiptPage"
+        track-by="material_code"
+      >
+        <template #cell(material_expiration_date)="{ row }">
+          {{ formatToKST(row.source.material_expiration_date) }}
+        </template>
+
+        <template #cell(lot_number)="{ row }">
+          {{ generateLotNumber(row.source.material_code) }}
+        </template>
+
+        <template #cell(action)="{ row }">
+          <va-button size="small" @click="saveMaterialLot(row.source)">입고</va-button>
+        </template>
+      </va-data-table>
+    </div>
   </div>
 </template>
 
@@ -73,6 +80,7 @@ interface MaterialReceipt {
   material_code: string
   material_name: string
   purchase_order_quantity: number
+  received_quantity: number
   material_unit: string
   mat_qual_test_status: string
   lot_number: string
@@ -80,139 +88,156 @@ interface MaterialReceipt {
   purchase_order_date: string
   account_id: string
   account_name: string
+  receive_qty?: number
 }
 
 const formatToKST = (isoDate: string): string => {
-  const date = new Date(isoDate);
-  // KST 적용 (UTC+9)
-  const kst = new Date(date.getTime() + 9 * 60 * 60 * 1000);
+  const date = new Date(isoDate)
+  const kst = new Date(date.getTime() + 9 * 60 * 60 * 1000)
+  return `${kst.getFullYear()}-${String(kst.getMonth() + 1).padStart(2, '0')}-${String(kst.getDate()).padStart(2, '0')} ${String(kst.getHours()).padStart(2, '0')}:${String(kst.getMinutes()).padStart(2, '0')}`
+}
 
-  const yyyy = kst.getFullYear();
-  const mm = String(kst.getMonth() + 1).padStart(2, '0');
-  const dd = String(kst.getDate()).padStart(2, '0');
-  const hh = String(kst.getHours()).padStart(2, '0');
-  const mi = String(kst.getMinutes()).padStart(2, '0');
+const toDateOnly = (iso: string): string => iso.split('T')[0]
 
-  return `${yyyy}-${mm}-${dd} ${hh}:${mi}`;
-};
+const generateLotNumber = (materialCode: string): string => {
+  const now = new Date()
+  const yyyyMMdd = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`
+  const random = Math.floor(100 + Math.random() * 900)
+  return `LOT${materialCode}-${yyyyMMdd} - ${random}`
+}
 
 const materialOrderList = ref<MaterialReceipt[]>([])
 const orderCheckList = ref<MaterialReceipt[]>([])
+const orderPage = ref(1)
+const receiptPage = ref(1)
+const selectedRows = ref<MaterialReceipt[]>([])
+
+const orderColumns = [
+  { key: 'select', label: '선택' },
+  { key: 'purchase_order_id', label: '발주코드' },
+  { key: 'material_code', label: '자재코드' },
+  { key: 'material_name', label: '자재명' },
+  { key: 'material_unit', label: '단위' },
+  { key: 'purchase_order_quantity', label: '발주 수량' },
+  { key: 'received_quantity', label: '받은 수량' },
+  { key: 'receive_qty', label: '수령 수량' },
+  { key: 'purchase_order_date', label: '발주일' },
+  { key: 'account_id', label: '거래처코드' },
+  { key: 'account_name', label: '거래처명' },
+]
+
+const receiptColumns = [
+  { key: 'purchase_order_id', label: '발주코드' },
+  { key: 'material_code', label: '자재코드' },
+  { key: 'material_name', label: '자재명' },
+  { key: 'purchase_order_quantity', label: '입고 수량' },
+  { key: 'material_unit', label: '단위' },
+  { key: 'material_expiration_date', label: '유통기한' },
+  { key: 'lot_number', label: 'LOT번호' },
+  { key: 'action', label: '입고' },
+]
 
 const fetchMaterialsOrder = async () => {
-  try {
-    const res = await axios.get('/materialLot')
-    materialOrderList.value = res.data
-    console.log(res.data);
-  } catch (err) {
-    console.log('❌ 발주 목록 조회 실패:', err);
-  }
+  const res = await axios.get('/materialLot')
+  materialOrderList.value = res.data
 }
 
 const fetchOrder = async () => {
-  try {
-    const res = await axios.get('/orderCheck')
-    orderCheckList.value = res.data
-    console.log(res.data);
-  } catch (err) {
-    console.log('❌ 발주 목록 조회 실패:', err);
-  }
+  const res = await axios.get('/orderCheck')
+  orderCheckList.value = res.data
 }
 
-const saveMaterialLot = async (item: MaterialReceipt): Promise<void> => {
-
+const saveMaterialLot = async (item: MaterialReceipt) => {
+  const lotNum = generateLotNumber(item.material_code)
   const payload = {
-    lot_number: item.lot_number,
+    lot_number: lotNum,
     material_code: item.material_code,
-    material_expiration_date: item.material_expiration_date,
+    expiry_date: toDateOnly(item.material_expiration_date),
     quantity: item.purchase_order_quantity,
-    purchase_order_id: item.purchase_order_id
+    purchase_order_id: item.purchase_order_id,
   }
-  
-  console.log('입고 데이터:', payload);
 
-  try {
-    const res = await axios.post(`/materialLot`, payload);
-    const res2 = await axios.put(`/materialLot/${payload.purchase_order_id}`);
-    console.log(res.data.isSuccessed);
-    console.log(res2.data.isUpdated);
-    if (res.data.isSuccessed && res2.data.isUpdated) {
-      alert('LOT 등록 완료!')
-      await fetchMaterialsOrder()
-    } else {
-      alert('등록 실패')
-    }
-  } catch(err){
-    console.error('등록 실패:', err)
-    alert('서버 오류 발생!')
+  const res = await axios.post('/materialLot', payload)
+  const res2 = await axios.put(`/materialLot/${payload.purchase_order_id}`)
+  if (res.data.isSuccessed && res2.data.isUpdated) {
+    alert('LOT 등록 완료!')
+    await fetchMaterialsOrder()
+  } else {
+    alert('등록 실패')
   }
- 
 }
 
-const handleReceive = async (item: MaterialReceipt): Promise<void> => {
-  try {
-    const res = await axios.put(`/orderCheck/${item.purchase_order_id}`);
-    console.log(res.data.isUpdated);
-    if (res.data.isUpdated) {
-      alert('수령 완료!')
-      await fetchOrder()
-    } else {
-      alert('등록 실패')
+const handleReceive = async () => {
+  for (const item of selectedRows.value) {
+    const id = item.purchase_order_id
+    const inputQty = Number(item.receive_qty || 0)
+
+    const res1 = await axios.put(`/receiveQty/${id}`, {
+      receive_qty: inputQty,
+    })
+
+    if (!res1.data.isUpdated) {
+      alert(`[${id}] 수령 수량 업데이트 실패`)
+      continue
     }
-  } catch(err){
-    console.error('등록 실패:', err)
-    alert('서버 오류 발생!')
+
+    const res2 = await axios.get(`/orderCheck/${id}`)
+    const order = res2.data[0]
+    console.log(order.received_quantity);
+    console.log(order.purchase_order_quantity);
+    console.log(`${id}`);
+
+    if (order.received_quantity === order.purchase_order_quantity) {
+      const now = new Date()
+      const yyyyMMdd = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`
+      const random = Math.floor(100 + Math.random() * 900)
+      const materialQualNum = `QUN-${yyyyMMdd}-${random}`
+      
+
+      await axios.put(`/orderCheck/${id}`)
+      await axios.post('/qualityTest', {
+        material_qual_num: materialQualNum,
+        purchase_order_id: id,
+        material_code: order.material_code,
+      })
+
+      alert(`[${id}] 수령 및 품질검사 등록 완료!`)
+    } else {
+      alert(`[${id}] 수령 완료! (누적 수령 중)`)
+    }
   }
+
+  selectedRows.value = []
+  await fetchOrder()
 }
-onMounted(() =>{
+
+onMounted(() => {
   fetchMaterialsOrder()
   fetchOrder()
 })
 </script>
 
+
 <style scoped>
-.material-receipt-page {
-  padding: 24px;
-  background-color: #fff;
-  font-family: 'Pretendard', sans-serif;
+.receipt-page {
+  padding: 1.5rem;
+  max-width: 1000px;
+  margin: 0 auto;
 }
 
-.plan-table-wrapper {
-  margin-bottom: 30px;
-  background-color: #f9f9f9;
-  padding: 16px;
-  border-radius: 12px;
-}
-
-.plan-table,
-.material-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 10px;
-}
-
-.plan-table th,
-.plan-table td,
-.material-table th,
-.material-table td {
-  border: 1px solid #ddd;
-  padding: 10px;
-  text-align: center;
-  font-size: 14px;
-}
-
-.plan-table th,
-.material-table th {
-  background-color: #f0f0f0;
+.page-title {
+  font-size: 1.5rem;
   font-weight: bold;
+  margin-bottom: 2rem;
 }
 
-.btn {
-  padding: 6px 12px;
-  background-color: #2f80ed;
-  color: #fff;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
+.table-section {
+  margin-bottom: 2rem;
+}
+
+.table-title {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
 }
 </style>

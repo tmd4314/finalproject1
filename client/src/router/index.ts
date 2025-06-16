@@ -75,6 +75,26 @@ const routes: Array<RouteRecordRaw> = [
             path: 'equipment-inspection',
             component: () => import('../pages/equipment/EquipmentInspection.vue')
           },
+          {
+          name: 'equipment-cleaning',
+          path: 'equipment-cleaning',
+          component: () => import('../pages/equipment/EquipmentCleaning.vue'),
+          },
+          {
+          name: 'equipment-stop',
+          path: 'equipment-stop',
+          component: () => import('../pages/equipment/EquipmentStop.vue'),
+          },
+          {
+          name: 'equipment-history',
+          path: 'equipment-history',
+          component: () => import('../pages/equipment/EquipmentHistory.vue'),
+          },
+          {
+            path: '/equipments/:id',
+            name: 'equipment-detail',
+            component: () => import('../pages/equipment/EquipmentDetail.vue')
+          },
         ],
       },
       {
@@ -82,6 +102,11 @@ const routes: Array<RouteRecordRaw> = [
         path: '/faq',
         component: RouteViewComponent,
         children: [
+          {
+            name: 'material-check',
+            path: 'material-check',
+            component: () => import('../pages/material/materialCheckPage.vue'),
+          },
           {
             name: 'receiving-management',
             path: 'receiving-management',
@@ -101,6 +126,21 @@ const routes: Array<RouteRecordRaw> = [
             name: 'purchase-order',
             path:'purchase-order',
             component: () => import('../pages/material/purchaseOrderPage.vue')
+          },
+          {
+            name: 'purchase-check',
+            path:'purchase-check',
+            component: () => import('../pages/material/purchaseCheckPage.vue')
+          },
+          {
+            name: 'delivery-management',
+            path:'delivery-management',
+            component: () => import('../pages/material/deliveryManagementPage.vue')
+          },
+          {
+            name: 'delivery-check',
+            path:'delivery-check',
+            component: () => import('../pages/material/deliveryCheckPage.vue')
           },
         ],
       },

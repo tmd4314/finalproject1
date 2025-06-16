@@ -93,13 +93,34 @@ export default {
         meta: {
           icon: 'build',
           },
-        },
-        {
+      },
+      {
         name: 'equipment-inspection', 
         displayName: 'menu.설비 점검',
         meta: {
         icon: 'build',
         },
+      },
+      {
+      name: 'equipment-cleaning',
+      displayName: 'menu.설비 청소',
+      meta: {
+        icon: 'broom',
+      },
+      },
+      {
+      name: 'equipment-stop',
+      displayName: 'menu.설비 정지',
+      meta: {
+        icon: 'pause-circle',
+      },
+      },
+      {
+      name: 'equipment-history',
+      displayName: 'menu.설비 이력',
+      meta: {
+        icon: 'clock',
+      },
       },
       ],
     },
@@ -110,6 +131,10 @@ export default {
         icon: 'credit_card'
       },
       children: [
+        {
+          name: 'material-check',
+          displayName: 'menu.자재 조회'
+        },
         {
           name: 'receiving-management',
           displayName: 'menu.입고 관리'
@@ -125,6 +150,19 @@ export default {
         {
           name: 'purchase-order',
           displayName: 'menu.발주 관리'
+        }
+        ,
+        {
+          name: 'purchase-check',
+          displayName: 'menu.발주 조회'
+        },
+        {
+          name: 'delivery-management',
+          displayName: 'menu.출고 관리'
+        },
+        {
+          name: 'delivery-check',
+          displayName: 'menu.출고 조회'
         }
       ],
     },

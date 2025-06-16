@@ -30,6 +30,13 @@ router.post('/processG', async (req, res) => {
   }
 });
 
+ router.get('/processG/:process_group_code', async(req, res)=>{
+    let processGroupCode =req.params.process_group_code;
+    let resInfo =await processService.checkProcessGroup(processGroupCode)
+                                     .catch(err =>console.log(err));
+    res.send(resInfo);
+ })
+
 router.post('/process', async (req, res) => {
   try {
     const processList = req.body;
