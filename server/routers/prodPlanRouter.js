@@ -197,4 +197,33 @@ router.post('/products', async (req, res) => {
   }
 });
 
+//[GET] /prodPlna/integrated/list - 생산계획 통합조회 목록
+router.get('/integrated/list', async (req, res) => {
+  try {
+    const {
+      plan_id = '',
+      plan_name = '',
+      product_name = '',
+      start_date = '',
+      end_date = ''
+    } = req.query;
+
+    const searchParams = {
+      plan_id,
+      plan_name,
+      product_name,
+      start_date,
+      end_date
+    };
+
+    console.log('통합조회 파라미터:', searchParams);
+
+    const result = await prodPlanService.findPlanIntegratedList(searchParams);
+    res.json(result);
+  } catch (err) {
+    console.error('생산계획 통합조회 오류:', err);
+    res.status(500).json({ error: err.massege});
+  }
+})
+
 module.exports = router;
