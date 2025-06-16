@@ -40,7 +40,7 @@ const delivery = require('./sqls/delivery.js')
      ...workOrder,
      ...mrp,
      ...purchaseOrder,
-     ...prodPlan
+     ...prodPlan,
      ...delivery
  }
 

@@ -30,12 +30,12 @@ const proxyPaths = [
   'puOrder',
   'purchase',
   'workOrder',
-  'prodPlan'
+  'prodPlan',
   'purchaseCheck',
   'delivery',
   'deliveryCheck',
   'receiveQty',
-  'qualityTest'
+  'qualityTest',
   'uploads',
 
 ]
