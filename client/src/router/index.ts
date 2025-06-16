@@ -169,6 +169,16 @@ const routes: Array<RouteRecordRaw> = [
             path: 'prod_plan_check',
             component: () => import('../pages/prodPlan/ProdPlanCheck.vue'),
           },
+          {
+            name: 'work_result_manager',
+            path: 'work_result_manager',
+            component: () => import('../pages/prodResult/resultManagerPage.vue'),
+          },
+          // {
+          //   name: 'work_result_check',
+          //   path: 'work_result_check',
+          //   component: () => import('../pages/workorder/WorkOrderCheck.vue'),
+          // },
         ],
       },
       {

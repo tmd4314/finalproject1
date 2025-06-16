@@ -75,11 +75,11 @@ const prodPlanRouter = require('./routers/prodPlanRouter.js');
 
 const deliveryRouter = require('./routers/deliveryRouter.js');
 
+const prodResultRouter = require('./routers/prodResultRouter.js');
+
 const employeeRouter = require('./routers/employeeRouter.js')
 
-
 const authRouter =  require('./routers/authRouter.js');
-
 
  // 기본 라우팅
 app.get('/', (req, res)=>{
@@ -109,6 +109,7 @@ app.use('/', materialLotRouter);
 app.use('/', mrpRouter);
 app.use('/', purchaseRouter);
 app.use('/', deliveryRouter);
+app.use('/', prodResultRouter);
 
 
 
