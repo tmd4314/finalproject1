@@ -2,13 +2,28 @@ const express = require('express');
 const router = express.Router();
 const prodResultService = require('../services/prodResultService.js');
 
-// [GET] /prodPlan/products/search - 제품 검색 (모달용)
+// [GET]  공정 진행도 검색 
 router.get('/prodResult/:result_id', async (req, res) => {
     const resultId = req.params.result_id;
     let resultList = await prodResultService.searchResult(resultId)
                                            .catch(err => console.log(err));
      res.send(resultList);
 });
+
+// [GET]  작업지시서 검색 
+router.get('/prodResult', async (req, res) => {
+    let resultList = await prodResultService.searchNoResult()
+                                           .catch(err => console.log(err));
+     res.send(resultList);
+});
+
+// [GET]  공정흐름도 검색 
+router.get('/processCheck', async (req, res) => {
+    let resultList = await prodResultService.searchProcessCheck()
+                                           .catch(err => console.log(err));
+     res.send(resultList);
+});
+
 
 router.post('/prodResult', async (req, res) => {
   try {

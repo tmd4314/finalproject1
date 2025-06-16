@@ -380,18 +380,13 @@ const saveWorkOrder = async () => {
         work_order_priority: product.work_order_priority || null,
         order_detail_remark: product.order_detail_remark || '',
         process_group_code: product.process_group_code || '',
-      }))
-    }
-    const prodResultPayload = {
-      result_id: resultId,
-      work_order_date: form.value.order_start_dt,
-      products: form.value.products.map(product => ({
-        process_group_code: `${product.product_code}-Process`,
+        result_id: resultId,
+        work_order_date: form.value.order_start_dt
       }))
     }
 
     console.log('전송할 payload:', JSON.stringify(payload, null, 2))
-    console.log('전송할 payload:', prodResultPayload)
+    console.log('전송할 payload:', payload)
     let response
     if (isEditMode.value) {
       payload.master.work_order_no = form.value.work_order_no

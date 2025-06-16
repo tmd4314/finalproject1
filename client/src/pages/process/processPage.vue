@@ -164,7 +164,7 @@ const handleProductSearch = () => {
 
   // 우선 제품코드로 찾기
   if (search.value.product_code) {
-    found = products.value.find(p => p.product_code === search.value.product_code)
+    found = products.value.find(p => p.product_code === search.value.product_code) ?? null
   }
 
   // 아니면 제품명 + 규격으로 찾기
@@ -172,7 +172,7 @@ const handleProductSearch = () => {
     found = products.value.find(p =>
       p.product_name === search.value.product_name &&
       p.product_stand === search.value.product_stand
-    )
+    ) ?? null
   }
 
   if (!found) {

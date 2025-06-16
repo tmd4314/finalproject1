@@ -37,7 +37,8 @@ const proxyPaths = [
   'receiveQty',
   'qualityTest',
   'uploads',
-  'prodResult'
+  'prodResult',
+  'processCheck'
 
 ]
 
