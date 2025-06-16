@@ -17,9 +17,10 @@ ORDER BY insp_code`
 ;
 
 const productNameList = 
-`  SELECT product_name, product_code 
-  FROM product
-  ORDER BY product_name
+`SELECT product_name, MIN(product_code) AS product_code
+FROM product
+GROUP BY product_name
+ORDER BY product_name;
 `
 ;
 
@@ -38,7 +39,6 @@ const insertInspection =
   insp_range,
   insp_remark
 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
-
 `
 ;
 

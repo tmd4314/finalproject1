@@ -29,9 +29,13 @@ const insertOne = async (data) => {
     data.insp_remark
   ];
   console.log("쿼리 파라미터:", params);
-  // 이 배열이 정확히 컬럼 수와 타입에 맞는지 확인
-  const result = await mariadb.query("insertInspection", params);
-  return result;
+  try {
+    const result = await mariadb.query("insertInspection", params);
+    return result;
+  } catch (error) {
+    console.error("insertOne 쿼리 오류:", error);
+    throw error;  // 에러를 상위로 전달
+  }
 };
 
 

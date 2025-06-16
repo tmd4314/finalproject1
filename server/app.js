@@ -75,6 +75,8 @@ const prodPlanRouter = require('./routers/prodPlanRouter.js');
 
 const deliveryRouter = require('./routers/deliveryRouter.js');
 
+const materialInspectionRouter = require('./routers/materialInspectionRouter.js');
+
 const prodResultRouter = require('./routers/prodResultRouter.js');
 
 const employeeRouter = require('./routers/employeeRouter.js')
@@ -127,4 +129,5 @@ app.use('/auth', authRouter);
 
 //현기
 app.use('/inspections', inspectionRouter);
+app.use('/materialInspections', materialInspectionRouter);
 app.use('/defects', defectRouter);

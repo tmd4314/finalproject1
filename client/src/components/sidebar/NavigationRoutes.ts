@@ -52,7 +52,11 @@ export default {
         },
         {
           name: 'InspectionManagement',
-          displayName: 'menu.검사항목 관리',
+          displayName: 'menu.제품검사항목 관리',
+        },
+        {
+          name: 'MaterialInspectionManagement',
+          displayName: 'menu.자재검사항목 관리',
         },
         {
           name: 'defectManagement',
