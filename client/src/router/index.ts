@@ -226,19 +226,19 @@ const routes: Array<RouteRecordRaw> = [
         ],
       },
       {
-        name: 'distribution',
-        path: 'distribution',
+        name: 'logistics',
+        path: 'logistics',
         component: RouteViewComponent,
         children: [
           {
-            name: 'product_arrival',
-            path: 'product_arrival',
-            component: () => import('../pages/pricing-plans/PricingPlans.vue'),
+            name: 'product_inbound',
+            path: 'product_inbound',
+            component: () => import('../pages/logistics/ProductInbound.vue'),
           },
           {
-            name: 'product_delivery',
-            path: 'product_delivery',
-            component: () => import('../pages/billing/BillingPage.vue'),
+            name: 'product_outbound',
+            path: 'product_outbound',
+            component: () => import('../pages/logistics/ProductOutbound.vue'),
           },
         ],
       },
