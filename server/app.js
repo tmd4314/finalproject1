@@ -74,6 +74,9 @@ const prodPlanRouter = require('./routers/prodPlanRouter.js');
 const deliveryRouter = require('./routers/deliveryRouter.js');
 
 
+const authRouter =  require('./routers/authRouter.js');
+
+
  // 기본 라우팅
 app.get('/', (req, res)=>{
   res.send('Welcome!!...');
@@ -114,7 +117,7 @@ app.use('/equipment-inspection', inspectionRouter);
 //현석
 app.use('/lines', lineRouter);
 app.use('/packages', packageRouter);
-
+app.use('/auth', authRouter);
 
 //현기
 app.use('/inspections', inspectionRouter);
