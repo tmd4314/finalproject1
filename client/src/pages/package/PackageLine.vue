@@ -13,13 +13,7 @@
       <div class="header-section">
         <h1>포장 라인 선택</h1>
         <p>작업할 포장 유형을 선택해주세요</p>
-        
-        <!-- 현재 로그인 사용자 표시 -->
-        <div v-if="currentEmployee" class="current-user-info">
-          <span class="material-icons">account_circle</span>
-          <span>{{ currentEmployee.employee_name }}님으로 로그인됨</span>
-        </div>
-        
+               
         <!-- 🔥 동적 완료 알림 메시지 -->
         <div v-if="showCompletionMessage" class="completion-alert" :class="completionMessageType">
           {{ completionMessage }}
@@ -37,7 +31,7 @@
           <h3>내포장</h3>
           <p>정제를 PTP/병에 포장하는 작업</p>
           <div v-if="completedSteps.includes('INNER')" class="completion-badge">
-            ✅ 작업완료
+            작업완료
             <div class="completion-time">{{ formatTime(innerCompletionTime) }}</div>
           </div>
           <button v-else class="selection-button available" @click.stop="selectPackageType('INNER')">
@@ -75,7 +69,7 @@
       
       <div class="navigation-actions">
         <button @click="goBackToLineAdd" class="back-btn secondary">
-          🔧 라인 관리로 이동
+           라인 관리로 이동
         </button>
       </div>
       
@@ -135,28 +129,20 @@
         <h1>{{ getLineTypeText(selectedPackageType) }} 라인 선택</h1>
         <p>사용 가능한 {{ getLineTypeText(selectedPackageType) }} 라인을 선택하여 작업을 시작하세요</p>
         
-        <!-- 현재 로그인 사용자 표시 -->
-        <div v-if="currentEmployee" class="current-user-info">
-          <span class="material-icons">account_circle</span>
-          <span>{{ currentEmployee.employee_name }}님으로 로그인됨</span>
-        </div>
         
         <!-- 🔥 단계별 진행 표시 -->
         <div class="workflow-progress">
           <div class="progress-step" :class="{ completed: completedSteps.includes('INNER'), active: selectedPackageType === 'INNER' }">
-            <div class="step-icon">💊</div>
             <div class="step-text">내포장</div>
           </div>
           <div class="progress-arrow">→</div>
           <div class="progress-step" :class="{ completed: completedSteps.includes('OUTER'), active: selectedPackageType === 'OUTER' }">
-            <div class="step-icon">📦</div>
             <div class="step-text">외포장</div>
           </div>
         </div>
         
         <!-- 내포장 완료 시 외포장 안내 -->
         <div v-if="selectedPackageType === 'OUTER' && completedSteps.includes('INNER')" class="next-step-guide">
-          <div class="guide-icon">🎯</div>
           <div class="guide-content">
             <h4>내포장 작업이 완료되었습니다!</h4>
             <p>이제 외포장 라인을 선택하여 최종 포장 작업을 진행해주세요.</p>
@@ -206,14 +192,12 @@
       </div>
       
       <div v-else-if="error" class="error-state">
-        <div class="error-icon">⚠️</div>
         <p>{{ error }}</p>
         <button @click="fetchLines" class="retry-btn">다시 시도</button>
       </div>
       
       <!-- 라인 목록 -->
       <div v-else-if="filteredLines.length === 0" class="empty-state">
-        <div class="empty-icon">🔍</div>
         <h3>조건에 맞는 라인이 없습니다</h3>
         <p>필터 조건을 변경해 주세요</p>
         <button @click="clearAllFilters" class="retry-btn">필터 초기화</button>
@@ -233,11 +217,11 @@
           <div class="line-header">
             <h3 class="line-name">{{ line.line_name }}</h3>
             <div class="line-type-icon">
-              <span class="material-icons" v-if="line.line_type === 'INNER'">medication</span>
+              <span class="material-icons" v-if="line.line_type === 'INNER'"></span>
               <span class="material-icons" v-else>inventory_2</span>
             </div>
             <div v-if="isRecommendedLine(line)" class="recommended-badge">
-              ⭐ 추천
+              추천
             </div>
           </div>
           
@@ -937,28 +921,6 @@ defineExpose({
   gap: 4px;
   font-size: 14px;
   color: #075985;
-}
-
-/* 현재 사용자 정보 표시 스타일 */
-.current-user-info {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 16px auto 0;
-  padding: 12px 20px;
-  background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
-  border: 2px solid #0ea5e9;
-  border-radius: 12px;
-  font-size: 14px;
-  color: #0c4a6e;
-  max-width: 300px;
-  justify-content: center;
-  font-weight: 600;
-}
-
-.current-user-info .material-icons {
-  font-size: 18px;
-  color: #0ea5e9;
 }
 
 /* 브레드크럼 */
