@@ -93,13 +93,34 @@ export default {
         meta: {
           icon: 'build',
           },
-        },
-        {
+      },
+      {
         name: 'equipment-inspection', 
         displayName: 'menu.설비 점검',
         meta: {
         icon: 'build',
         },
+      },
+      {
+      name: 'equipment-cleaning',
+      displayName: 'menu.설비 청소',
+      meta: {
+        icon: 'broom',
+      },
+      },
+      {
+      name: 'equipment-stop',
+      displayName: 'menu.설비 정지',
+      meta: {
+        icon: 'pause-circle',
+      },
+      },
+      {
+      name: 'equipment-history',
+      displayName: 'menu.설비 이력',
+      meta: {
+        icon: 'clock',
+      },
       },
       ],
     },

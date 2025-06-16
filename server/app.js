@@ -103,6 +103,8 @@ app.use('/', deliveryRouter);
 app.use('/equipments', equipmentRouter);
 app.use('/common-codes', commonCodeRouter);
 app.use('/img', express.static('../client/public/img'));
+app.use('/uploads', express.static('./uploads'));
+app.use('/equipment-inspection', inspectionRouter);
 
 //현석
 app.use('/lines', lineRouter);

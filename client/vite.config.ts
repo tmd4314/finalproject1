@@ -10,6 +10,7 @@ const proxyPaths = [
   'product',
   'common-codes',
   'equipments',
+  'equipment-inspection',
   'material',
   'bom',
   'process',
@@ -34,6 +35,7 @@ const proxyPaths = [
   'deliveryCheck',
   'receiveQty',
   'qualityTest'
+  'uploads',
 
 ]
 

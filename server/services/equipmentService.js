@@ -37,29 +37,36 @@ const convertDates = (obj) => {
 
 const convertData = (obj) => convertDates(convertBigIntToString(obj));
 
-// 설비명에 자동 번호 부여 함수
+// 설비 기본명에서 자동 번호 부여 함수
 const generateEquipmentName = async (baseName) => {
-  // 기존 설비명에서 숫자 제거
-  const nameWithoutNumber = baseName.replace(/\d+$/, '');
-  
-  // 동일한 이름으로 시작하는 설비 수 조회
-  const [countRow] = await mariadb.query('countSameNameEquipments', [`${nameWithoutNumber}%`]);
+  // 동일한 기본명으로 시작하는 설비 수 조회
+  const [countRow] = await mariadb.query('countSameNameEquipments', [`${baseName}%`]);
   
   // 새로운 설비명 생성 (기존 개수 + 1)
-  return `${nameWithoutNumber}${Number(countRow.count) + 1}`;
+  return `${baseName}${Number(countRow.count) + 1}`;
 };
 
 const insertEquipment = async (formData, file) => {
-  const finalName = await generateEquipmentName(formData.name);
+  const finalName = await generateEquipmentName(formData.name); // formData.name에는 설비 기본명이 들어옴
   const imageFileName = file?.filename || null;
   const lineId = formData.category === 'e3' ? formData.line : null;
   const manufactureDate = formData.manufactureDate ? new Date(formData.manufactureDate).toISOString().split('T')[0] : null;
   const registerDate = formData.registerDate ? new Date(formData.registerDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
 
   const values = [
-    finalName, formData.category, formData.type, formData.installType, formData.factory,
-    formData.floor, formData.room, manufactureDate, registerDate,
-    formData.maker, formData.model, formData.serial, formData.power,
+    finalName, 
+    formData.category, 
+    formData.type, 
+    formData.installType, 
+    formData.factory,
+    formData.floor, 
+    formData.room, 
+    manufactureDate, 
+    registerDate,
+    formData.maker, 
+    formData.model, 
+    formData.serial, 
+    formData.power,
     parseInt(formData.maxRuntime) || 0,
     parseInt(formData.maintenanceCycle) || 0,
     formData.note || null,
@@ -78,9 +85,24 @@ const getEquipmentList = async () => {
 };
 
 const getEquipmentDetail = async (equipmentId) => {
-  const [equipment] = await mariadb.query('selectEquipmentDetail', [equipmentId]);
-  return convertData(equipment);
-};
+  const [equipment] = await mariadb.query('selectEquipmentDetail', [equipmentId])
+  console.log('DB에서 가져온 equipment:', equipment) 
+  const downtime = await mariadb.query('selectRecentDowntimeByEqId', [equipmentId])
+  const inspection = await mariadb.query('selectRecentInspectionByEqId', [equipmentId])
+  const cleaning = await mariadb.query('selectRecentCleaningByEqId', [equipmentId])
+
+  return {
+    equipment: convertData(equipment),
+    downtime: convertData(downtime),
+    inspection: convertData(inspection),
+    cleaning: convertData(cleaning),
+  }
+}
+
+const getEquipmentOnly = async (equipmentId) => {
+  const [equipment] = await mariadb.query('selectEquipmentDetail', [equipmentId])
+  return convertData(equipment)
+}
 
 const updateEquipment = async (equipmentId, formData) => {
   const [existing] = await mariadb.query('selectEquipmentDetail', [equipmentId]);
@@ -96,20 +118,37 @@ const updateEquipment = async (equipmentId, formData) => {
     imageFileName = formData.eq_image;
   }
 
-  // 수정 시에도 설비명에 자동 번호 부여
-  const finalName = await generateEquipmentName(formData.name);
+  // 수정 시에도 설비명에 자동 번호 부여 (설비 기본명이 변경된 경우만)
+  let finalName = existing.eq_name;
+  const existingBaseName = existing.eq_name.replace(/\d+$/, '');
+  if (formData.name !== existingBaseName) {
+    finalName = await generateEquipmentName(formData.name);
+  }
   
   const lineId = formData.category === 'e3' ? formData.line : null;
   const manufactureDate = formData.manufactureDate ? new Date(formData.manufactureDate).toISOString().split('T')[0] : null;
   const registerDate = new Date().toISOString().split('T')[0];
 
   const values = [
-    finalName, formData.category, formData.type, formData.installType,
-    formData.factory, formData.floor, formData.room, lineId,
-    manufactureDate, registerDate, formData.maker, formData.model,
-    formData.serial, formData.power, parseInt(formData.maxRuntime) || 0,
-    parseInt(formData.maintenanceCycle) || 0, formData.note || null,
-    imageFileName, equipmentId
+    finalName, 
+    formData.category, 
+    formData.type, 
+    formData.installType,
+    formData.factory, 
+    formData.floor, 
+    formData.room, 
+    lineId,
+    manufactureDate, 
+    registerDate, 
+    formData.maker, 
+    formData.model,
+    formData.serial, 
+    formData.power, 
+    parseInt(formData.maxRuntime) || 0,
+    parseInt(formData.maintenanceCycle) || 0, 
+    formData.note || null,
+    imageFileName, 
+    equipmentId
   ];
 
   const result = await mariadb.query('updateEquipment', values);
@@ -166,6 +205,7 @@ module.exports = {
   insertEquipment,
   getEquipmentList,
   getEquipmentDetail,
+  getEquipmentOnly,
   updateEquipment,
   deleteEquipment,
   deleteMultipleEquipments,
