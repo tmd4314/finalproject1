@@ -1,14 +1,4 @@
-const resetForm = async () => {
-  // 새로운 작업지시서 번호 생성
-  const newWorkOrderNo = await generateWorkOrderNo()
-  
-  form.value = {
-    work_order_no: newWorkOrderNo, // 새 번호로 설정
-    plan_id: '',
-    writer_id: '2', // 기본값 유지
-    writer_name: '김홍인', // 기본값 유지
-    write_date: new Date().toISOString().split('T')[0], // 오늘 날짜로 설정
-    order_start_dt: '',<template>
+<template>
   <div class="max-w-[1060px] h-[739px] mx-auto p-4 bg-gray-50 overflow-hidden">
     <!-- 상단 타이틀 -->
     <div class="mb-3">
@@ -148,6 +138,7 @@ const resetForm = async () => {
                 <th class="border border-gray-200 px-2 py-1.5 text-left font-medium text-gray-700">단위</th>
                 <th class="border border-gray-200 px-2 py-1.5 text-left font-medium text-gray-700">규격</th>
                 <th class="border border-gray-200 px-2 py-1.5 text-left font-medium text-gray-700">공정코드</th>
+                <th class="border border-gray-200 px-2 py-1.5 text-center font-medium text-gray-700">수량</th>
                 <th class="border border-gray-200 px-2 py-1.5 text-left font-medium text-gray-700">우선순위</th>
                 <th class="border border-gray-200 px-2 py-1.5 text-left font-medium text-gray-700">비고</th>
               </tr>
@@ -162,6 +153,16 @@ const resetForm = async () => {
                 <td class="border border-gray-200 px-2 py-1.5">{{ product.product_unit }}</td>
                 <td class="border border-gray-200 px-2 py-1.5">{{ product.product_stand }}</td>
                 <td class="border border-gray-200 px-2 py-1.5">{{ product.process_code }}</td>
+                <td class="border border-gray-200 px-2 py-1.5">
+                  <input 
+                    v-model.number="product.work_order_qty" 
+                    type="number" 
+                    min="1"
+                    step="1"
+                    class="w-20 px-1 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 text-center"
+                    placeholder="수량"
+                  />
+                </td>
                 <td class="border border-gray-200 px-2 py-1.5">
                   <input 
                     v-model.number="product.work_order_priority" 
@@ -216,12 +217,11 @@ const resetForm = async () => {
       @close="showPlanModal = false" 
     />
 
-    <!-- <WorkOrderSearchModal 
+    <WorkOrderSearchModal 
       v-if="showWorkOrderModal" 
       @select="selectWorkOrder" 
       @close="showWorkOrderModal = false" 
-    /> -->
-
+    />
   </div>
 </template>
 
@@ -232,7 +232,7 @@ import axios from 'axios'
 // 모달 컴포넌트들
 import ProductSearchModal from './ProductSearchModal.vue'
 import PlanSearchModal from './PlanSearchModal.vue'
-// import WorkOrderSearchModal from './WorkOrderSearchModal.vue'
+import WorkOrderSearchModal from './WorkOrderSearchModal.vue'
 
 // 기본 상태
 const isEditMode = ref(false)
@@ -260,10 +260,11 @@ const hasSelectedProducts = computed(() => {
   return form.value.products.some(product => product.selected)
 })
 
+// 🚨 수정: canSave - work_order_no 체크 제거
 const canSave = computed(() => {
-  return form.value.plan_id && 
-         form.value.writer_id && 
+  return form.value.writer_id && 
          form.value.products.length > 0
+         // work_order_no는 서버에서 생성하므로 체크 불필요
 })
 
 // 메서드들
@@ -287,20 +288,21 @@ const selectPlan = (plan) => {
 
 // 제품 추가 시 process_group_code 자동 입력
 const addProduct = (product) => {
-  console.log('선택된 제품 데이터:', product) // 디버깅 로그 추가
+  console.log('선택된 제품 데이터:', product)
   
   const newProduct = {
     product_code: product.product_code,
     product_name: product.product_name,
     product_unit: product.product_unit,
     product_stand: product.product_stand,
-    process_code: product.process_group_code || '', // 공정그룹코드 자동 입력
+    process_code: product.process_group_code || '',
+    work_order_qty: null,  // 🚨 수량 필드 추가
     work_order_priority: null,
     order_detail_remark: '',
     selected: false
   }
   
-  console.log('추가될 제품 데이터:', newProduct) // 디버깅 로그 추가
+  console.log('추가될 제품 데이터:', newProduct)
   form.value.products.push(newProduct)
   showProductModal.value = false
 }
@@ -341,7 +343,8 @@ const loadPlanProducts = async (planId) => {
         product_name: item.product_name,
         product_unit: item.product_unit,
         product_stand: item.product_stand,
-        process_code: item.process_group_code || '', // 공정그룹코드 자동 입력
+        process_code: item.process_group_code || '',
+        work_order_qty: item.plan_qty || null,  // 🚨 계획 수량을 기본값으로 설정
         work_order_priority: null,
         order_detail_remark: '',
         selected: false
@@ -353,48 +356,78 @@ const loadPlanProducts = async (planId) => {
   }
 }
 
+// 🚨 수정: 저장 함수 - 번호 생성 로직 제거
 const saveWorkOrder = async () => {
   if (!canSave.value) {
-    alert('작업지시서 번호, 계획 ID, 작성자, 제품을 모두 입력해주세요.')
+    alert('작성자, 제품을 모두 입력해주세요.')  // 메시지 수정
     return
   }
 
   try {
     const payload = {
       master: {
-        work_order_no: form.value.work_order_no,
-        plan_id: form.value.plan_id,
-        writer_id: form.value.writer_id || 'TEMP_USER',
-        order_start_dt: form.value.order_start_dt,
-        order_end_dt: form.value.order_end_dt,
-        order_remark: form.value.order_remark
+        // work_order_no는 서버에서 자동 생성하므로 제외
+        plan_id: form.value.plan_id || '',
+        writer_id: form.value.writer_id,
+        write_date: form.value.write_date,
+        order_start_dt: form.value.order_start_dt || '',
+        order_end_dt: form.value.order_end_dt || '',
+        order_remark: form.value.order_remark || ''
       },
       products: form.value.products.map(product => ({
         product_code: product.product_code,
+        work_order_qty: product.work_order_qty || null,              // 🚨 수량 필드 추가
         work_order_priority: product.work_order_priority || null,
-        order_detail_remark: product.order_detail_remark,
-        process_group_code: product.process_code // process_group_code로 저장
+        order_detail_remark: product.order_detail_remark || '',
+        process_group_code: product.process_code || ''
       }))
     }
 
+    // 🔍 디버깅: 전송할 데이터 출력
+    console.log('전송할 payload:', JSON.stringify(payload, null, 2))
+
+    let response
     if (isEditMode.value) {
-      await axios.put('/workOrder', payload)
+      // 수정 시에는 기존 번호 포함
+      payload.master.work_order_no = form.value.work_order_no
+      response = await axios.put('/workOrder', payload)
       alert('작업지시서 수정 완료')
     } else {
-      await axios.post('/workOrder', payload)
+      // 신규 등록 시에는 번호 제외 (서버에서 생성)
+      response = await axios.post('/workOrder', payload)
       alert('작업지시서 등록 완료')
+      
+      // 서버에서 생성된 번호를 폼에 설정
+      if (response.data && response.data.work_order_no) {
+        form.value.work_order_no = response.data.work_order_no
+      }
     }
     
+    console.log('서버 응답:', response.data)
     resetForm()
   } catch (err) {
     console.error('작업지시서 저장 오류:', err)
-    alert('작업지시서 저장에 실패했습니다.')
+    
+    // 🔍 상세 에러 정보 출력
+    if (err.response) {
+      console.error('에러 상태:', err.response.status)
+      console.error('에러 데이터:', err.response.data)
+      
+      // 사용자에게 구체적인 에러 메시지 표시
+      if (err.response.data && err.response.data.error) {
+        alert(`저장 실패: ${err.response.data.error}`)
+      } else {
+        alert(`저장 실패 (${err.response.status}): ${JSON.stringify(err.response.data)}`)
+      }
+    } else {
+      alert('작업지시서 저장에 실패했습니다.')
+    }
   }
 }
 
 const resetForm = () => {
   form.value = {
-    work_order_no: form.value.work_order_no, // 현재 번호 유지
+    work_order_no: '',  // 빈 값으로 시작
     plan_id: '',
     writer_id: '2',
     writer_name: '김홍인',
@@ -420,13 +453,59 @@ const generateWorkOrderNo = async () => {
   }
 }
 
+// 작업지시서 불러오기 함수
+const selectWorkOrder = async (workOrder) => {
+  try {
+    // 선택된 작업지시서의 상세 정보 조회
+    const res = await axios.get(`/workOrder/${workOrder.work_order_no}`)
+    
+    if (res.data && res.data.master) {
+      const { master, products } = res.data
+      
+      // 폼에 마스터 정보 설정
+      form.value = {
+        work_order_no: master.work_order_no,
+        plan_id: master.plan_id || '',
+        writer_id: master.writer_id || '2',
+        writer_name: master.writer_name || '김홍인',
+        write_date: master.write_date ? master.write_date.split('T')[0] : new Date().toISOString().split('T')[0],
+        order_start_dt: master.order_start_dt ? master.order_start_dt.split('T')[0] : '',
+        order_end_dt: master.order_end_dt ? master.order_end_dt.split('T')[0] : '',
+        order_remark: master.order_remark || '',
+        products: products.map(product => ({
+          product_code: product.product_code,
+          product_name: product.product_name,
+          product_unit: product.product_unit,
+          product_stand: product.product_stand,
+          process_code: product.process_group_code || '',
+          work_order_qty: product.work_order_qty || null,  
+          work_order_priority: product.work_order_priority,
+          order_detail_remark: product.order_detail_remark || '',
+          selected: false
+        }))
+      }
+      
+      // 수정 모드로 설정
+      isEditMode.value = true
+      
+      // 우선순위로 정렬
+      sortProductsByPriority()
+    }
+    
+    showWorkOrderModal.value = false
+  } catch (err) {
+    console.error('작업지시서 불러오기 오류:', err)
+    alert('작업지시서 정보를 불러오는데 실패했습니다.')
+  }
+}
+
 onMounted(() => {
   const today = new Date().toISOString().split('T')[0]
   form.value.write_date = today
-  form.value.writer_name = '김홍인'
-  form.value.writer_id = '2'
+  form.value.writer_name = '김홍인'  // 더미 데이터
+  form.value.writer_id = '2'  // 더미 데이터
   
-  // 작업지시서 번호는 빈 값으로 시작 (저장시 자동생성)
+  // 작업지시서 번호는 빈 값으로 시작 (서버에서 생성)
   form.value.work_order_no = ''
 })
 </script>
