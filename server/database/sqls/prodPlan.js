@@ -1,4 +1,4 @@
-// sqls/prodPlan.js
+// sqls/prodPlan.js - employee_name으로 변경
 
 // 1. 제품 검색 (모달용)
 const searchProdPlanProducts = `
@@ -22,7 +22,6 @@ const searchProdPlanOrders = `
     om.account_id,
     om.order_date,
     om.delivery_date,
-    om.status,
     om.remarks,
     GROUP_CONCAT(
       COALESCE(p.product_name, od.product_code)
@@ -42,22 +41,21 @@ const searchProdPlanOrders = `
                OR COALESCE(om.remarks, '') LIKE CONCAT('%', ?, '%')
                OR DATE_FORMAT(om.order_date, '%Y-%m-%d') LIKE CONCAT('%', ?, '%'))
   GROUP BY om.order_id, om.account_id, om.order_date, om.delivery_date, 
-           om.status, om.remarks
+           om.remarks
   ORDER BY om.order_date DESC, om.order_id DESC
 `;
 
-
-// 3. 생산계획 검색 (모달용) - plan_priority 제거
+// 3. 생산계획 검색 (모달용) - employee_name으로 변경
 const searchProdPlanList = `
   SELECT 
     pm.plan_id,
     pm.plan_name,
-    pm.writer_id,
+    pm.employee_name,
     pm.plan_reg_dt,
     pm.plan_start_dt,
     pm.plan_end_dt,
     pm.plan_remark,
-    e.employee_name as writer_name,
+    pm.employee_name as writer_name,
     CONCAT(
       COALESCE(
         (SELECT p2.product_name 
@@ -76,25 +74,23 @@ const searchProdPlanList = `
     ) as product_summary,
     COALESCE((SELECT SUM(pd5.plan_qty) FROM production_plan_detail pd5 WHERE pd5.plan_id = pm.plan_id), 0) as total_qty
   FROM production_plan_master pm
-    LEFT JOIN employees e ON pm.writer_id = e.employee_id
   WHERE (? = '' OR pm.plan_id LIKE CONCAT('%', ?, '%')
                OR COALESCE(pm.plan_name, '') LIKE CONCAT('%', ?, '%'))
   ORDER BY pm.plan_reg_dt DESC, pm.plan_id DESC
 `;
 
-// 4. 생산계획 마스터 정보 조회 - plan_priority 제거
+// 4. 생산계획 마스터 정보 조회 - employee_name으로 변경
 const getProdPlanInfo = `
   SELECT 
     pm.plan_id,
     pm.plan_name,
     pm.order_id,
-    pm.writer_id,
+    pm.employee_name,
     pm.plan_reg_dt,
     pm.plan_start_dt,
     pm.plan_end_dt,
     pm.plan_remark,
-    pm.plan_status,
-    e.employee_name as writer_name,
+    pm.employee_name as writer_name,
     pd.plan_detail_id,
     pd.product_code,
     pd.plan_qty,
@@ -104,7 +100,6 @@ const getProdPlanInfo = `
     p.product_stand,
     COALESCE(pg.process_group_code, '') as process_group_code
   FROM production_plan_master pm
-    LEFT JOIN employees e ON pm.writer_id = e.employee_id
     LEFT JOIN production_plan_detail pd ON pm.plan_id = pd.plan_id
     LEFT JOIN product p ON pd.product_code = p.product_code
     LEFT JOIN process_group pg ON p.product_code = pg.product_code
@@ -112,7 +107,7 @@ const getProdPlanInfo = `
   ORDER BY pd.plan_detail_id
 `;
 
-// 5. 생산계획 제품 목록 조회 - plan_priority 제거
+// 5. 생산계획 제품 목록 조회
 const getProdPlanProducts = `
   SELECT 
     pd.plan_detail_id,
@@ -131,7 +126,7 @@ const getProdPlanProducts = `
   ORDER BY pd.plan_detail_id
 `;
 
-// 6. 생산계획 목록 조회 (불러오기용) - plan_priority 제거
+// 6. 생산계획 목록 조회 (불러오기용) - employee_name으로 변경
 const getProdPlanList = `
   SELECT 
     pm.plan_id,
@@ -141,8 +136,7 @@ const getProdPlanList = `
     pm.plan_start_dt, 
     pm.plan_end_dt, 
     pm.plan_remark,
-    pm.plan_status,
-    e.employee_name as writer_name,
+    pm.employee_name as writer_name,
     CONCAT(
       COALESCE(
         (SELECT p2.product_name 
@@ -161,7 +155,6 @@ const getProdPlanList = `
     ) as product_summary,
     COALESCE((SELECT SUM(pd5.plan_qty) FROM production_plan_detail pd5 WHERE pd5.plan_id = pm.plan_id), 0) as total_qty
   FROM production_plan_master pm
-    LEFT JOIN employees e ON pm.writer_id = e.employee_id
   WHERE (? = '' OR pm.plan_id LIKE CONCAT('%', ?, '%')
                OR COALESCE(pm.plan_name, '') LIKE CONCAT('%', ?, '%')
                OR COALESCE(pm.plan_remark, '') LIKE CONCAT('%', ?, '%'))
@@ -175,7 +168,6 @@ const getProdPlanOrderInfo = `
     om.account_id,
     om.order_date,
     om.delivery_date,
-    om.status,
     om.remarks,
     om.reg_date,
     om.created_by,
@@ -184,25 +176,25 @@ const getProdPlanOrderInfo = `
   WHERE om.order_id = ?
 `;
 
-// 8. 주문 제품 목록 조회
+// 8. 주문 제품 목록 조회 
 const getProdPlanOrderProducts = `
   SELECT 
     od.order_detail_id,
     od.order_id,
     od.product_code,
     od.order_qty,
-    od.order_date,
-    od.delivery_date,
-    od.progress_status,
     od.delivery_qty,
     od.remain_qty,
     od.remarks,
     od.reg_date,
+    om.order_date,      -- order_master에서 가져옴
+    om.delivery_date,   -- order_master에서 가져옴
     p.product_name,
     p.product_unit,
     p.product_stand,
     COALESCE(pg.process_group_code, '') as process_group_code
   FROM order_detail od
+    LEFT JOIN order_master om ON od.order_id = om.order_id  -- JOIN 추가
     LEFT JOIN product p ON od.product_code = p.product_code
     LEFT JOIN process_group pg ON p.product_code = pg.product_code
   WHERE od.order_id = ?
@@ -219,16 +211,16 @@ const generateProdPlanId = `
   WHERE plan_id LIKE CONCAT('PL', DATE_FORMAT(NOW(), '%Y%m%d'), '%')
 `;
 
-// 10. 생산계획 마스터 저장 (신규/수정 통합)
+// 10. 생산계획 마스터 저장 (신규/수정 통합) - employee_name으로 변경
 const saveProdPlan = `
   INSERT INTO production_plan_master (
-    plan_id, plan_name, order_id, writer_id, plan_reg_dt,
-    plan_start_dt, plan_end_dt, plan_remark, plan_status
-  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, '대기')
+    plan_id, plan_name, order_id, employee_name, plan_reg_dt,
+    plan_start_dt, plan_end_dt, plan_remark
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   ON DUPLICATE KEY UPDATE
     plan_name = VALUES(plan_name),
     order_id = VALUES(order_id),
-    writer_id = VALUES(writer_id),
+    employee_name = VALUES(employee_name),
     plan_reg_dt = VALUES(plan_reg_dt),
     plan_start_dt = VALUES(plan_start_dt),
     plan_end_dt = VALUES(plan_end_dt),
@@ -244,9 +236,53 @@ const insertProdPlanProduct = `
   ) VALUES (?, ?, ?);
 `;
 
+// 12. 생산계획 통합조회 목록 - employee_name으로 변경
+const getProdPlanIntegratedList = `
+  SELECT 
+    pm.plan_id,
+    pm.plan_name,
+    pm.order_id,
+    pm.plan_reg_dt,
+    pm.plan_start_dt,
+    pm.plan_end_dt,
+    pm.plan_remark,
+    pm.employee_name,
+    pm.employee_name as writer_name,
+    
+    -- 제품 정보 (제품명과 수량 포함)
+    COALESCE(
+      (SELECT GROUP_CONCAT(
+        CONCAT(p2.product_name, '(', pd2.plan_qty, ')')
+        ORDER BY pd2.plan_detail_id
+        SEPARATOR ', '
+      )
+      FROM production_plan_detail pd2 
+      LEFT JOIN product p2 ON pd2.product_code = p2.product_code 
+      WHERE pd2.plan_id = pm.plan_id),
+      '제품없음'
+    ) as product_summary,
+    
+    -- 전체 계획수량 합계
+    COALESCE(
+      (SELECT SUM(pd3.plan_qty) FROM production_plan_detail pd3 WHERE pd3.plan_id = pm.plan_id), 
+      0
+    ) as total_qty
 
-
-
+  FROM production_plan_master pm
+  WHERE 1=1
+    AND (? = '' OR pm.plan_id LIKE CONCAT('%', ?, '%'))
+    AND (? = '' OR COALESCE(pm.plan_name, '') LIKE CONCAT('%', ?, '%'))
+    AND (? = '' OR EXISTS (
+      SELECT 1 FROM production_plan_detail pd
+      LEFT JOIN product p ON pd.product_code = p.product_code
+      WHERE pd.plan_id = pm.plan_id 
+      AND COALESCE(p.product_name, '') LIKE CONCAT('%', ?, '%')
+    ))
+    AND (? = '' OR DATE(pm.plan_reg_dt) >= ?)
+    AND (? = '' OR DATE(pm.plan_reg_dt) <= ?)
+    
+  ORDER BY pm.plan_reg_dt DESC, pm.plan_id DESC
+`;
 
 // 모든 쿼리 객체 내보내기
 module.exports = {
@@ -269,4 +305,7 @@ module.exports = {
   
   // 번호 생성
   generateProdPlanId,
+
+  // 조회 페이지
+  getProdPlanIntegratedList,
 };
