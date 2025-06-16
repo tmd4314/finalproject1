@@ -1,15 +1,26 @@
+// stores/equipment-inspection.ts
 import { defineStore } from 'pinia'
 
 export interface InspectionPart {
   inspect_part_id: number
   inspect_part_name: string
+  eq_type_code: string
+}
+
+// 점검 결과를 위한 인터페이스 (inspect_part_name 제거)
+export interface InspectionPartResult {
+  inspect_part_id: number
+  is_checked: boolean
+  result_code: string
+  inspection_remark: string
+  confirmer_id: number | null
 }
 
 export interface InspectionData {
   operator_id: number | null
   equipment_name: string
   inspection_type_code: string
-  checked_parts: InspectionPart[]
+  checked_parts: InspectionPartResult[]  // InspectionPart 대신 InspectionPartResult 사용
   result_code: string
   inspection_remark: string
   confirmer_id: number | null

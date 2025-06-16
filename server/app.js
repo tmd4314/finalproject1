@@ -44,6 +44,8 @@ const commonCodeRouter = require('./routers/commonCodeRouter');
 
 const equipmentRouter = require('./routers/equipmentRouter');
 
+const equipmentInspectionRouter = require('./routers/equipmentInspectionRouter');
+
 const materialRouter =require('./routers/materialRouter.js');
 
 const processRouter =require('./routers/processRouter.js');
@@ -109,7 +111,7 @@ app.use('/equipments', equipmentRouter);
 app.use('/common-codes', commonCodeRouter);
 app.use('/img', express.static('../client/public/img'));
 app.use('/uploads', express.static('./uploads'));
-app.use('/equipment-inspection', inspectionRouter);
+app.use('/equipment-inspection', equipmentInspectionRouter);
 
 //현석
 app.use('/lines', lineRouter);

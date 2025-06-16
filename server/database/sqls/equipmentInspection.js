@@ -5,9 +5,8 @@ module.exports = {
   insertInspectionLog: `
     INSERT INTO equipment_inspection_log (
       eq_id, operator_id, inspection_type_code, status_code,
-      start_time, end_time, result_code, inspection_remark,
-      confirmer_id, is_completed
-    ) VALUES (?, ?, ?, ?, ?, null, null, null, null, false)
+      start_time, is_completed
+    ) VALUES (?, ?, ?, 'p2', ?, false)
   `,
 
   // 점검 완료 업데이트
@@ -17,7 +16,7 @@ module.exports = {
         result_code = ?,
         inspection_remark = ?,
         confirmer_id = ?,
-        status_code = ?,
+        status_code = 'p3',
         is_completed = true
     WHERE inspection_log_id = ?
   `,
@@ -29,7 +28,7 @@ module.exports = {
     ) VALUES (?, ?, ?)
   `,
 
-  // 점검 항목 조회
+  // 설비별 점검 항목 조회
   selectInspectionPartsByType: `
     SELECT 
       inspect_part_id,
@@ -40,7 +39,30 @@ module.exports = {
     ORDER BY inspect_part_id
   `,
 
-  // 진행 중 점검 조회
+  // 직원 목록 조회 (점검 모듈에서 직접 처리)
+  selectEmployeesForInspection: `
+    SELECT 
+      employee_id,
+      employee_name
+    FROM employees
+    ORDER BY employee_name ASC
+  `,
+
+  // 설비 상태 업데이트 (점검 시작 시 정지로 변경)
+  updateEquipmentStatusToStop: `
+    UPDATE equipment
+    SET eq_run_code = 's3'
+    WHERE eq_id = ?
+  `,
+
+  // 설비 상태 업데이트 (점검 완료 시 가동대기중으로 변경)
+  updateEquipmentStatusToStandby: `
+    UPDATE equipment
+    SET eq_run_code = 's2'
+    WHERE eq_id = ?
+  `,
+
+  // 진행 중인 점검 조회
   selectInProgressInspection: `
     SELECT 
       inspection_log_id,
@@ -48,13 +70,10 @@ module.exports = {
       operator_id,
       inspection_type_code,
       status_code,
-      start_time,
-      result_code,
-      inspection_remark,
-      confirmer_id
+      start_time
     FROM equipment_inspection_log
     WHERE eq_id = ?
-      AND is_completed = FALSE
+      AND is_completed = false
       AND status_code = 'p2'
     ORDER BY inspection_log_id DESC
     LIMIT 1
@@ -66,6 +85,7 @@ module.exports = {
       eil.inspection_log_id,
       eil.eq_id,
       eil.operator_id,
+      e.employee_name AS operator_name,
       eil.inspection_type_code,
       cc1.code_label AS inspection_type_name,
       eil.status_code,
@@ -76,51 +96,16 @@ module.exports = {
       cc3.code_label AS result_name,
       eil.inspection_remark,
       eil.confirmer_id,
-      eil.is_completed,
-      e1.emp_name AS operator_name,
-      e2.emp_name AS confirmer_name
+      ec.employee_name AS confirmer_name,
+      eil.is_completed
     FROM equipment_inspection_log eil
+    LEFT JOIN employees e ON e.employee_id = eil.operator_id
+    LEFT JOIN employees ec ON ec.employee_id = eil.confirmer_id
     LEFT JOIN common_code cc1 ON cc1.code_group = '0N' AND cc1.code_value = eil.inspection_type_code
     LEFT JOIN common_code cc2 ON cc2.code_group = '0P' AND cc2.code_value = eil.status_code
     LEFT JOIN common_code cc3 ON cc3.code_group = '0J' AND cc3.code_value = eil.result_code
-    LEFT JOIN employee e1 ON e1.emp_id = eil.operator_id
-    LEFT JOIN employee e2 ON e2.emp_id = eil.confirmer_id
     WHERE eil.eq_id = ?
     ORDER BY eil.inspection_log_id DESC
-  `,
-
-  // 설비 가동상태: 유지보수 작업상태 테이블 업데이트
-  updateMaintenanceStatus: `
-    INSERT INTO eq_maintenance_status (eq_id, work_code, work_status_code, updated_at)
-    VALUES (?, ?, ?, ?)
-    ON DUPLICATE KEY UPDATE 
-      work_code = VALUES(work_code),
-      work_status_code = VALUES(work_status_code),
-      updated_at = VALUES(updated_at)
-  `,
-
-  // 현재 작업 중인지 확인 (work_log 테이블이 없다면 이 쿼리는 제거)
-  selectActiveWorkByEqId: `
-    SELECT 
-      ems.eq_id,
-      ems.work_code,
-      ems.work_status_code
-    FROM eq_maintenance_status ems
-    WHERE ems.eq_id = ?
-      AND ems.work_status_code = 'p2'
-    ORDER BY ems.updated_at DESC
-    LIMIT 1
-  `,
-
-  // 설비 테이블 가동 상태 업데이트
-  updateEquipmentRunCode: `
-    UPDATE equipment
-    SET eq_run_code = ?
-    WHERE eq_id = ?
-  `,
-
-  // 직원 드롭다운용
-  selectEmployeesForDropdown: `
-    SELECT emp_id, emp_name FROM employee ORDER BY emp_name ASC
+    LIMIT 10
   `
 }
