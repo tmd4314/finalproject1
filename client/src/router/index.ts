@@ -231,13 +231,13 @@ const routes: Array<RouteRecordRaw> = [
         component: RouteViewComponent,
         children: [
           {
-            name: 'pricing-plans',
-            path: 'pricing-plans',
+            name: 'product_arrival',
+            path: 'product_arrival',
             component: () => import('../pages/pricing-plans/PricingPlans.vue'),
           },
           {
-            name: 'billing',
-            path: 'billing',
+            name: 'product_delivery',
+            path: 'product_delivery',
             component: () => import('../pages/billing/BillingPage.vue'),
           },
         ],
