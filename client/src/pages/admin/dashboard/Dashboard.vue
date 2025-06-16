@@ -20,55 +20,13 @@
       <div v-else-if="isLoading" class="text-gray-500">
         사용자 정보를 불러오는 중...
       </div>
-      <div v-else class="text-amber-600">
-        <p class="mb-3">🔐 로그인이 필요합니다.</p>
-        <VaButton 
-          color="primary" 
-          @click="goToLogin"
-          class="mr-2"
-        >
-          로그인하기
-        </VaButton>
-      </div>
     </div>
 
-    <!-- 계정 관리 -->
-    <div class="p-4 bg-gray-50 rounded shadow-md">
-      <h2 class="text-xl font-semibold mb-2">🔧 계정 관리</h2>
-      <div v-if="user">
-        <VaButton 
-          color="danger" 
-          @click="handleLogout"
-          :loading="isLoggingOut"
-        >
-          로그아웃
-        </VaButton>
-      </div>
-      <div v-else>
-        <VaButton 
-          color="primary" 
-          @click="goToLogin"
-        >
-          로그인
-        </VaButton>
-      </div>
-    </div>
-
-    <!-- 다른 대시보드 내용들... -->
+    <!-- 대시보드 내용들... -->
     <div class="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       <div class="p-4 bg-blue-50 rounded shadow-md">
         <h3 class="text-lg font-semibold mb-2">📊 통계</h3>
         <p class="text-gray-600">여기에 통계 정보가 들어갑니다.</p>
-      </div>
-      
-      <div class="p-4 bg-green-50 rounded shadow-md">
-        <h3 class="text-lg font-semibold mb-2">📅 일정</h3>
-        <p class="text-gray-600">여기에 일정 정보가 들어갑니다.</p>
-      </div>
-      
-      <div class="p-4 bg-yellow-50 rounded shadow-md">
-        <h3 class="text-lg font-semibold mb-2">📋 작업</h3>
-        <p class="text-gray-600">여기에 작업 목록이 들어갑니다.</p>
       </div>
     </div>
   </div>
@@ -333,10 +291,6 @@ onUnmounted(() => {
 
 .dashboard-container .bg-green-50 {
   background-color: #f0fdf4;
-}
-
-.dashboard-container .bg-yellow-50 {
-  background-color: #fefce8;
 }
 
 .dashboard-container .bg-gray-50 {

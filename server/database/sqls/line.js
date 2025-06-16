@@ -109,7 +109,7 @@ module.exports = {
     ) VALUES (?, ?, ?, ?, ?, NOW(), ?, ?, ?, ?)
   `,
 
-  // 🔥 프론트엔드용 통합 라인 목록 (마스터 + 최신 상태 + 사원명)
+  // 🔥 프론트엔드용 통합 라인 목록 (마스터 + 최신 상태 + 사원명 + 작업결과 정보 + employee_id 추가)
   selectLineList: `
     SELECT
       m.line_masterid,
@@ -121,12 +121,18 @@ module.exports = {
       COALESCE(m.description, '') as description,
       COALESCE(latest.line_status, 'AVAILABLE') as line_status,
       COALESCE(e.employee_name, '') as employee_name,
+      COALESCE(latest.employee_id, NULL) as employee_id,
       COALESCE(latest.curr_work_no, '') as curr_work_no,
       COALESCE(latest.eq_name, '') as eq_name,
       COALESCE(latest.current_speed, 0) as current_speed,
       COALESCE(latest.target_qty, 0) as target_qty,
       DATE_FORMAT(m.reg_date, '%Y-%m-%d') as reg_date,
-      m.result_id
+      m.result_id,
+      -- 🔥 작업 결과 정보 추가 (work_result 조인)
+      COALESCE(wr.process_group_code, '') as process_group_code,
+      COALESCE(wr.result_remark, '') as result_remark,
+      COALESCE(wr.code_value, '') as code_value,
+      COALESCE(DATE_FORMAT(wr.work_start_date, '%Y-%m-%d %H:%i:%s'), '') as work_start_date
     FROM package_master m
     LEFT JOIN (
       SELECT 
@@ -141,10 +147,11 @@ module.exports = {
       FROM package_line
     ) latest ON m.line_masterid = latest.line_masterid AND latest.rn = 1
     LEFT JOIN tablets.employees e ON latest.employee_id = e.employee_id
+    LEFT JOIN tablets.work_result wr ON latest.curr_work_no = wr.work_order_no
     ORDER BY m.line_code ASC
   `,
 
-  // 라인 상세 (상태/실적 + 사원명)
+  // 라인 상세 (상태/실적 + 사원명 + 작업결과)
   selectLineDetail: `
     SELECT
       l.line_id,
@@ -157,13 +164,19 @@ module.exports = {
       l.current_speed,
       l.curr_work_no,
       l.target_qty,
-      DATE_FORMAT(l.reg_date, '%Y-%m-%d %H:%i:%s') as reg_date
+      DATE_FORMAT(l.reg_date, '%Y-%m-%d %H:%i:%s') as reg_date,
+      -- 🔥 작업 결과 정보 추가
+      wr.process_group_code,
+      wr.result_remark,
+      wr.code_value,
+      DATE_FORMAT(wr.work_start_date, '%Y-%m-%d %H:%i:%s') as work_start_date
     FROM package_line l
     LEFT JOIN tablets.employees e ON l.employee_id = e.employee_id
+    LEFT JOIN tablets.work_result wr ON l.curr_work_no = wr.work_order_no
     WHERE l.line_id = ?
   `,
 
-  // 라인 수정
+  // 🔥 라인 수정 - 단일 라인 ID 기준으로 수정
   updateLine: `
     UPDATE package_line SET
       pkg_type = ?,
@@ -181,7 +194,7 @@ module.exports = {
     DELETE FROM package_line WHERE line_id = ?
   `,
 
-  // 라인/마스터 join 상세 조회
+  // 라인/마스터 join 상세 조회 (작업결과 포함)
   selectLineWithMaster: `
     SELECT
       l.*,
@@ -191,14 +204,20 @@ module.exports = {
       m.eq_group_code,
       m.line_type,
       m.max_capacity,
-      m.description
+      m.description,
+      -- 🔥 작업 결과 정보 추가
+      wr.process_group_code,
+      wr.result_remark,
+      wr.code_value,
+      DATE_FORMAT(wr.work_start_date, '%Y-%m-%d %H:%i:%s') as work_start_date
     FROM package_line l
     JOIN package_master m ON l.line_masterid = m.line_masterid
     LEFT JOIN tablets.employees e ON l.employee_id = e.employee_id
+    LEFT JOIN tablets.work_result wr ON l.curr_work_no = wr.work_order_no
     WHERE l.line_id = ?
   `,
 
-  // 특정 마스터 라인 코드로 상태 조회
+  // 🔥 특정 마스터 라인 코드로 최신 상태 조회 (수정됨)
   selectLineStatusByMasterId: `
     SELECT
       l.*,
@@ -206,16 +225,31 @@ module.exports = {
       m.line_code as master_line_id,
       m.line_name,
       m.line_type,
-      m.max_capacity
+      m.max_capacity,
+      wr.process_group_code,
+      wr.result_remark,
+      wr.code_value,
+      DATE_FORMAT(wr.work_start_date, '%Y-%m-%d %H:%i:%s') as work_start_date
     FROM package_line l
     JOIN package_master m ON l.line_masterid = m.line_masterid
     LEFT JOIN tablets.employees e ON l.employee_id = e.employee_id
+    LEFT JOIN tablets.work_result wr ON l.curr_work_no = wr.work_order_no
     WHERE m.line_code = ?
-    ORDER BY l.reg_date DESC
+    ORDER BY l.reg_date DESC, l.line_id DESC
     LIMIT 1
   `,
 
-  // 라인 상태 업데이트 (특정 마스터 라인의 최신 상태만)
+  // 🔥 최신 라인 상태 ID 조회 (새로운 쿼리 추가)
+  selectLatestLineIdByMasterId: `
+    SELECT pl.line_id 
+    FROM package_line pl 
+    JOIN package_master pm ON pl.line_masterid = pm.line_masterid 
+    WHERE pm.line_code = ?
+    ORDER BY pl.reg_date DESC, pl.line_id DESC
+    LIMIT 1
+  `,
+
+  // 🔥 마스터 라인 코드로 최신 라인 상태 업데이트 (수정됨)
   updateLineByMasterId: `
     UPDATE package_line 
     SET 
@@ -226,19 +260,66 @@ module.exports = {
       current_speed = ?,
       curr_work_no = ?,
       target_qty = ?
-    WHERE line_masterid = (SELECT line_masterid FROM package_master WHERE line_code = ?)
-      AND line_id = (
-        SELECT MAX(pl.line_id) 
+    WHERE line_id = (
+      SELECT latest_line_id FROM (
+        SELECT pl.line_id as latest_line_id
         FROM package_line pl 
         JOIN package_master pm ON pl.line_masterid = pm.line_masterid 
         WHERE pm.line_code = ?
-      )
+        ORDER BY pl.reg_date DESC, pl.line_id DESC
+        LIMIT 1
+      ) AS latest_line
+    )
   `,
 
-  // 라인 상태 삭제 (마스터 라인 코드 기준)
+  // 🔥 라인 상태 삭제 (마스터 라인 코드 기준) - 모든 관련 상태 삭제
   deleteLineByMasterId: `
-    DELETE FROM package_line 
-    WHERE line_masterid = (SELECT line_masterid FROM package_master WHERE line_code = ?)
+    DELETE pl FROM package_line pl
+    JOIN package_master pm ON pl.line_masterid = pm.line_masterid
+    WHERE pm.line_code = ?
+  `,
+
+  // ========== 담당자 관리 ==========
+
+  // 🔥 사용 가능한 담당자 목록 조회 (새로 추가)
+  selectAvailableEmployees: `
+    SELECT 
+      employee_id,
+      employee_name
+    FROM tablets.employees
+    ORDER BY employee_name ASC
+  `,
+
+  // ========== 작업결과 관리 ==========
+
+  // 🔥 사용 가능한 작업 결과 목록 조회
+  selectAvailableWorkResults: `
+    SELECT 
+      work_order_no,
+      process_group_code,
+      result_remark,
+      code_value,
+      DATE_FORMAT(work_start_date, '%Y-%m-%d %H:%i:%s') as work_start_date
+    FROM tablets.work_result
+    WHERE work_order_no NOT IN (
+      SELECT DISTINCT curr_work_no 
+      FROM package_line 
+      WHERE curr_work_no IS NOT NULL AND curr_work_no != ''
+      AND line_status = 'WORKING'
+    )
+    ORDER BY work_start_date DESC, work_order_no DESC
+  `,
+
+  // 🔥 특정 작업 결과 상세 조회
+  selectWorkResultDetail: `
+    SELECT 
+      work_order_no,
+      process_group_code,
+      result_remark,
+      code_value,
+      DATE_FORMAT(work_start_date, '%Y-%m-%d %H:%i:%s') as work_start_date
+    FROM tablets.work_result
+    WHERE work_order_no = ?
   `,
 
   // ========== 통계 쿼리 ==========
@@ -264,7 +345,7 @@ module.exports = {
     ORDER BY line_status
   `,
 
-  // 현재 작업 중인 라인 목록
+  // 현재 작업 중인 라인 목록 (작업결과 포함)
   selectWorkingLines: `
     SELECT
       m.line_code,
@@ -274,16 +355,27 @@ module.exports = {
       l.curr_work_no,
       l.target_qty,
       l.current_speed,
-      DATE_FORMAT(l.reg_date, '%Y-%m-%d %H:%i:%s') as work_start_time
+      DATE_FORMAT(l.reg_date, '%Y-%m-%d %H:%i:%s') as work_start_time,
+      wr.process_group_code,
+      wr.result_remark,
+      wr.code_value,
+      DATE_FORMAT(wr.work_start_date, '%Y-%m-%d %H:%i:%s') as work_order_start_date
     FROM package_master m
-    JOIN package_line l ON m.line_masterid = l.line_masterid
+    JOIN (
+      SELECT 
+        line_masterid,
+        line_status,
+        employee_id,
+        curr_work_no,
+        target_qty,
+        current_speed,
+        reg_date,
+        ROW_NUMBER() OVER (PARTITION BY line_masterid ORDER BY reg_date DESC, line_id DESC) as rn
+      FROM package_line
+      WHERE line_status = 'WORKING'
+    ) l ON m.line_masterid = l.line_masterid AND l.rn = 1
     LEFT JOIN tablets.employees e ON l.employee_id = e.employee_id
-    WHERE l.line_status = 'WORKING'
-      AND l.line_id = (
-        SELECT MAX(pl.line_id) 
-        FROM package_line pl 
-        WHERE pl.line_masterid = l.line_masterid
-      )
+    LEFT JOIN tablets.work_result wr ON l.curr_work_no = wr.work_order_no
     ORDER BY l.reg_date DESC
   `
 };

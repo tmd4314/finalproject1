@@ -284,10 +284,10 @@
       <!-- 뒤로가기 -->
       <div class="navigation-actions">
         <button @click="goBackToPackageTypeSelection" class="back-btn">
-          ← 포장 타입 선택으로 돌아가기
+          포장 타입 선택으로 돌아가기
         </button>
         <button @click="goBackToLineAdd" class="back-btn secondary">
-          🔧 라인 관리로 이동
+          라인 관리로 이동
         </button>
       </div>
     </div>
