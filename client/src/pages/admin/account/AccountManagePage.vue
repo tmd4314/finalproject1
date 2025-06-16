@@ -31,28 +31,12 @@
             />
           </div>
           <div class="filter-item">
-            <label>사업자 번호</label>
+            <label>거래처 구분</label>
             <va-select
-              v-model="filters.businessNo"
-              :options="businessNoOptions"
-              placeholder="전체"
-              clearable
-            />
-          </div>
-          <div class="filter-item">
-            <label>담당자</label>
-            <va-select
-              v-model="filters.manager"
-              :options="managerOptions"
-              placeholder="전체"
-              clearable
-            />
-          </div>
-          <div class="filter-item">
-            <label>연락처</label>
-            <va-select
-              v-model="filters.phone"
-              :options="phoneOptions"
+              v-model="filters.accountType"
+              :options="accountTypeOptions"
+              value-by="value"
+              text-by="text"
               placeholder="전체"
               clearable
             />
@@ -384,9 +368,10 @@ const loading = ref(false)
 // 필터 상태
 const filters = ref({
   accountName: '',
-  businessNo: '',
-  manager: '',
-  phone: ''
+  businessNo: '', // 안 써용
+  manager: '', // 안 써용
+  phone: '', // 안 써용
+  accountType: ''
 })
 
 // 폼 데이터
@@ -416,6 +401,10 @@ const accountNameOptions = ref<string[]>([])
 const businessNoOptions = ref<string[]>([])
 const managerOptions = ref<string[]>([])
 const phoneOptions = ref<string[]>([])
+const accountTypeOptions = ref([
+  { text: '고객사', value: 'customer' },
+  { text: '공급사', value: 'supplier' },
+])
 
 // 필터링된 거래처 목록
 const filteredAccounts = computed(() => {
@@ -428,9 +417,10 @@ const filteredAccounts = computed(() => {
     // 드롭다운 필터
     const matchesFilters = 
       (!filters.value.accountName || account.account_name === filters.value.accountName) &&
-      (!filters.value.businessNo || account.business_no === filters.value.businessNo) &&
-      (!filters.value.manager || account.charger_name === filters.value.manager) &&
-      (!filters.value.phone || account.phone === filters.value.phone)
+      (!filters.value.accountType || account.account_type === filters.value.accountType)
+      // (!filters.value.businessNo || account.business_no === filters.value.businessNo) &&
+      // (!filters.value.manager || account.charger_name === filters.value.manager) &&
+      // (!filters.value.phone || account.phone === filters.value.phone)
     
     return matchesSearch && matchesFilters
   })
@@ -719,20 +709,21 @@ watch(itemsPerPage, () => {
   padding: 20px;
   min-height: calc(100vh - 100px);
   background-color: #f5f5f5;
+  align-items: stretch;
 }
 
 /* 좌측 패널 */
 .account-list-panel {
   flex: 1;
-  min-width: 600px;
+  min-width: 800px;
   background: white;
   border-radius: 8px;
   padding: 24px;
   display: flex;
   flex-direction: column;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  height: fit-content;
-  max-height: calc(100vh - 140px);
+  height: auto;
+  max-height: 1025px;
 }
 
 .page-title {
@@ -753,7 +744,8 @@ watch(itemsPerPage, () => {
 }
 
 .search-input {
-  flex: 1;
+  width: 100%;
+  max-width: 248px;
 }
 
 .filter-row {
