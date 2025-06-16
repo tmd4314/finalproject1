@@ -12,11 +12,19 @@ router.get('/prodResult/:result_id', async (req, res) => {
 
 router.post('/prodResult', async (req, res) => {
   try {
-    const { products } = req.body;
+    const { master, products } = req.body;
+    
+    if (!master) {
+      return res.status(400).json({ 
+        error: '마스터 정보가 필요합니다.' 
+      });
+    }
 
+    // console.log(master);
     // console.log(products);
 
     const result = await prodResultService.saveWorkResult({
+      master,
       products: products || []
     });
     
