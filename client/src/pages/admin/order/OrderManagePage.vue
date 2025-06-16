@@ -21,35 +21,55 @@
             <th>거래처명</th>
             <th>주문일</th>
             <th>납기일</th>
-            <th>제품명</th>
-            <th>규격</th>
-            <th>수량</th>
-            <th>제품코드</th>
             <th>상태</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-if="orders.length === 0">
-            <td colspan="8" class="no-data">데이터가 없습니다.</td>
-          </tr>
-          <tr v-for="order in filteredOrders" :key="order.order_id">
-            <td>{{ order.order_id }}</td>
-            <td>{{ order.account_name }}</td>
-            <td>{{ formatDate(order.order_date) }}</td>
-            <td>{{ formatDate(order.delivery_date) }}</td>
-            <td>{{ order.product_name }}</td>
-            <td>{{ order.product_stand }}</td>
-            <td>{{ order.order_qty }}</td>
-            <td>{{ order.product_code }}</td>
-            <td>
-              <va-chip :color="getStatusColor(order.status)" size="small">
-                {{ order.status }}
-              </va-chip>
-            </td>
-          </tr>
+          <template v-for="order in groupedOrders" :key="order.orderId">
+            <!-- 주문 헤더 행 -->
+            <tr @click="toggleOrder(order.orderId)" class="order-header-row">
+              <td>{{ order.orderId }}</td>
+              <td>{{ order.customerName }}</td>
+              <td>{{ formatDateToYMD(order.orderDate) }}</td>
+              <td>{{ formatDateToYMD(order.deliveryDate) }}</td>
+              <td>
+                <va-chip :color="getStatusColor(order.status)" size="small">
+                  {{ order.status }}
+                </va-chip>
+              </td>
+            </tr>
+            
+            <!-- 제품 목록 행 (펼쳐질 때만 표시) -->
+          <Transition name="accordion">
+            <tr v-if="expandedOrders.includes(order.orderId)" class="product-details-row">
+              <td colspan="5">
+                <table class="product-table">
+                  <thead>
+                    <tr>
+                      <th>제품명</th>
+                      <th>규격</th>
+                      <th>수량</th>
+                      <th>제품코드</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="item in order.items" :key="item.productCode">
+                      <td>{{ item.productName }}</td>
+                      <td>{{ item.productStand }}</td>
+                      <td>{{ item.quantity }}</td>
+                      <td>{{ item.productCode }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </td>
+            </tr>
+            </Transition>
+          </template>
         </tbody>
       </table>
     </div>
+
+
 
     <!-- 주문 등록/수정 폼 -->
     <div class="form-section">
@@ -180,6 +200,75 @@ const searchText = ref('')
 const showForm = ref(false)
 const editMode = ref(false)
 const selectedOrderId = ref<string | null>(null)
+
+// 날짜 포맷팅
+const formatDateToYMD = (date: string | Date): string => {
+  const d = new Date(date);
+  const year = d.getFullYear();
+  const month = ('0' + (d.getMonth() + 1)).slice(-2);
+  const day = ('0' + d.getDate()).slice(-2);
+  return `${year}-${month}-${day}`;
+}
+
+
+
+// 펼쳐진 주문 목록 관리
+const expandedOrders = ref<number[]>([])
+
+// 주문 펼치기/접기 토글 함수
+const toggleOrder = (orderId: number) => {
+  const index = expandedOrders.value.indexOf(orderId)
+  if (index > -1) {
+    expandedOrders.value.splice(index, 1) // 접기
+  } else {
+    expandedOrders.value.push(orderId) // 펼치기
+  }
+}
+
+// 같은 주문번호 그룹(아코디언)
+    interface OrderItem {
+      productName: string;
+      productStand: string;
+      quantity: number;
+      productCode: string;
+    }
+
+    interface GroupedOrder {
+      orderId: number;
+      customerName: string;
+      orderDate: string;
+      deliveryDate: string;
+      status: string;
+      items: OrderItem[];
+    }
+
+    const groupedOrders = computed<GroupedOrder[]>(() => {
+      const grouped: Record<string, GroupedOrder> = {};
+
+      filteredOrders.value.forEach(order => {
+        const orderId = order.order_id;
+
+        if (!grouped[orderId]) {
+          grouped[orderId] = {
+            orderId: orderId,
+            customerName: order.account_name,
+            orderDate: order.order_date,
+            deliveryDate: order.delivery_date,
+            status: order.status,
+            items: []
+          };
+        }
+
+        grouped[orderId].items.push({
+          productName: order.product_name,
+          productStand: order.product_stand,
+          quantity: order.order_qty,
+          productCode: order.product_code
+        });
+      });
+
+      return Object.values(grouped);
+    });
 
 // 폼 데이터
 const form = ref({
@@ -469,7 +558,8 @@ async function saveOrder() {
         orderPrice: computedOrderPrices.value[index]
       }))
     }
-    
+
+
     console.log('저장할 데이터:', orderData)
     try {
     if (editMode.value) {
@@ -684,4 +774,74 @@ h1 {
     align-items: stretch;
   }
 }
+
+.order-header-row {
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.order-header-row:hover {
+  background-color: #f5f5f5;
+}
+
+.product-details-row {
+  background-color: #fafafa;
+}
+
+.product-details-content {
+  overflow: hidden;
+}
+
+/* 제품목록 흘러내리는 애니메이션 */
+.accordion-enter-active {
+  animation: slideDown 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.accordion-leave-active {
+  animation: slideUp 0.3s cubic-bezier(0.55, 0.085, 0.68, 0.53);
+}
+
+@keyframes slideDown {
+  0% {
+    max-height: 0;
+    opacity: 0;
+    transform: scaleY(0);
+    transform-origin: top;
+  }
+  100% {
+    max-height: 400px;
+    opacity: 1;
+    transform: scaleY(1);
+    transform-origin: top;
+  }
+}
+
+@keyframes slideUp {
+  0% {
+    max-height: 400px;
+    opacity: 1;
+    transform: scaleY(1);
+    transform-origin: top;
+  }
+  100% {
+    max-height: 0;
+    opacity: 0;
+    transform: scaleY(0);
+    transform-origin: top;
+  }
+}
+
+.product-table {
+  width: 100%;
+  margin: 10px 0;
+}
+
+.product-table th,
+.product-table td {
+  padding: 8px;
+  text-align: left;
+  border-bottom: 1px solid #ddd;
+}
+
+
 </style>

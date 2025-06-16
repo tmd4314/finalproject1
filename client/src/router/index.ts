@@ -238,6 +238,11 @@ const routes: Array<RouteRecordRaw> = [
         component: RouteViewComponent,
         children: [
           { 
+            name: 'employee-management', 
+            path: 'employee-management', 
+            component: () => import('../pages/admin/employee/EmployeeManagePage.vue') 
+          },
+          { 
             name: 'product-management', 
             path: 'product-management', 
             component: () => import('../pages/product/ProductPage.vue') 

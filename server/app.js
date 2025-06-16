@@ -73,6 +73,8 @@ const prodPlanRouter = require('./routers/prodPlanRouter.js');
 
 const deliveryRouter = require('./routers/deliveryRouter.js');
 
+const employeeRouter = require('./routers/employeeRouter.js')
+
 
  // 기본 라우팅
 app.get('/', (req, res)=>{
@@ -87,6 +89,7 @@ app.get('/', (req, res)=>{
  //홍인
 app.use('/api/orders', orderRouter);
 app.use('/', accountRouter);
+app.use('/', employeeRouter);
 
 //다산
 app.use('/bom', bomRouter);
