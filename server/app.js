@@ -73,6 +73,8 @@ const prodPlanRouter = require('./routers/prodPlanRouter.js');
 
 const deliveryRouter = require('./routers/deliveryRouter.js');
 
+const materialInspectionRouter = require('./routers/materialInspectionRouter.js');
+
 
  // 기본 라우팅
 app.get('/', (req, res)=>{
@@ -118,4 +120,5 @@ app.use('/packages', packageRouter);
 
 //현기
 app.use('/inspections', inspectionRouter);
+app.use('/materialInspections', materialInspectionRouter);
 app.use('/defects', defectRouter);

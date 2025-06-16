@@ -17,7 +17,7 @@
 
       <div class="input-row">
         <va-input v-model="form.inspCode" label="항목코드" class="quarter-width" />
-        <va-select v-model="form.inspName" :options="processOptions" label="공정명" class="quarter-width"/>
+        <va-select v-model="form.inspName" :options="processOptions" label="항목명" class="quarter-width"/>
         <va-input v-model="form.inspValueType" label="판정방식" class="quarter-width" />
       </div>
       <div class="input-row">
@@ -252,7 +252,6 @@ onMounted(() => {
   })
 })
 </script>
-
 <style scoped>
 /* 전체 레이아웃 */
 .product-page {
