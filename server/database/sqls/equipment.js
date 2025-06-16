@@ -23,6 +23,8 @@ selectEquipmentList: `
     e.eq_floor_code, 
     e.eq_room_code,
     e.eq_run_code,
+    e.work_code,
+    e.work_status_code,
     DATE_FORMAT(e.eq_manufacture_date, '%Y-%m-%d') as eq_manufacture_date,
     DATE_FORMAT(e.eq_registration_date, '%Y-%m-%d') as eq_registration_date, 
     e.eq_manufacturer, 
@@ -33,6 +35,8 @@ selectEquipmentList: `
     (SELECT code_label FROM common_code WHERE code_value = e.eq_factory_code AND code_group = '0F') as factory_name,
     (SELECT code_label FROM common_code WHERE code_value = e.eq_floor_code AND code_group = '0L') as floor_name,
     (SELECT code_label FROM common_code WHERE code_value = e.eq_room_code AND code_group = '0M') as room_name,
+    (SELECT code_label FROM common_code WHERE code_value = e.work_code AND code_group = '0W') as work_type_label,
+    (SELECT code_label FROM common_code WHERE code_value = e.work_status_code AND code_group = '0P') as work_status_label,
     (SELECT DATE_FORMAT(MAX(eil.end_time), '%Y-%m-%d')
      FROM equipment_inspection_log eil 
      WHERE eil.eq_id = e.eq_id 

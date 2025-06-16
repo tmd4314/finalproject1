@@ -1,6 +1,8 @@
+//server/routers/equipmentInspectionRouter.js
+
 const express = require('express')
 const router = express.Router()
-const inspectionService = require('../services/inspectionService')
+const inspectionService = require('../services/equipmentInspectionService')
 
 // 점검 시작
 router.post('/start', async (req, res) => {
@@ -47,7 +49,7 @@ router.get('/parts/:eqTypeCode', async (req, res) => {
   }
 })
 
-// 사원 목록 조회 (직접 쿼리)
+// 사원 목록 조회 (점검 모듈에서 직접 처리)
 router.get('/employees', async (req, res) => {
   try {
     const result = await inspectionService.getEmployeesDirect()
