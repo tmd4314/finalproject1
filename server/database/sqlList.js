@@ -44,7 +44,7 @@ const auth = require('./sqls/auth.js');
      ...purchaseOrder,
      ...prodPlan,
      ...delivery,
-     ...prodResult
+     ...prodResult,
      ...auth,
  }
 

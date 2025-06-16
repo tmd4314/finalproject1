@@ -1,3 +1,13 @@
+const insertResult =
+` INSERT INTO work_result (
+                           result_id,
+                           process_group_code,
+                           work_order_no,
+                           work_start_date) 
+  VALUES (?, ?, ?, ?)
+`
+;
+
 const selectResultList = 
 `
   SELECT DISTINCT
@@ -32,10 +42,11 @@ const selectResultList =
   JOIN   common_code cd
     ON   wrd.code_value = cd.code_value
   WHERE  wm.work_order_no = ?
-  ORDER BY wrd.work_start_time
+  ORDER BY pc.process_code ASC;
 `
 ;
 
 module.exports = {
   selectResultList,
+  insertResult
 }

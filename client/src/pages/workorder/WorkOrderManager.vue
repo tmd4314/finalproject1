@@ -359,7 +359,10 @@ const saveWorkOrder = async () => {
     alert('작성자, 제품을 모두 입력해주세요.')
     return
   }
-
+  const now = new Date()
+  const yyyyMMdd = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`
+  const random = Math.floor(100 + Math.random() * 900)
+  const resultId = `RE${yyyyMMdd}${random}`
   try {
     const payload = {
       master: {
@@ -368,19 +371,27 @@ const saveWorkOrder = async () => {
         write_date: form.value.write_date,
         order_start_dt: form.value.order_start_dt || '',
         order_end_dt: form.value.order_end_dt || '',
-        order_remark: form.value.order_remark || ''
+        order_remark: form.value.order_remark || '',
+        work_start_date: form.value.order_start_dt || ''
       },
       products: form.value.products.map(product => ({
         product_code: product.product_code,
         work_order_qty: product.work_order_qty || null,
         work_order_priority: product.work_order_priority || null,
         order_detail_remark: product.order_detail_remark || '',
-        process_group_code: product.process_group_code || ''
+        process_group_code: product.process_group_code || '',
+      }))
+    }
+    const prodResultPayload = {
+      result_id: resultId,
+      work_order_date: form.value.order_start_dt,
+      products: form.value.products.map(product => ({
+        process_group_code: `${product.product_code}-Process`,
       }))
     }
 
     console.log('전송할 payload:', JSON.stringify(payload, null, 2))
-
+    console.log('전송할 payload:', prodResultPayload)
     let response
     if (isEditMode.value) {
       payload.master.work_order_no = form.value.work_order_no
@@ -388,10 +399,11 @@ const saveWorkOrder = async () => {
       alert('작업지시서 수정 완료')
     } else {
       response = await axios.post('/workOrder', payload)
+      res = await axios.post('/prodResult', payload)
       alert('작업지시서 등록 완료')
       
       // 신규 등록 시 서버에서 생성된 번호를 폼에 설정하고 수정 모드로 전환
-      if (response.data && response.data.work_order_no) {
+      if (response.data && response.data.work_order_no && res.data.work_order_no) {
         form.value.work_order_no = response.data.work_order_no
         isEditMode.value = true  // 수정 모드로 전환
       }
