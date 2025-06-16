@@ -4,3 +4,7 @@ FROM material
 ORDER BY material_name
 `
 ;
+
+module.exports = {
+  materialList
+}

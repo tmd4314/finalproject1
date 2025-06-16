@@ -1,137 +1,57 @@
 <template>
-  <div class="quality-page">
-    <div class="quality-container">
-      <h2 class="quality-title">품질 관리</h2>
-      <div class="quality-grid">
-        <!-- 제품 검색 필터 및 테이블 -->
-        <div class="quality-table">
-          <div class="quality-filters">
-            <va-input v-model="filters.name" label="제품명" class="filter-input" />
-            <va-input v-model="filters.code" label="작업지시번호" class="filter-input" />
-            <va-input v-model="filters.examiner" label="검사자" class="filter-input" />
-          </div>
-          <div style="margin-top: 0.5rem" class="quality-filters">
-            <va-date-input v-model="filters.date" label="검사일자" class="filter-input" />
-            <va-select v-model="filters.step" label="공정단계" class="filter-input" />
-            <va-input v-model="filters.examiner" label="수량" class="filter-spec-input" />
-          </div>
-          <va-data-table :items="filteredQualitys" :columns="columns" :per-page="10" :current-page.sync="page" />
-        </div>
+  <div class="product-form">
+    <h3 class="form-title">제품품질검사</h3>
+    <br>
+    <div class="form-section">
+      <h3 class="form-title">조회</h3>
+      <br>
+
+      <div class="input-row">
+        <va-select></va-select>
       </div>
-    </div>
-  </div>
+      <br>
+      </div>
+      </div>
+
+
+
 </template>
 
-
 <script lang="ts" setup>
-import { ref, computed } from 'vue'
-
-interface Quality {
-  code: string
-  name: string
-  examiner: string
-  unit: string
-}
-
-const qualitys = ref<Quality[]>([
-  { code: 'BJA-STD-10', name: '베아제정', examiner: '김길동', unit: '박스' },
-  { code: 'BJA-STD-30', name: '타이레놀', examiner: '박길동', unit: '플라스틱병' },
-])
-
-const columns = [
-  { key: 'name', label: '제품명' }, 
-  { key: 'code', label: '작업지시번호' },
-  { key: 'examiner', label: '검사자' },
-  { key: 'spec', label: '규격' },
-]
-
-const filters = ref({
-  code: '',
-  name: '',
-  examiner: '',
-  date: '',
-  step: '',
-})
-const page = ref(1)
-
-const filteredQualitys = computed(() => {
-  return qualitys.value.filter((q) =>
-    (!filters.value.code || q.code.includes(filters.value.code)) &&
-    (!filters.value.name || q.name.includes(filters.value.name))
-  )
-})
-
-const form = ref({
-  code: '',
-  name: '',
-  atc: '',
-  mainIngredient: '',
-  spec: '',
-  approval: '',
-  packType: '',
-  unit: '',
-  safety: '',
-})
-
-function resetForm() {
-  form.value = {
-    code: '', name: '', atc: '', mainIngredient: '', spec: '',
-    approval: '', packType: '', unit: '', safety: ''
-  }
-}
+import { ref, computed, onMounted } from 'vue'
+import axios from 'axios'
 
 </script>
 
 <style scoped>
-.quality-page {
+/* 전체 레이아웃 */
+.product-page {
   padding: 1.5rem;
   display: flex;
   justify-content: center;
-   height: 739px;
+  height: 739px;
 }
 
-.quality-container {
+.product-container {
   width: 1060px;
   height: 100%;
   display: flex;
   flex-direction: column;
 }
 
-.quality-title {
-  font-size: 1.25rem;
-  font-weight: bold;
-  margin-bottom: 1rem;
-}
-
-.quality-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  column-gap: 2.5rem;
-}
-
-.quality-table {
-  grid-column: span 2 / span 2;
-}
-
-.quality-filters {
-  display: flex;
-  gap: 1rem;
-  margin-bottom: 1rem;
-}
-
-.filter-input {
-  width: 33.333%;
-}
-
-.filter-spec-input {
-  width: 25%;
-}
-
-.quality-form {
-  background-color: white;
+.product-form {
   border-radius: 0.5rem;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);
   padding: 1rem;
+}
+
+/* 섹션 스타일 */
+.form-section {
+  border: 1px solid #ccc;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  background-color: white;
 }
 
 .form-title {
@@ -140,13 +60,58 @@ function resetForm() {
   margin-bottom: 0.5rem;
 }
 
-.va-input {
+/* 입력 행 정렬 */
+.input-row {
+  display: flex;
+  gap: 1rem;
   margin-bottom: 0.5rem;
 }
 
+/* 셀렉트 박스 기본 스타일 */
+select {
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 0.3rem 0.5rem;
+  font-size: 1rem;
+  outline: none;
+  box-sizing: border-box;
+}
+
+/* 너비 클래스 */
+.quarter-width {
+  flex: 1;
+}
+
+.half-width {
+  flex: 2;
+}
+
+/* 버튼 정렬 */
 .form-buttons {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
+  gap: 0.5rem;
   margin-top: 0.5rem;
+}
+
+/* 테이블 스타일 */
+.custom-table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: white;
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.custom-table th,
+.custom-table td {
+  padding: 0.75rem;
+  border-bottom: 1px solid #e0e0e0;
+  text-align: center;
+}
+
+.custom-table th {
+  background-color: #ffffff;
+  font-weight: bold;
 }
 </style>

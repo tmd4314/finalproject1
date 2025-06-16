@@ -237,7 +237,7 @@ export default {
       children: [
         {
           name: 'quality-management',
-          displayName: 'menu.품질관리',
+          displayName: 'menu.제품품질검사 등록',
         },
         {
           name: 'faulty-management',
