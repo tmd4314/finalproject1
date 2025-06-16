@@ -1,6 +1,6 @@
 module.exports = {
-  // 주문 목록(좌측 리스트)
-  getOrderList: `
+    // 주문 목록(좌측 리스트)
+    getOrderList: `
     SELECT om.order_id, 
            ac.account_name, 
            om.order_date, 
@@ -9,8 +9,8 @@ module.exports = {
     LEFT JOIN ACCOUNT ac ON om.account_id = ac.account_id
     ORDER BY om.order_id DESC
   `,
-  // 주문 기본정보(상세 우측 헤더)
-  getOrderDetail: `
+    // 주문 기본정보(상세 우측 헤더)
+    getOrderDetail: `
     SELECT om.order_id, 
            om.order_date, 
            om.delivery_date, 
@@ -24,11 +24,11 @@ module.exports = {
     LEFT JOIN ACCOUNT ac ON om.account_id = ac.account_id
     WHERE om.order_id = ?
   `,
-  // 주문 품목 리스트(상세 우측 하단)
-  getOrderItems: `
+    // 주문 품목 리스트(상세 우측 하단)
+    getOrderItems: `
     SELECT od.product_code, 
            p.product_name, 
-           p.product_atc, 
+           p.product_stand, 
            od.order_qty, 
            p.stock, 
            od.remarks
@@ -36,14 +36,15 @@ module.exports = {
     LEFT JOIN PRODUCT p ON od.product_code = p.product_code
     WHERE od.order_id = ?
   `,
-  // 주문+품목 목록(주문관리화면 상단)
-  getOrderListWithItems: `
+
+    // 주문+품목 목록(주문관리화면 상단)
+    getOrderListWithItems: `
     SELECT om.order_id, 
            ac.account_name, 
            om.order_date, 
            om.delivery_date,
            p.product_name, 
-           p.product_atc, 
+           p.product_stand, 
            od.order_qty, 
            od.product_code, 
            om.status
@@ -52,5 +53,34 @@ module.exports = {
     LEFT JOIN ORDER_DETAIL od ON om.order_id = od.order_id
     LEFT JOIN PRODUCT p ON od.product_code = p.product_code
     ORDER BY om.order_id DESC, od.order_detail_id
-  `
+  `,
+
+
+// 주문 마스터 등록
+insertOrderMaster: `
+  INSERT INTO order_master (
+    account_id,
+    order_date,
+    delivery_date,
+    status,
+    remarks,
+    created_by
+  ) VALUES (?, ?, ?, ?, ?, ?)
+`,
+
+// 주문 상세 등록
+insertOrderDetail: `
+  INSERT INTO order_detail (
+    order_id,
+    product_code,
+    order_qty,
+    order_price,
+    progress_status,
+    delivery_qty,
+    remain_qty,
+    remarks
+  ) VALUES(?, ?, ?, ?, ?, ?, ?, ?)
+`
+
+                     
 };
