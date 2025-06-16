@@ -257,12 +257,12 @@ export default {
       },
       children: [
         {
-          name: 'pricing-plans',
-          displayName: 'menu.pricing-plans',
+          name: 'product_arrival',
+          displayName: 'menu.제품입고',
         },
         {
-          name: 'billing',
-          displayName: 'menu.billing',
+          name: 'product_delivery',
+          displayName: 'menu.제품출고',
         },
       ],
     },
