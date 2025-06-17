@@ -7,117 +7,375 @@
 
     <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4" style="height: calc(100% - 60px);">
       
-      <!-- 상단 버튼 영역 -->
-      <div class="flex justify-between items-center mb-4">
-        <div class="flex items-center gap-3">
-          <button 
-            @click="loadInboundList" 
-            class="px-4 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors flex items-center gap-2"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
-              <path d="M21 3v5h-5"/>
-              <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
-              <path d="M3 21v-5h5"/>
-            </svg>
-            새로고침
-          </button>
-          
-          <div class="text-sm text-gray-600">
-            입고 대기: <span class="font-medium text-blue-600">{{ inboundList.length }}건</span>
+      <!-- 탭 메뉴 -->
+      <div class="flex border-b border-gray-200 mb-4">
+        <button 
+          @click="activeTab = 'waiting'"
+          :class="['px-4 py-2 text-sm font-medium border-b-2 transition-colors', 
+                  activeTab === 'waiting' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700']"
+        >
+          입고 대기 목록
+        </button>
+        <button 
+          @click="activeTab = 'completed'"
+          :class="['px-4 py-2 text-sm font-medium border-b-2 transition-colors', 
+                  activeTab === 'completed' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700']"
+        >
+          입고 완료 목록
+        </button>
+      </div>
+
+      <!-- 입고 대기 탭 -->
+      <div v-if="activeTab === 'waiting'" class="h-full">
+        <!-- 검색 영역 -->
+        <div class="grid grid-cols-5 gap-3 mb-4">
+          <div>
+            <label class="block text-xs font-medium text-gray-700 mb-1">작업실적ID</label>
+            <input 
+              v-model="waitingSearch.result_id"
+              class="w-full px-2 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+              placeholder="작업실적ID 검색"
+            />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-700 mb-1">제품명</label>
+            <input 
+              v-model="waitingSearch.product_name"
+              class="w-full px-2 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+              placeholder="제품명 검색"
+            />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-700 mb-1">제품코드</label>
+            <input 
+              v-model="waitingSearch.product_code"
+              class="w-full px-2 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+              placeholder="제품코드 검색"
+            />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-700 mb-1">요청일자</label>
+            <input 
+              v-model="waitingSearch.request_date"
+              type="date"
+              class="w-full px-2 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+          </div>
+          <div class="flex items-end gap-2">
+            <button 
+              @click="loadInboundWaitingList" 
+              class="px-4 py-1.5 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors"
+            >
+              검색
+            </button>
+            <button 
+              @click="resetWaitingSearch" 
+              class="px-4 py-1.5 bg-gray-500 text-white text-xs rounded hover:bg-gray-600 transition-colors"
+            >
+              초기화
+            </button>
+          </div>
+        </div>
+
+        <!-- 상단 버튼 영역 -->
+        <div class="flex justify-between items-center mb-4">
+          <div class="flex items-center gap-3">
+            <button 
+              @click="loadInboundWaitingList" 
+              class="px-4 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors flex items-center gap-2"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path>
+                <path d="M21 3v5h-5"></path>
+                <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path>
+                <path d="M3 21v-5h5"></path>
+              </svg>
+              새로고침
+            </button>
+            
+            <div class="text-sm text-gray-600">
+              입고 대기: <span class="font-medium text-blue-600">{{ inboundWaitingList.length }}건</span>
+            </div>
+          </div>
+
+          <div class="flex gap-2">
+            <button 
+              @click="processSelectedItems"
+              :disabled="!hasSelectedItems"
+              class="px-4 py-2 bg-green-600 text-white text-sm rounded hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              입고 ({{ selectedItemsCount }}건)
+            </button>
+          </div>
+        </div>
+
+        <!-- 입고 대기 목록 테이블 -->
+        <div class="flex-1 overflow-auto border border-gray-200 rounded mb-4" style="height: calc(100% - 200px);">
+          <table class="w-full text-xs border-collapse bg-white">
+            <thead class="bg-gray-50 sticky top-0">
+              <tr>
+                <th class="border border-gray-200 px-2 py-2 text-center font-medium text-gray-700 w-12">
+                  <input type="checkbox" v-model="selectAll" @change="toggleSelectAll" class="rounded" />
+                </th>
+                <th class="border border-gray-200 px-2 py-2 text-center font-medium text-gray-700 w-24">요청일자</th>
+                <th class="border border-gray-200 px-2 py-2 text-left font-medium text-gray-700 w-24">제품코드</th>
+                <th class="border border-gray-200 px-2 py-2 text-left font-medium text-gray-700 w-32">제품명</th>
+                <th class="border border-gray-200 px-2 py-2 text-left font-medium text-gray-700 w-24">규격</th>
+                <th class="border border-gray-200 px-2 py-2 text-center font-medium text-gray-700 w-16">단위</th>
+                <th class="border border-gray-200 px-2 py-2 text-center font-medium text-gray-700 w-20">수량</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- 로딩 상태 -->
+              <tr v-if="isLoading">
+                <td colspan="7" class="text-center text-gray-500 py-8">
+                  <div class="flex items-center justify-center gap-2">
+                    <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                    데이터를 불러오는 중...
+                  </div>
+                </td>
+              </tr>
+              
+              <!-- 데이터 없음 -->
+              <tr v-else-if="inboundWaitingList.length === 0">
+                <td colspan="7" class="text-center text-gray-500 py-8">
+                  입고 대기 중인 제품이 없습니다.
+                </td>
+              </tr>
+              
+              <!-- 데이터 행들 -->
+              <tr v-else v-for="(item, index) in inboundWaitingList" :key="`${item.result_id}-${item.product_code}`" 
+                  class="hover:bg-gray-50">
+                <td class="border border-gray-200 px-2 py-2 text-center">
+                  <input type="checkbox" v-model="item.selected" class="rounded" />
+                </td>
+                <td class="border border-gray-200 px-2 py-2 text-center">
+                  {{ item.request_date }}
+                </td>
+                <td class="border border-gray-200 px-2 py-2 font-mono text-xs">
+                  {{ item.product_code }}
+                </td>
+                <td class="border border-gray-200 px-2 py-2">
+                  {{ item.product_name }}
+                </td>
+                <td class="border border-gray-200 px-2 py-2">
+                  {{ item.product_stand || '-' }}
+                </td>
+                <td class="border border-gray-200 px-2 py-2 text-center">
+                  {{ item.product_unit || '-' }}
+                </td>
+                <td class="border border-gray-200 px-2 py-2 text-center">
+                  {{ formatNumber(item.inbound_qty) }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- 하단 정보 -->
+        <div class="flex justify-between items-center text-xs text-gray-600">
+          <div>
+            전체 {{ inboundWaitingList.length }}건
           </div>
         </div>
       </div>
 
-      <!-- 입고 대기 목록 테이블 -->
-      <div class="flex-1 overflow-auto border border-gray-200 rounded mb-4" style="height: calc(100% - 80px);">
-        <table class="w-full text-xs border-collapse bg-white">
-          <thead class="bg-gray-50 sticky top-0">
-            <tr>
-              <th class="border border-gray-200 px-2 py-2 text-left font-medium text-gray-700 w-32">완제품LOT번호</th>
-              <th class="border border-gray-200 px-2 py-2 text-left font-medium text-gray-700 w-32">제품명</th>
-              <th class="border border-gray-200 px-2 py-2 text-left font-medium text-gray-700 w-24">자재코드</th>
-              <th class="border border-gray-200 px-2 py-2 text-center font-medium text-gray-700 w-20">입고수량</th>
-              <th class="border border-gray-200 px-2 py-2 text-center font-medium text-gray-700 w-16">단위</th>
-              <th class="border border-gray-200 px-2 py-2 text-left font-medium text-gray-700 w-24">규격</th>
-              <th class="border border-gray-200 px-2 py-2 text-center font-medium text-gray-700 w-24">요청일자</th>
-              <th class="border border-gray-200 px-2 py-2 text-center font-medium text-gray-700 w-20">입고</th>
-            </tr>
-          </thead>
-          <tbody>
-            <!-- 로딩 상태 -->
-            <tr v-if="isLoading">
-              <td colspan="8" class="text-center text-gray-500 py-8">
-                <div class="flex items-center justify-center gap-2">
-                  <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
-                  데이터를 불러오는 중...
-                </div>
-              </td>
-            </tr>
-            
-            <!-- 데이터 없음 -->
-            <tr v-else-if="inboundList.length === 0">
-              <td colspan="8" class="text-center text-gray-500 py-8">
-                입고 대기 중인 제품이 없습니다.
-              </td>
-            </tr>
-            
-            <!-- 데이터 행들 -->
-            <tr v-else v-for="(item, index) in inboundList" :key="`${item.result_id}-${item.product_code}`" 
-                class="hover:bg-gray-50">
-              <td class="border border-gray-200 px-2 py-2 font-mono text-xs">
-                {{ item.preview_lot_num }}
-              </td>
-              <td class="border border-gray-200 px-2 py-2">
-                {{ item.product_name }}
-              </td>
-              <td class="border border-gray-200 px-2 py-2 font-mono text-xs">
-                {{ item.product_code }}
-              </td>
-              <td class="border border-gray-200 px-2 py-2 text-center">
-                {{ formatNumber(item.inbound_qty) }}
-              </td>
-              <td class="border border-gray-200 px-2 py-2 text-center">
-                {{ item.product_unit || '-' }}
-              </td>
-              <td class="border border-gray-200 px-2 py-2">
-                {{ item.product_stand || '-' }}
-              </td>
-              <td class="border border-gray-200 px-2 py-2 text-center">
-                {{ item.request_date }}
-              </td>
-              <td class="border border-gray-200 px-2 py-2 text-center">
-                <button 
-                  @click="processSingleItem(item)"
-                  class="px-2 py-1 bg-blue-500 text-white text-xs rounded hover:bg-green-600 transition-colors disabled:opacity-50"
-                  :disabled="item.isProcessing"
-                >
-                  {{ item.isProcessing ? '처리중' : '입고' }}
-                </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <!-- 입고 완료 탭 -->
+      <div v-else-if="activeTab === 'completed'" class="h-full">
+        <!-- 검색 영역 -->
+        <div class="grid grid-cols-5 gap-3 mb-4">
+          <div>
+            <label class="block text-xs font-medium text-gray-700 mb-1">LOT번호</label>
+            <input 
+              v-model="completedSearch.lot_num"
+              class="w-full px-2 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+              placeholder="LOT번호 검색"
+            />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-700 mb-1">제품명</label>
+            <input 
+              v-model="completedSearch.product_name"
+              class="w-full px-2 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+              placeholder="제품명 검색"
+            />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-700 mb-1">제품코드</label>
+            <input 
+              v-model="completedSearch.product_code"
+              class="w-full px-2 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+              placeholder="제품코드 검색"
+            />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-700 mb-1">입고일자</label>
+            <input 
+              v-model="completedSearch.inbound_date"
+              type="date"
+              class="w-full px-2 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+          </div>
+          <div class="flex items-end gap-2">
+            <button 
+              @click="loadInboundCompletedList" 
+              class="px-4 py-1.5 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors"
+            >
+              검색
+            </button>
+            <button 
+              @click="resetCompletedSearch" 
+              class="px-4 py-1.5 bg-gray-500 text-white text-xs rounded hover:bg-gray-600 transition-colors"
+            >
+              초기화
+            </button>
+          </div>
+        </div>
 
-      <!-- 하단 정보 -->
-      <div class="flex justify-between items-center text-xs text-gray-600">
-        <div>
-          전체 {{ inboundList.length }}건
+        <!-- 상단 버튼 영역 -->
+        <div class="flex justify-between items-center mb-4">
+          <div class="flex items-center gap-3">
+            <button 
+              @click="loadInboundCompletedList" 
+              class="px-4 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors flex items-center gap-2"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path>
+                <path d="M21 3v5h-5"></path>
+                <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path>
+                <path d="M3 21v-5h5"></path>
+              </svg>
+              새로고침
+            </button>
+            
+            <div class="text-sm text-gray-600">
+              입고 완료: <span class="font-medium text-green-600">{{ inboundCompletedList.length }}건</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 입고 완료 목록 테이블 -->
+        <div class="flex-1 overflow-auto border border-gray-200 rounded mb-4" style="height: calc(100% - 200px);">
+          <table class="w-full text-xs border-collapse bg-white">
+            <thead class="bg-gray-50 sticky top-0">
+              <tr>
+                <th class="border border-gray-200 px-2 py-2 text-center font-medium text-gray-700 w-24">입고일</th>
+                <th class="border border-gray-200 px-2 py-2 text-center font-medium text-gray-700 w-24">유통기한</th>
+                <th class="border border-gray-200 px-2 py-2 text-left font-medium text-gray-700 w-24">제품코드</th>
+                <th class="border border-gray-200 px-2 py-2 text-left font-medium text-gray-700 w-32">제품명</th>
+                <th class="border border-gray-200 px-2 py-2 text-left font-medium text-gray-700 w-24">규격</th>
+                <th class="border border-gray-200 px-2 py-2 text-center font-medium text-gray-700 w-16">단위</th>
+                <th class="border border-gray-200 px-2 py-2 text-center font-medium text-gray-700 w-20">수량</th>
+                <th class="border border-gray-200 px-2 py-2 text-left font-medium text-gray-700 w-32">완제품LOT</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- 로딩 상태 -->
+              <tr v-if="isLoadingCompleted">
+                <td colspan="8" class="text-center text-gray-500 py-8">
+                  <div class="flex items-center justify-center gap-2">
+                    <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                    데이터를 불러오는 중...
+                  </div>
+                </td>
+              </tr>
+              
+              <!-- 데이터 없음 -->
+              <tr v-else-if="inboundCompletedList.length === 0">
+                <td colspan="8" class="text-center text-gray-500 py-8">
+                  입고 완료된 제품이 없습니다.
+                </td>
+              </tr>
+              
+              <!-- 데이터 행들 -->
+              <tr v-else v-for="(item, index) in inboundCompletedList" :key="`${item.lot_num}`" 
+                  class="hover:bg-gray-50">
+                <td class="border border-gray-200 px-2 py-2 text-center">
+                  {{ formatDate(item.inbound_date) }}
+                </td>
+                <td class="border border-gray-200 px-2 py-2 text-center">
+                  {{ item.expiry_date }}
+                </td>
+                <td class="border border-gray-200 px-2 py-2 font-mono text-xs">
+                  {{ item.product_code }}
+                </td>
+                <td class="border border-gray-200 px-2 py-2">
+                  {{ item.product_name }}
+                </td>
+                <td class="border border-gray-200 px-2 py-2">
+                  {{ item.product_stand || '-' }}
+                </td>
+                <td class="border border-gray-200 px-2 py-2 text-center">
+                  {{ item.product_unit || '-' }}
+                </td>
+                <td class="border border-gray-200 px-2 py-2 text-center">
+                  {{ formatNumber(item.quantity) }}
+                </td>
+                <td class="border border-gray-200 px-2 py-2 font-mono text-xs">
+                  {{ item.lot_num }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- 하단 정보 -->
+        <div class="flex justify-between items-center text-xs text-gray-600">
+          <div>
+            전체 {{ inboundCompletedList.length }}건
+          </div>
         </div>
       </div>
-    </div>
 
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import axios from 'axios'
 
 // 상태 관리
+const activeTab = ref('waiting')
 const isLoading = ref(false)
-const inboundList = ref([])
+const isLoadingCompleted = ref(false)
+
+// 데이터
+const inboundWaitingList = ref([])
+const inboundCompletedList = ref([])
+
+// 검색 조건
+const waitingSearch = ref({
+  result_id: '',
+  product_name: '',
+  product_code: '',
+  request_date: ''  // 요청일자 추가
+})
+
+const completedSearch = ref({
+  lot_num: '',
+  product_name: '',
+  product_code: '',
+  inbound_date: ''  // 범위 → 특정 날짜로 변경
+})
+
+// 선택 관련
+const selectAll = ref(false)
+
+// Computed 속성들
+const hasSelectedItems = computed(() => {
+  return inboundWaitingList.value.some(item => item.selected)
+})
+
+const selectedItemsCount = computed(() => {
+  return inboundWaitingList.value.filter(item => item.selected).length
+})
+
+// 날짜 포맷팅 (입고일시를 날짜만 표시)
+const formatDate = (dateTimeString) => {
+  if (!dateTimeString) return '-'
+  return dateTimeString.split(' ')[0] // 'YYYY-MM-DD HH:mm:ss'에서 날짜 부분만 추출
+}
 
 // 숫자 포맷팅
 const formatNumber = (value) => {
@@ -125,38 +383,56 @@ const formatNumber = (value) => {
   return new Intl.NumberFormat('ko-KR').format(value)
 }
 
-// LOT 번호 생성 (화면에서 난수 처리)
-const generateLotPreview = (lotBase) => {
-  const randomNum = Math.floor(Math.random() * 900) + 100 // 100-999
-  return `${lotBase}-${randomNum.toString().padStart(3, '0')}`
+// 전체 선택/해제
+const toggleSelectAll = () => {
+  inboundWaitingList.value.forEach(item => {
+    item.selected = selectAll.value
+  })
 }
 
-// LOT 번호 재생성
-const regenerateLotNumber = (item) => {
-  const randomNum = Math.floor(Math.random() * 900) + 100 // 100-999
-  item.preview_lot_num = `${item.lot_base}-${randomNum.toString().padStart(3, '0')}`
-  console.log('LOT 번호 재생성:', item.preview_lot_num)
+// 검색 초기화
+const resetWaitingSearch = () => {
+  waitingSearch.value = {
+    result_id: '',
+    product_name: '',
+    product_code: '',
+    request_date: ''
+  }
+  loadInboundWaitingList()
+}
+
+const resetCompletedSearch = () => {
+  completedSearch.value = {
+    lot_num: '',
+    product_name: '',
+    product_code: '',
+    inbound_date: ''
+  }
+  loadInboundCompletedList()
 }
 
 // 입고 대기 목록 조회
-const loadInboundList = async () => {
+const loadInboundWaitingList = async () => {
   isLoading.value = true
   
   try {
-    console.log('입고 대기 목록 조회 시작')
+    console.log('입고 대기 목록 조회 시작, 검색 조건:', waitingSearch.value)
     
-    const response = await axios.get('/productInbound/waiting-list')
+    const response = await axios.get('/productInbound/waiting-list', {
+      params: waitingSearch.value
+    })
     
     console.log('조회 결과:', response.data)
     
-    // 각 항목에 LOT 번호 미리보기 추가
-    inboundList.value = response.data.map(item => ({
+    // 각 항목에 선택 상태 추가
+    inboundWaitingList.value = response.data.map(item => ({
       ...item,
-      isProcessing: false,
-      preview_lot_num: generateLotPreview(item.lot_base)
+      selected: false,
+      isProcessing: false
     }))
     
-    console.log(`입고 대기 목록 로드 완료: ${inboundList.value.length}건`)
+    selectAll.value = false
+    console.log(`입고 대기 목록 로드 완료: ${inboundWaitingList.value.length}건`)
     
   } catch (error) {
     console.error('입고 대기 목록 조회 오류:', error)
@@ -167,91 +443,141 @@ const loadInboundList = async () => {
     }
     
     alert(errorMessage)
-    inboundList.value = []
+    inboundWaitingList.value = []
   } finally {
     isLoading.value = false
   }
 }
 
-// 단일 제품 입고 처리
-const processSingleItem = async (item) => {
-  if (item.isProcessing) return
+// 입고 완료 목록 조회
+const loadInboundCompletedList = async () => {
+  isLoadingCompleted.value = true
   
   try {
-    item.isProcessing = true
+    console.log('입고 완료 목록 조회 시작, 검색 조건:', completedSearch.value)
     
-    console.log('단일 제품 입고 처리 시작:', item)
+    const response = await axios.get('/productInbound/completed-list', {
+      params: completedSearch.value
+    })
     
-    const inboundData = {
+    console.log('조회 결과:', response.data)
+    
+    inboundCompletedList.value = response.data
+    console.log(`입고 완료 목록 로드 완료: ${inboundCompletedList.value.length}건`)
+    
+  } catch (error) {
+    console.error('입고 완료 목록 조회 오류:', error)
+    
+    let errorMessage = '입고 완료 목록을 불러오는데 실패했습니다.'
+    if (error.response?.data?.error) {
+      errorMessage = error.response.data.error
+    }
+    
+    alert(errorMessage)
+    inboundCompletedList.value = []
+  } finally {
+    isLoadingCompleted.value = false
+  }
+}
+
+// 선택된 제품들 일괄 입고 처리
+const processSelectedItems = async () => {
+  const selectedItems = inboundWaitingList.value.filter(item => item.selected)
+  
+  if (selectedItems.length === 0) {
+    alert('입고 처리할 제품을 선택해주세요.')
+    return
+  }
+
+  const confirmed = confirm(`선택된 ${selectedItems.length}건의 제품을 일괄 입고 처리하시겠습니까?`)
+  if (!confirmed) return
+
+  try {
+    console.log('다중 제품 입고 처리 시작:', selectedItems)
+    
+    // 선택된 아이템들을 처리 중 상태로 변경
+    selectedItems.forEach(item => {
+      item.isProcessing = true
+    })
+
+    const products = selectedItems.map(item => ({
       result_id: item.result_id,
       product_code: item.product_code,
       inbound_qty: item.inbound_qty,
       manufacture_datetime: item.manufacture_datetime,
-      lot_number: item.preview_lot_num,  // 화면에서 생성된 LOT 번호
-      work_order_no: item.work_order_no  // work_order_no 추가
+      work_order_no: item.work_order_no
+    }))
+
+    const response = await axios.post('/productInbound/process-multiple', { products })
+    
+    console.log('다중 입고 처리 완료:', response.data)
+    
+    const { success_count, error_count, results, errors } = response.data
+    
+    // 성공한 제품들을 목록에서 제거
+    if (results && results.length > 0) {
+      results.forEach(result => {
+        const index = inboundWaitingList.value.findIndex(item => 
+          item.result_id === result.result_id && item.product_code === result.product_code
+        )
+        if (index > -1) {
+          inboundWaitingList.value.splice(index, 1)
+        }
+      })
     }
     
-    console.log('전송할 입고 데이터:', inboundData)
-    
-    const response = await axios.post('/productInbound/process', inboundData)
-    
-    console.log('입고 처리 성공:', response.data)
-    
-    // 성공 시 목록에서 제거
-    const index = inboundList.value.findIndex(listItem => 
-      listItem.result_id === item.result_id && listItem.product_code === item.product_code
-    )
-    if (index > -1) {
-      inboundList.value.splice(index, 1)
+    // 결과 메시지 표시
+    let message = `일괄 입고 처리 완료\n성공: ${success_count}건`
+    if (error_count > 0) {
+      message += `\n실패: ${error_count}건`
+      if (errors && errors.length > 0) {
+        message += '\n\n실패 상세:'
+        errors.forEach(error => {
+          message += `\n- ${error.product_code}: ${error.error}`
+        })
+      }
     }
     
-    alert(`${item.product_name} 입고 처리가 완료되었습니다.\nLOT번호: ${response.data.lot_number}`)
+    alert(message)
+    
+    // 전체 선택 해제
+    selectAll.value = false
     
   } catch (error) {
-    console.error('단일 제품 입고 처리 오류:', error)
+    console.error('다중 제품 입고 처리 오류:', error)
     
-    let errorMessage = '입고 처리 중 오류가 발생했습니다.'
-    
-    // LOT 번호 중복 에러 처리
-    if (error.response?.data?.error_code === 'DUPLICATE_LOT_NUMBER') {
-      errorMessage = 'LOT 번호가 중복되었습니다.'
-      
-      // LOT 번호 재생성
-      regenerateLotNumber(item)
-      
-      const retry = confirm(`${errorMessage}\n새로운 LOT 번호 ${item.preview_lot_num}로 다시 시도하시겠습니까?`)
-      if (retry) {
-        // 재시도
-        item.isProcessing = false
-        processSingleItem(item)
-        return
-      }
-    } else if (error.response?.data?.error_code === 'ALREADY_PROCESSED') {
-      errorMessage = '이미 입고 처리된 제품입니다.'
-      
-      // 이미 처리된 경우 목록에서 제거
-      const index = inboundList.value.findIndex(listItem => 
-        listItem.result_id === item.result_id && listItem.product_code === item.product_code
-      )
-      if (index > -1) {
-        inboundList.value.splice(index, 1)
-      }
-    } else if (error.response?.data?.error) {
+    let errorMessage = '일괄 입고 처리 중 오류가 발생했습니다.'
+    if (error.response?.data?.error) {
       errorMessage = error.response.data.error
     }
     
-    alert(`${item.product_name} 입고 처리 실패:\n${errorMessage}`)
+    alert(errorMessage)
     
   } finally {
-    item.isProcessing = false
+    // 처리 중 상태 해제
+    selectedItems.forEach(item => {
+      item.isProcessing = false
+    })
+  }
+}
+
+// 탭 변경 시 데이터 로드
+const handleTabChange = () => {
+  if (activeTab.value === 'waiting') {
+    loadInboundWaitingList()
+  } else if (activeTab.value === 'completed') {
+    loadInboundCompletedList()
   }
 }
 
 // 컴포넌트 마운트 시 데이터 로드
 onMounted(() => {
   console.log('제품 입고 관리 컴포넌트 마운트')
-  loadInboundList()
+  loadInboundWaitingList()
 })
+
+// 탭 변경 감시
+watch(activeTab, handleTabChange)
 </script>
 
 <style scoped>
