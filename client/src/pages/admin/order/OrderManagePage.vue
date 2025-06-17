@@ -27,7 +27,8 @@
         <tbody>
           <template v-for="order in groupedOrders" :key="order.orderId">
             <!-- 주문 헤더 행 -->
-            <tr @click="toggleOrder(order.orderId)" class="order-header-row">
+            <tr @click="toggleOrder(order.orderId)"
+                class="order-header-row">
               <td>{{ order.orderId }}</td>
               <td>{{ order.customerName }}</td>
               <td>{{ formatDateToYMD(order.orderDate) }}</td>
@@ -296,13 +297,16 @@ const filteredOrders = computed(() => {
   
   const search = searchText.value.toLowerCase()
   return orders.value.filter(order => 
-    order.order_id.toLowerCase().includes(search) ||
+    String(order.order_id).toLowerCase().includes(search) ||
     order.account_name.toLowerCase().includes(search)
   )
 })
 
+// 거래처 선택 드롭다운(고객사만 나오게)
 const customerOptions = computed(() => 
-  customers.value.map(c => ({
+  customers.value
+  .filter(c=> c.account_type == 'customer')
+  .map(c => ({
     value: c.account_id,
     text: c.account_name
   }))
@@ -612,6 +616,7 @@ function getStatusColor(status: string) {
   padding: 20px;
   max-width: 1400px;
   margin: 0 auto;
+  min-width: 600px;
 }
 
 h1 {
@@ -624,6 +629,12 @@ h1 {
   gap: 10px;
   margin-bottom: 20px;
   align-items: center;
+  flex-wrap: nowrap;
+}
+
+.search-area .va-input {
+  width: 300px;
+  flex-shrink: 0;
 }
 
 /* 테이블 섹션 */
@@ -750,8 +761,8 @@ h1 {
   }
 
   .search-area {
-    flex-direction: column;
-    align-items: stretch;
+    flex-direction: row;
+    align-items: center;
   }
 }
 
@@ -761,8 +772,8 @@ h1 {
   }
 
   .search-area {
-    flex-direction: column;
-    align-items: stretch;
+    flex-direction: row;
+    align-items: center;
   }
 }
 
@@ -772,8 +783,8 @@ h1 {
   }
   
   .search-area {
-    flex-direction: column;
-    align-items: stretch;
+    flex-direction: row;
+    align-items: center;
   }
 }
 

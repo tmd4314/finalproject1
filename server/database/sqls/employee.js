@@ -9,7 +9,7 @@ const getEmployeesList =
                 email,
                 address
                 password,
-                employement_status,
+                employment_status,
                 reg_date,
                 gender,
                 profile_img,
@@ -30,7 +30,7 @@ const getEmployeeById =
                 email,
                 address
                 password,
-                employement_status,
+                employment_status,
                 reg_date,
                 gender,
                 profile_img,
@@ -45,19 +45,13 @@ const getEmployeeById =
 const addEmployee =
     `
       INSERT INTO employees (employee_name,
+                             department_code,
                              position,
                              hire_date,
                              phone,
                              email,
-                             address,
-                             password,
-                             employement_status,
-                             reg_date,
-                             gender,
-                             profile_img,
-                             department_code,
-                             auth_type)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                             employment_status)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
     `;
 
 
@@ -66,18 +60,12 @@ const updateEmployee =
     `
       UPDATE employees SET
         employee_name = ?,
-        position = ?,
-        hire_date = ?,
-        phone = ?,
-        email = ?,
-        address = ?,
-        password = ?,
-        employement_status = ?,
-        reg_date = ?,
-        gender = ?,
-        profile_img = ?,
-        department_code = ?,
-        auth_type = ?
+        department_code =?,
+        position =?,
+        hire_date =?,
+        phone =?,
+        email =?,
+        employment_status =?       
       WHERE employee_id = ?
     `;
 

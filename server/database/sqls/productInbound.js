@@ -1,19 +1,17 @@
 // sqls/productInbound.js - 제품 입고 관리 SQL 쿼리
 
-// 1. 입고 대기 목록 조회 (work_order_detail에서 product_code 가져오기)
+// 1. 입고 대기 목록 조회 (검색 기능 추가, 특정 날짜 검색)
 const getInboundWaitingList = `
   SELECT 
     wr.result_id,
     wr.work_order_no,
-    wod.product_code,  -- work_order_detail에서 직접 가져오기
+    wod.product_code,
     p.product_name,
     p.product_unit,
     p.product_stand,
     wrd.pass_qty as inbound_qty,
     DATE_FORMAT(wrd.work_end_time, '%Y-%m-%d') as request_date,
-    wrd.work_end_time as manufacture_datetime,
-    -- LOT 번호 기본 부분만 생성 (LOTYYYYMMDD), 난수는 화면에서 처리
-    CONCAT('LOT', DATE_FORMAT(wrd.work_end_time, '%Y%m%d')) as lot_base
+    wrd.work_end_time as manufacture_datetime
   FROM work_result wr
   JOIN work_result_detail wrd ON wr.result_id = wrd.result_id
   JOIN work_order_detail wod ON wr.work_order_no = wod.work_order_no
@@ -23,34 +21,28 @@ const getInboundWaitingList = `
     wrd.work_end_time IS NOT NULL
     AND wrd.pass_qty > 0
     
-    -- ========== 더미 포장품질검사 합격 조건 ==========
-    -- 실제 포장품질검사 테이블 생성 후 아래 주석 해제하고 더미 조건 삭제
-    /*
-    AND EXISTS (
-      SELECT 1 FROM packaging_quality_check pqc 
-      WHERE pqc.result_id = wr.result_id 
-      AND pqc.product_code = wod.product_code
-      AND pqc.quality_result = '합격'
-    )
-    */
-    
-    -- 더미 조건: 모든 완료된 작업을 합격으로 간주 (테스트용)
+    -- 더미 포장품질검사 합격 조건
     AND (1 = 1)
-    -- ========================================
     
-    -- 아직 입고되지 않은 제품들만 (work_order_no + product_code 조합으로 중복 체크)
+    -- 아직 입고되지 않은 제품들만
     AND NOT EXISTS (
       SELECT 1 FROM product_lot pl 
-      JOIN work_result wr2 ON pl.result_id = wr2.result_id
-      WHERE wr2.work_order_no = wr.work_order_no
+      WHERE pl.result_id = wr.result_id
       AND pl.product_code = wod.product_code
     )
     
-  ORDER BY wrd.work_end_time DESC
+    -- 검색 조건 (특정 날짜 검색)
+    AND (? = '' OR wr.result_id LIKE CONCAT('%', ?, '%'))
+    AND (? = '' OR p.product_name LIKE CONCAT('%', ?, '%'))
+    AND (? = '' OR wod.product_code LIKE CONCAT('%', ?, '%'))
+    AND (? = '' OR DATE(wrd.work_end_time) = ?)
+    
+  GROUP BY wr.work_order_no, wod.product_code, wr.result_id
+  ORDER BY MAX(wrd.work_end_time) DESC, wr.result_id, wod.product_code
   LIMIT 50
 `;
 
-// 2. 제품 입고 처리 (product_lot 테이블에 INSERT)
+// 2. 제품 입고 처리 (LOT 번호 순차적 생성)
 const insertProductInbound = `
   INSERT INTO product_lot (
     lot_num,
@@ -61,10 +53,57 @@ const insertProductInbound = `
     inbound_date,
     status,
     result_id
-  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  ) VALUES (
+    CONCAT(
+      'LOT', 
+      DATE_FORMAT(NOW(), '%Y%m%d'), 
+      '-', 
+      LPAD(
+        COALESCE(
+          (SELECT MAX(CAST(RIGHT(lot_num, 3) AS UNSIGNED)) + 1
+           FROM product_lot pl2 
+           WHERE pl2.lot_num LIKE CONCAT('LOT', DATE_FORMAT(NOW(), '%Y%m%d'), '-%')
+          ), 
+          1
+        ), 3, '0'
+      )
+    ),  -- 순차적 LOT 번호 생성
+    ?,  -- product_code
+    ?,  -- manufacture_date  
+    ?,  -- expiry_date
+    ?,  -- quantity
+    ?,  -- inbound_date
+    ?,  -- status
+    ?   -- result_id
+  )
 `;
 
-// 3. 입고 완료 확인 조회
+// 3. 입고 완료 목록 조회 (특정 날짜 검색)
+const getInboundCompletedList = `
+  SELECT 
+    pl.lot_num,
+    pl.product_code,
+    p.product_name,
+    p.product_unit,
+    p.product_stand,
+    pl.quantity,
+    DATE_FORMAT(pl.manufacture_date, '%Y-%m-%d') as manufacture_date,
+    DATE_FORMAT(pl.expiry_date, '%Y-%m-%d') as expiry_date,
+    DATE_FORMAT(pl.inbound_date, '%Y-%m-%d %H:%i:%s') as inbound_date,
+    pl.status,
+    pl.result_id
+  FROM product_lot pl
+  JOIN product p ON pl.product_code = p.product_code
+  WHERE 
+    (? = '' OR pl.lot_num LIKE CONCAT('%', ?, '%'))
+    AND (? = '' OR p.product_name LIKE CONCAT('%', ?, '%'))
+    AND (? = '' OR pl.product_code LIKE CONCAT('%', ?, '%'))
+    AND (? = '' OR DATE(pl.inbound_date) = ?)
+  ORDER BY pl.inbound_date DESC
+  LIMIT 100
+`;
+
+// 4. 입고 완료 확인 조회 (LOT 번호 반환 포함)
 const getInboundResult = `
   SELECT 
     pl.lot_num,
@@ -85,7 +124,7 @@ const getInboundResult = `
   LIMIT 1
 `;
 
-// 4. 입고 이력 조회
+// 5. 입고 이력 조회 (범위 검색 유지)
 const getInboundHistory = `
   SELECT 
     pl.lot_num,
@@ -108,7 +147,7 @@ const getInboundHistory = `
   LIMIT 100
 `;
 
-// 5. 특정 실적의 입고 상태 확인
+// 6. 특정 실적의 입고 상태 확인
 const checkInboundStatus = `
   SELECT 
     CASE 
@@ -123,6 +162,7 @@ const checkInboundStatus = `
 module.exports = {
   getInboundWaitingList,
   insertProductInbound,
+  getInboundCompletedList,
   getInboundResult,
   getInboundHistory,
   checkInboundStatus

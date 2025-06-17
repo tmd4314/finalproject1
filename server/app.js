@@ -90,6 +90,9 @@ const productInboundRouter = require('./routers/productInboundRouter.js');
 
 const dashboardRouter = require('./routers/dashboardRouter.js');
 
+const productOutboundRouter = require('./routers/productOutboundRouter.js');
+
+
  // 기본 라우팅
 app.get('/', (req, res)=>{
   res.send('Welcome!!...');
@@ -110,6 +113,7 @@ app.use('/bom', bomRouter);
 app.use('/workOrder', workOrderRouter);
 app.use('/prodPlan', prodPlanRouter);
 app.use('/productInbound', productInboundRouter);
+app.use('/productOutbound', productOutboundRouter);
 
  //승민
 app.use('/', productRouter);
