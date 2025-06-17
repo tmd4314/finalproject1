@@ -194,7 +194,7 @@ const fetchProductNameList = async () => {
         value: item.product_code.toString()
       }))
   } catch (err) {
-    console.error('❌ 제품명 리스트 조회 실패:', err)
+    console.error('제품명 리스트 조회 실패:', err)
   }
 }
 
@@ -233,14 +233,14 @@ const submitForm = async () => {
     const res = await axios.post('/inspections/insert', payload)
     console.log('전송 payload:', payload)
     if (res.data.success) {
-      alert('✅ 검사항목이 등록되었습니다.')
+      alert('검사항목 등록')
       fetchInspectionList()
       resetForm()
     } else {
-      alert('⚠️ 등록에 실패했습니다: ' + res.data.message)
+      alert('등록에 실패했습니다: ' + res.data.message)
     }
   } catch (err) {
-    console.error('❌ 등록 실패:', err)
+    console.error('등록 실패:', err)
     alert('❌ 서버 오류로 등록에 실패했습니다.')
   }
 }
@@ -248,7 +248,7 @@ const submitForm = async () => {
 onMounted(() => {
   fetchInspectionList()
   fetchProductNameList().then(() => {
-    console.log('✅ 로딩된 productOptions:', productOptions.value)
+    console.log('productOptions:', productOptions.value)
   })
 })
 </script>
