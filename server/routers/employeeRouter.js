@@ -30,7 +30,7 @@ router.get('/employee/:id', async(req, res) => {
 });
 
 // 사원 등록
-router.post('/account', async(req, res) => {
+router.post('/employee', async(req, res) => {
   try {
     const result = await employeeService.addEmployee(req.body);
     res.json({ success: true, id: result.insertId });
@@ -64,13 +64,13 @@ router.post('/employee/delete-multiple', async(req, res) => {
       });
     }
 
-    const deleteIds = [];
+    const deletedIds = [];
     const failedIds = [];
 
     for (const id of ids) {
       try{
-        const result = await accountServie.killTheEmployee(id);
-        if(result.isDeleted) deleteIds.push(id);
+        const result = await employeeService.killTheEmployee(id);
+        if(result.isDeleted) deletedIds.push(id);
         else failedIds.push(id);
       } catch(error) {
         if(error.code === 'ER_ROW_IS_REFERENCED_2' || error.errno === 1451){

@@ -23,6 +23,7 @@ const materialInspection = require('./sqls/materialInspection.js');
 const quality = require('./sqls/Quality.js');
 const productInbound = require('./sqls/productInbound.js');
 const productOutbound = require('./sqls/productOutbound.js');
+const employee = require('./sqls/employee.js');
 
 
 
@@ -53,6 +54,7 @@ const productOutbound = require('./sqls/productOutbound.js');
      ...materialInspection,
      ...quality,
      ...productInbound,
-     ...productOutbound
+     ...productOutbound,
+     ...employee
  }
 
