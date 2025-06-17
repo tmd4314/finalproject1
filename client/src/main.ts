@@ -10,8 +10,15 @@ import stores from './stores'
 import router from './router'
 import vuesticGlobalConfig from './services/vuestic-ui/global-config'
 
+import { createPinia } from 'pinia'
+import piniaPersist from 'pinia-plugin-persistedstate'
+
+const pinia = createPinia()
+pinia.use(piniaPersist)
+
 const app = createApp(App)
 
+app.use(pinia)
 app.use(stores)
 app.use(router)
 app.use(i18n)
