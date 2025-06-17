@@ -64,8 +64,9 @@ insertOrderMaster: `
     delivery_date,
     status,
     remarks,
+    reg_date,
     created_by
-  ) VALUES (?, ?, ?, ?, ?, ?)
+  ) VALUES (?, ?, ?, ?, ?, ?, ?)
 `,
 
 // 주문 상세 등록
