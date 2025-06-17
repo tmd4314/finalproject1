@@ -250,19 +250,19 @@ export default {
       ],
     },
     {
-      name: 'distribution',
+      name: 'logistics',
       displayName: 'menu.물류',
       meta: {
         icon: 'manage_accounts',
       },
       children: [
         {
-          name: 'product_arrival',
-          displayName: 'menu.제품입고',
+          name: 'product_inbound',
+          displayName: 'menu.제품입고 관리',
         },
         {
-          name: 'product_delivery',
-          displayName: 'menu.제품출고',
+          name: 'product_outbound',
+          displayName: 'menu.제품출고 관리',
         },
       ],
     },
