@@ -33,7 +33,7 @@ WHERE wm.work_order_no = ?;
 `
 ;
 
-const selectProductList = `
+const selectProductLists = `
   SELECT DISTINCT product_name
   FROM product
   ORDER BY product_name
@@ -51,6 +51,6 @@ const selectWorkOrdersByProductName = `
 module.exports = {
   selectWorkOrder,
   selectWorkOrderDetail,
-  selectProductList,
+  selectProductLists,
   selectWorkOrdersByProductName
 }
