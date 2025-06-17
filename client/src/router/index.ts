@@ -174,11 +174,11 @@ const routes: Array<RouteRecordRaw> = [
             path: 'work_result_manager',
             component: () => import('../pages/prodResult/resultManagerPage.vue'),
           },
-          // {
-          //   name: 'work_result_check',
-          //   path: 'work_result_check',
-          //   component: () => import('../pages/workorder/WorkOrderCheck.vue'),
-          // },
+          {
+            name: 'work_result_check',
+            path: 'work_result_check',
+            component: () => import('../pages/prodResult/resultCheckPage.vue'),
+          },
         ],
       },
       {
