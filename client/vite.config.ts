@@ -40,7 +40,8 @@ const proxyPaths = [
   'prodResult',
   'qualitys',
   'productInbound',
-  'processCheck'
+  'processCheck',
+  'productOutbound',
 ]
 
 // ✅ 공통 proxy 설정 생성 함수

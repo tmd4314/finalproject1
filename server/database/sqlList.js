@@ -22,6 +22,7 @@ const auth = require('./sqls/auth.js');
 const materialInspection = require('./sqls/materialInspection.js');
 const quality = require('./sqls/Quality.js');
 const productInbound = require('./sqls/productInbound.js');
+const productOutbound = require('./sqls/productOutbound.js');
 const employee = require('./sqls/employee.js');
 
 
@@ -53,6 +54,7 @@ const employee = require('./sqls/employee.js');
      ...materialInspection,
      ...quality,
      ...productInbound,
+     ...productOutbound,
      ...employee
  }
 
