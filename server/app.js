@@ -83,6 +83,8 @@ const employeeRouter = require('./routers/employeeRouter.js')
 
 const authRouter =  require('./routers/authRouter.js');
 
+const qualityRouter = require('./routers/qualityRouter.js');
+
  // 기본 라우팅
 app.get('/', (req, res)=>{
   res.send('Welcome!!...');
@@ -131,3 +133,4 @@ app.use('/auth', authRouter);
 app.use('/inspections', inspectionRouter);
 app.use('/materialInspections', materialInspectionRouter);
 app.use('/defects', defectRouter);
+app.use('/qualitys', qualityRouter);
