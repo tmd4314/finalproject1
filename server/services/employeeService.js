@@ -23,12 +23,10 @@ const findById = async (employeeId) => {
   return item;
 }
 
-// 거래처 등록
+// 사원 등록
 const addEmployee = async (employeeInfo) => {
   let insertColumns = [
-    'employee_name', 'position', 'hire_date', 'phone', 'email', 'address',
-    'password', 'employment_status', 'reg_date', 'upd_date', 'gender',
-    'profile_img', 'department_code', 'auth_type'
+    'employee_name', 'department_code', 'position', 'hire_date', 'phone', 'email', 'employment_status'
   ];
   let data = convertObjToAry(employeeInfo, insertColumns);
 
@@ -62,9 +60,7 @@ const addEmployee = async (employeeInfo) => {
 // 사원 정보 수정
 const updateEmployee = async (employeeId, employeeInfo) => {
   const updateColumns = [
-    'employee_name', 'position', 'hire_date', 'phone', 'email', 'address',
-    'password', 'employment_status', 'reg_date', 'upd_date', 'gender',
-    'profile_img', 'department_code', 'auth_type'
+    'employee_name', 'department_code', 'position', 'hire_date', 'phone', 'email', 'employment_status'
   ];
 
   const values = convertObjToAry(employeeInfo, updateColumns);

@@ -100,7 +100,6 @@
               <th width="40">
                 <va-checkbox v-model="selectAll" @update:model-value="handleSelectAll" />
               </th>
-              <th width="60">번호</th>
               <th>사번</th>
               <th>이름</th>
               <th>부서</th>
@@ -122,20 +121,12 @@
                   :array-value="employee.employee_id"
                 />
               </td>
-              <td>{{ startIndex + index + 1 }}</td>
               <td>{{ employee.employee_id }}</td>
               <td>{{ employee.employee_name }}</td>
               <td>{{ getDepartmentName(employee.department_code) }}</td>
               <td>{{ employee.position }}</td>
               <td>{{ formatDate(employee.hire_date) }}</td>
-              <td>
-                <va-chip 
-                  :color="employee.employment_status === 'Y' ? 'success' : 'danger'" 
-                  size="small"
-                >
-                  {{ employee.employment_status === 'Y' ? '재직' : '퇴직' }}
-                </va-chip>
-              </td>
+              <td>{{ employee.employment_status }}</td>
             </tr>
           </tbody>
         </table>
@@ -185,17 +176,7 @@
       </div>
 
       <div class="detail-form">
-        <!-- 사번 -->
-        <div class="form-row">
-          <div class="form-group">
-            <label>사번</label>
-            <va-input 
-              v-model="form.employeeId" 
-              placeholder="사번은 자동 생성됩니다"
-              disabled
-            />
-          </div>
-        </div>
+        
 
         <!-- 이름 -->
         <div class="form-row">
@@ -243,7 +224,7 @@
         <!-- 입사일 -->
         <div class="form-row">
           <div class="form-group">
-            <label>입사일 <span class="required">*</span></label>
+            <label>입사일</label>
             <va-date-input 
               v-model="form.hireDate"
               :error="errors.hireDate"
@@ -384,6 +365,7 @@ const errors = ref({
   hireDate: false
 })
 
+
 // 부서 매핑
 const departmentMap = {
   '01': '생산',
@@ -495,7 +477,7 @@ function setupFilterOptions() {
 
 // 부서명 가져오기
 function getDepartmentName(code: string) {
-  return departmentMap[code] || code
+  return departmentMap[code as keyof typeof departmentMap] || code;
 }
 
 // 메서드들
@@ -593,12 +575,13 @@ async function saveEmployee() {
       employee_name: form.value.employeeName,
       department_code: form.value.departmentCode,
       position: form.value.position,
-      hire_date: form.value.hireDate,
+      hire_date: form.value.hireDate ? formatDate(form.value.hireDate.toISOString()) : null,
       phone: form.value.phone,
       email: form.value.email,
       employment_status: form.value.employmentStatus,
       remarks: form.value.remarks
     }
+  console.log('전송할 데이터: ', employeeData);
     
     if (selectedEmployee.value) {
       // 수정
@@ -621,6 +604,8 @@ async function saveEmployee() {
 
 // 선택 삭제
 async function deleteSelected() {
+  console.log('삭제할 사원들: ', selectedIds.value);
+
   if (selectedIds.value.length === 0) return
 
   if (!confirm(`선택한 ${selectedIds.value.length}명의 사원을 삭제하시겠습니까?`)) {
@@ -628,23 +613,33 @@ async function deleteSelected() {
   }
 
   try {
-    // 개별 삭제 API 호출
-    for (const id of selectedIds.value) {
-      try {
-        await axios.delete(`http://localhost:3000/employee/${id}`)
-        console.log(`사원 ${id} 삭제 성공`)
-      } catch (error) {
-        console.error(`사원 ${id} 삭제 실패:`, error)
+    console.log('다중 삭제 요청 시작');
+    
+    // 서버의 다중 삭제 API 호출
+    const response = await axios.post('http://localhost:3000/employee/delete-multiple', {
+      ids: selectedIds.value
+    });
+    
+    console.log('삭제 응답:', response.data);
+    
+    if (response.data.success) {
+      alert(`${response.data.deletedCount}명의 사원이 삭제되었습니다.`);
+    } else {
+      if (response.data.failedCount > 0) {
+        alert(`${response.data.deletedCount}명 삭제 완료, ${response.data.failedCount}명 삭제 실패\n${response.data.message}`);
+      } else {
+        alert('삭제에 실패했습니다.');
       }
     }
     
-    alert('선택한 사원이 삭제되었습니다.')
-    await fetchEmployees()
-    selectedIds.value = []
-    selectAll.value = false
+    // 목록 새로고침
+    await fetchEmployees();
+    selectedIds.value = [];
+    selectAll.value = false;
+    
   } catch (error) {
-    console.error('사원 삭제 실패:', error)
-    alert('사원 삭제에 실패했습니다.')
+    console.error('사원 삭제 실패:', error);
+    alert('사원 삭제에 실패했습니다.');
   }
 }
 
@@ -692,6 +687,7 @@ watch(itemsPerPage, () => {
   min-height: calc(100vh - 100px);
   background-color: #f5f5f5;
   align-items: stretch;
+  justify-content: center;
 }
 
 /* 좌측 패널 */
@@ -740,6 +736,7 @@ watch(itemsPerPage, () => {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  width: 220px;
 }
 
 .filter-item label {
@@ -903,7 +900,7 @@ watch(itemsPerPage, () => {
 .ml-3 { margin-left: 12px; }
 
 /* 반응형 */
-@media (max-width: 1400px) {
+@media (max-width: 100vw) {
   .filter-row {
     grid-template-columns: repeat(3, 1fr);
   }

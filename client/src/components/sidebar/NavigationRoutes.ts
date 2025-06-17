@@ -71,10 +71,10 @@ export default {
         icon: 'group',
       },
       children: [
-        {
-          name: 'order-list',
-          displayName: 'menu.주문 조회',
-        },
+        // {
+        //   name: 'order-list',
+        //   displayName: 'menu.주문 조회',
+        // },
         {
           name: 'order-management',
           displayName: 'menu.주문 관리',
