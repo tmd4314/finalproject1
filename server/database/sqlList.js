@@ -21,6 +21,8 @@ const prodResult = require('./sqls/prod_result.js');
 const auth = require('./sqls/auth.js');
 const materialInspection = require('./sqls/materialInspection.js');
 const quality = require('./sqls/Quality.js');
+const productInbound = require('./sqls/productInbound.js');
+
 
 
 
@@ -48,6 +50,7 @@ const quality = require('./sqls/Quality.js');
      ...prodResult,
      ...auth,
      ...materialInspection,
-     ...quality
+     ...quality,
+     ...productInbound
  }
 

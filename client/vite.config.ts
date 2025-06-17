@@ -38,7 +38,9 @@ const proxyPaths = [
   'qualityTest',
   'uploads',
   'prodResult',
-  'qualitys'
+  'qualitys',
+  'productInbound',
+  'processCheck'
 ]
 
 // ✅ 공통 proxy 설정 생성 함수

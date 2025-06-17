@@ -73,8 +73,8 @@ const updateLineMaster = async (lineMasterId, formData) => {
       formData.line_name,
       formData.eq_group_code || 'e3',
       formData.line_type,
-      formData.max_capacity || 1000,  
-      formData.description || '',      
+      formData.max_capacity || 1000,
+      formData.description || '',
       lineMasterId
     ];
     const result = await mariadb.query('updateLineMaster', values);
@@ -140,7 +140,7 @@ const getAvailableLineIds = async () => {
 
 // ========== 프론트엔드용 통합 라인 관리 ==========
 
-// 라인 목록 조회 - 마스터 + 최신 상태 통합
+// 라인 목록 조회 - 마스터 + 최신 상태 + 작업결과 통합
 const getLineList = async () => {
   try {
     console.log('=== 통합 라인 리스트 조회 시작 ===');
@@ -152,7 +152,7 @@ const getLineList = async () => {
       console.log('첫 번째 데이터:', JSON.stringify(list[0], null, 2));
     }
     
-    // 프론트엔드 형식에 맞게 데이터 변환
+    // 🔥 프론트엔드 형식에 맞게 데이터 변환 (작업결과 정보 포함)
     const formattedList = list.map(line => ({
       line_id: line.line_id,
       line_name: line.line_name,
@@ -163,11 +163,20 @@ const getLineList = async () => {
       current_speed: line.current_speed || 0,
       description: line.description || '',
       employee_name: line.employee_name || '',
+      employee_id: line.employee_id || null, // 🔥 employee_id 추가
       curr_work_no: line.curr_work_no || '',
       target_qty: line.target_qty || 0,
       reg_date: line.reg_date,
       created_at: line.reg_date,
-      updated_at: line.reg_date
+      updated_at: line.reg_date,
+      // 🔥 작업결과 정보 추가
+      process_group_code: line.process_group_code || '',
+      result_remark: line.result_remark || '',
+      code_value: line.code_value || '',
+      work_start_date: line.work_start_date || '',
+      // 기존 work_order 정보는 유지하되 work_result로 변경
+      work_no: line.curr_work_no || '',
+      work_order_no: line.curr_work_no || ''
     }));
     
     return convertData(formattedList);
@@ -266,7 +275,8 @@ const insertDualPackagingLine = async (formData) => {
         line_type: 'INNER',
         eq_name: formData.inner_eq_name,
         max_capacity: formData.inner_capacity,
-        current_speed: formData.inner_speed
+        current_speed: formData.inner_speed,
+        employee_id: formData.inner_employee_id  // 🔥 내포장 담당자 ID 사용
       };
       const innerResult = await insertIntegratedLine(innerData);
       results.push({ type: 'INNER', ...innerResult });
@@ -281,7 +291,8 @@ const insertDualPackagingLine = async (formData) => {
         line_type: 'OUTER',
         eq_name: formData.outer_eq_name,
         max_capacity: formData.outer_capacity,
-        current_speed: formData.outer_speed
+        current_speed: formData.outer_speed,
+        employee_id: formData.outer_employee_id  // 🔥 외포장 담당자 ID 사용
       };
       const outerResult = await insertIntegratedLine(outerData);
       results.push({ type: 'OUTER', ...outerResult });
@@ -305,7 +316,7 @@ const insertDualPackagingLine = async (formData) => {
   }
 };
 
-// 통합 라인 수정
+// 🔥 통합 라인 수정 (서브쿼리 문제 해결)
 const updateIntegratedLine = async (lineId, formData) => {
   try {
     console.log('=== 통합 라인 수정 시작 ===');
@@ -319,7 +330,7 @@ const updateIntegratedLine = async (lineId, formData) => {
     const typeText = formData.line_type === 'INNER' ? '내포장' : '외포장';
     const line_name = `${lineId}라인 ${typeText}`;
     
-    // 라인 마스터 수정
+    // 1. 라인 마스터 수정
     const masterData = {
       line_name: line_name,
       eq_group_code: 'e3',
@@ -330,18 +341,28 @@ const updateIntegratedLine = async (lineId, formData) => {
     
     await updateLineMaster(existingMaster.line_masterid, masterData);
     
-    // 라인 상태 업데이트 - 🔥 로그인 사원 정보 사용
+    // 2. 🔥 최신 라인 상태 ID 찾기 (새로운 쿼리 사용)
+    const latestLineResult = await mariadb.query('selectLatestLineIdByMasterId', [lineId]);
+    
+    if (latestLineResult.length === 0) {
+      throw new Error('업데이트할 라인 상태를 찾을 수 없습니다: ' + lineId);
+    }
+    
+    const latestLineId = latestLineResult[0].line_id;
+    console.log('🔍 최신 라인 상태 ID:', latestLineId);
+    
+    // 3. 라인 상태 직접 업데이트 - 🔥 로그인 사원 정보 사용
     const statusData = {
       pkg_type: formData.line_type,
       line_status: formData.line_status || 'AVAILABLE',
-      employee_id: formData.employee_id || 2,  // 🔥 로그인 사원 ID 사용
+      employee_id: formData.employee_id || 2,  // 🔥 선택된 담당자 ID 사용
       eq_name: formData.eq_name || '',
       current_speed: formData.current_speed || 0,
       curr_work_no: formData.curr_work_no || '',
       target_qty: formData.target_qty || 0
     };
     
-    await updateLineByMasterId(lineId, statusData);
+    await updateLine(latestLineId, statusData);
     
     return {
       success: true,
@@ -412,6 +433,62 @@ const bulkDeleteLines = async (lineIds) => {
   }
 };
 
+// ========== 담당자 관리 ==========
+
+// 🔥 사용 가능한 담당자 목록 조회 (새로 추가)
+const getAvailableEmployees = async () => {
+  try {
+    console.log('사용 가능한 담당자 목록 조회 시작...');
+    const employees = await mariadb.query('selectAvailableEmployees');
+    console.log('사용 가능한 담당자 조회 성공:', employees.length, '명');
+    return convertData(employees);
+  } catch (error) {
+    console.error('사용 가능한 담당자 조회 에러:', error);
+    console.warn('담당자 테이블 조회 실패 - 기본 담당자 목록을 반환합니다.');
+    
+    // 🔥 DB 조회 실패 시 기본 담당자 목록 반환
+    const defaultEmployees = [
+      { employee_id: 2, employee_name: '김홍인' },
+      { employee_id: 3, employee_name: '김다산' },
+      { employee_id: 4, employee_name: '최현석' },
+      { employee_id: 5, employee_name: '이승민' },
+      { employee_id: 6, employee_name: '박현우' },
+      { employee_id: 7, employee_name: '정수진' }
+    ];
+    
+    console.log('기본 담당자 목록 반환:', defaultEmployees.length, '명');
+    return defaultEmployees;
+  }
+};
+
+// ========== 작업결과 관리 ==========
+
+// 🔥 사용 가능한 작업 결과 목록 조회
+const getAvailableWorkResults = async () => {
+  try {
+    console.log('사용 가능한 작업 결과 목록 조회 시작...');
+    const results = await mariadb.query('selectAvailableWorkResults');
+    console.log('사용 가능한 작업 결과 조회 성공:', results.length, '건');
+    return convertData(results);
+  } catch (error) {
+    console.error('사용 가능한 작업 결과 조회 에러:', error);
+    throw new Error('작업 결과 조회 실패: ' + (error.err?.message || error.message));
+  }
+};
+
+// 🔥 특정 작업 결과 상세 조회
+const getWorkResultDetail = async (workOrderNo) => {
+  try {
+    const result = await mariadb.query('selectWorkResultDetail', [workOrderNo]);
+    const [data] = result;
+    console.log('작업 결과 상세 조회 성공:', workOrderNo);
+    return convertData(data);
+  } catch (error) {
+    console.error('작업 결과 상세 조회 에러:', error);
+    throw new Error('작업 결과 상세 조회 실패: ' + (error.err?.message || error.message));
+  }
+};
+
 // ========== 기존 라인 상태 관리 (하위 호환성) ==========
 
 // 라인 실적 등록 - 🔥 로그인 사원 정보 사용
@@ -438,7 +515,7 @@ const insertLine = async (formData) => {
   }
 };
 
-// 라인 실적 수정 - 🔥 로그인 사원 정보 사용
+// 🔥 라인 실적 수정 - 직접 line_id로 수정 (로그인 사원 정보 사용)
 const updateLine = async (lineId, formData) => {
   try {
     const values = [
@@ -460,7 +537,7 @@ const updateLine = async (lineId, formData) => {
   }
 };
 
-// 마스터 라인 ID 기준 상태 업데이트 - 🔥 로그인 사원 정보 사용
+// 🔥 마스터 라인 ID 기준 상태 업데이트 - 🔥 로그인 사원 정보 사용 (서브쿼리 방식)
 const updateLineByMasterId = async (masterLineId, formData) => {
   try {
     const values = [
@@ -471,8 +548,7 @@ const updateLineByMasterId = async (masterLineId, formData) => {
       formData.current_speed || 0,
       formData.curr_work_no || '',
       formData.target_qty || 0,
-      masterLineId,
-      masterLineId
+      masterLineId  // 🔥 한 번만 전달
     ];
     const result = await mariadb.query('updateLineByMasterId', values);
     console.log('마스터 라인 ID 기준 상태 업데이트 성공:', masterLineId);
@@ -556,11 +632,18 @@ module.exports = {
   deleteIntegratedLine,
   bulkDeleteLines,
 
+  // 🔥 담당자 관리 (새로 추가)
+  getAvailableEmployees,
+
+  // 작업결과 관리
+  getAvailableWorkResults,
+  getWorkResultDetail,
+
   // 기존 라인 상태 관리
   getLineDetail,
   insertLine,
   updateLine,
-  updateLineByMasterId,
+  updateLineByMasterId,  // 🔥 추가
   deleteLine,
   deleteLineByMasterId,
   getLineWithMaster,

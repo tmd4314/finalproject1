@@ -79,11 +79,14 @@ const materialInspectionRouter = require('./routers/materialInspectionRouter.js'
 
 const prodResultRouter = require('./routers/prodResultRouter.js');
 
-const employeeRouter = require('./routers/employeeRouter.js')
+const employeeRouter = require('./routers/employeeRouter.js');
 
 const authRouter =  require('./routers/authRouter.js');
 
 const qualityRouter = require('./routers/qualityRouter.js');
+
+const productInboundRouter = require('./routers/productInboundRouter.js');
+
 
  // 기본 라우팅
 app.get('/', (req, res)=>{
@@ -104,6 +107,7 @@ app.use('/', employeeRouter);
 app.use('/bom', bomRouter);
 app.use('/workOrder', workOrderRouter);
 app.use('/prodPlan', prodPlanRouter);
+app.use('/productInbound', productInboundRouter);
 
  //승민
 app.use('/', productRouter);

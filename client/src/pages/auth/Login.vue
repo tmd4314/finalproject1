@@ -37,18 +37,8 @@
       </VaInput>
     </VaValue>
 
-    <!-- 로그인 유지 옵션 -->
-    <div class="auth-layout__options flex flex-col sm:flex-row items-start sm:items-center justify-between">
-      <VaCheckbox 
-        v-model="formData.keepLoggedIn" 
-        class="mb-2 sm:mb-0" 
-        label="로그인 상태 유지" 
-        :disabled="isLoading"
-      />
-    </div>
-
     <!-- 로그인 버튼 -->
-    <div class="flex justify-center mt-4">
+    <div class="flex justify-center mt-4 mb-3">
       <VaButton 
         class="w-full" 
         :loading="isLoading"
@@ -56,6 +46,19 @@
         @click="handleLogin"
       >
         {{ isLoading ? '로그인 중...' : '로그인' }}
+      </VaButton>
+    </div>
+
+    <!-- 대시보드로 돌아가기 버튼 -->
+    <div class="flex justify-center">
+      <VaButton 
+        preset="secondary"
+        color="secondary"
+        class="w-full"
+        :disabled="isLoading"
+        @click="goToDashboard"
+      >
+        📋 대시보드로 돌아가기
       </VaButton>
     </div>
   </VaForm>
@@ -88,7 +91,6 @@ const isLoading = ref(false)
 const formData = reactive({
   employee_id: '',
   password: '',
-  keepLoggedIn: false,
 })
 
 // ================================
@@ -98,27 +100,26 @@ const formData = reactive({
 // 저장소 키 설정
 const AUTH_STORAGE_KEY = 'auth-store'
 
-// 인증 데이터 저장
-const saveAuthData = (user: any, token: string, remember: boolean = false) => {
+// 인증 데이터 저장 (항상 localStorage 사용)
+const saveAuthData = (user: any, token: string) => {
   const authData = {
     user,
     token,
     timestamp: Date.now()
   }
   
-  const storage = remember ? localStorage : sessionStorage
-  storage.setItem(AUTH_STORAGE_KEY, JSON.stringify(authData))
+  // localStorage에 저장
+  localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(authData))
   
-  // 반대 storage에서는 제거
-  const otherStorage = remember ? sessionStorage : localStorage
-  otherStorage.removeItem(AUTH_STORAGE_KEY)
+  // sessionStorage에서는 제거 (중복 방지)
+  sessionStorage.removeItem(AUTH_STORAGE_KEY)
   
   // axios 헤더 설정
   if (axios?.defaults?.headers?.common) {
     axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
   }
   
-  console.log('인증 데이터 저장됨:', { remember, storage: remember ? 'localStorage' : 'sessionStorage' })
+  console.log('인증 데이터 저장됨 (localStorage)')
 }
 
 // 인증 데이터 로드
@@ -178,6 +179,13 @@ const verifyToken = async (token: string) => {
     console.warn('토큰 검증 실패:', error)
     return false
   }
+}
+
+// ================================
+// 🚀 네비게이션 함수
+// ================================
+const goToDashboard = () => {
+  router.push({ name: 'dashboard' })
 }
 
 // ================================
@@ -249,6 +257,11 @@ onMounted(async () => {
         const isValid = await verifyToken(authData.token)
         if (isValid) {
           console.log('유효한 토큰, 대시보드로 이동')
+          showToast({
+            message: '이미 로그인되어 있습니다.',
+            color: 'info',
+            duration: 2000
+          })
           router.push({ name: 'dashboard' })
           return
         } else {
@@ -287,8 +300,8 @@ const handleLogin = async () => {
     if (response.data.success) {
       const { user, token } = response.data
       
-      // 인증 데이터 저장
-      saveAuthData(user, token, formData.keepLoggedIn)
+      // 인증 데이터 저장 (항상 localStorage)
+      saveAuthData(user, token)
       
       // 성공 메시지
       showToast({ 
@@ -345,10 +358,6 @@ const handleLogin = async () => {
 </script>
 
 <style scoped>
-.auth-layout__options {
-  margin: 1rem 0;
-}
-
 .va-form:has(.va-input--loading) {
   opacity: 0.8;
   pointer-events: none;
