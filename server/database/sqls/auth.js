@@ -1,8 +1,8 @@
-// sqls/auth.js - 인증 관련 SQL 쿼리들
+// sqls/auth.js - 인증 관련 SQL 쿼리들 (수정된 버전)
 module.exports = {
   
   // ================================
-  // 🔐 로그인 관련 쿼리
+  // 로그인 관련 쿼리
   // ================================
   
   // 로그인용 사용자 정보 조회 (부서 정보 포함)
@@ -25,7 +25,7 @@ module.exports = {
     WHERE e.employee_id = ?
   `,
   
-  // 사용자 정보 조회 (토큰 검증용)
+  // 사용자 정보 조회 (토큰 검증용) - employment_status 'Y'로 수정
   getUserById: `
     SELECT 
       e.employee_id,
@@ -42,11 +42,11 @@ module.exports = {
     FROM employees e
     LEFT JOIN department d ON e.department_code = d.department_code
     WHERE e.employee_id = ? 
-      AND e.employment_status = '재직중'
+      AND e.employment_status = 'Y'
   `,
 
   // ================================
-  // 📊 로그인 로그 관련 쿼리
+  // 로그인 로그 관련 쿼리
   // ================================
   
   // 로그인 로그 테이블 생성
@@ -65,7 +65,7 @@ module.exports = {
     )
   `,
   
-  // 로그인 로그 기록
+  // 로그인 로그 기록 (필요시 활성화)
   insertLoginLog: `
     INSERT INTO login_logs (
       employee_id, 
@@ -79,17 +79,17 @@ module.exports = {
   `,
 
   // ================================
-  // 📊 통계 및 목록 조회
+  // 통계 및 목록 조회
   // ================================
   
-  // DB 연결 테스트
+  // DB 연결 테스트 - employment_status 'Y'로 수정
   testConnection: `
     SELECT COUNT(*) as count 
     FROM employees 
-    WHERE employment_status = '재직중'
+    WHERE employment_status = 'Y'
   `,
   
-  // 전체 재직 사원 목록
+  // 전체 재직 사원 목록 - employment_status 'Y'로 수정
   getAllEmployees: `
     SELECT 
       e.employee_id,
@@ -104,27 +104,27 @@ module.exports = {
       e.gender
     FROM employees e
     LEFT JOIN department d ON e.department_code = d.department_code
-    WHERE e.employment_status = '재직중'
+    WHERE e.employment_status = 'Y'
     ORDER BY e.employee_name
   `,
   
-  // 부서별 사원 수
+  // 부서별 사원 수 - employment_status 'Y'로 수정
   getEmployeeCountByDepartment: `
     SELECT 
       d.department_name,
       COUNT(e.employee_id) as employee_count
     FROM department d
     LEFT JOIN employees e ON d.department_code = e.department_code 
-      AND e.employment_status = '재직중'
+      AND e.employment_status = 'Y'
     GROUP BY d.department_code, d.department_name
     ORDER BY employee_count DESC
   `,
 
   // ================================
-  // 🔍 검색 관련 쿼리
+  // 검색 관련 쿼리
   // ================================
   
-  // 사원명으로 검색
+  // 사원명으로 검색 - employment_status 'Y'로 수정
   searchEmployeesByName: `
     SELECT 
       e.employee_id,
@@ -136,11 +136,11 @@ module.exports = {
     FROM employees e
     LEFT JOIN department d ON e.department_code = d.department_code
     WHERE e.employee_name LIKE ? 
-      AND e.employment_status = '재직중'
+      AND e.employment_status = 'Y'
     ORDER BY e.employee_name
   `,
   
-  // 특정 부서 사원 목록
+  // 특정 부서 사원 목록 - employment_status 'Y'로 수정
   getEmployeesByDepartment: `
     SELECT 
       e.employee_id,
@@ -153,12 +153,12 @@ module.exports = {
     FROM employees e
     LEFT JOIN department d ON e.department_code = d.department_code
     WHERE e.department_code = ? 
-      AND e.employment_status = '재직중'
+      AND e.employment_status = 'Y'
     ORDER BY e.employee_name
   `,
 
   // ================================
-  // 🏢 부서 관련 쿼리
+  // 부서 관련 쿼리
   // ================================
   
   // 전체 부서 목록
@@ -173,7 +173,7 @@ module.exports = {
   `,
 
   // ================================
-  // 📊 로그인 통계 쿼리
+  // 로그인 통계 쿼리
   // ================================
   
   // 오늘 로그인 수
@@ -219,7 +219,58 @@ module.exports = {
     JOIN department d ON e.department_code = d.department_code
     WHERE ll.success = true 
       AND ll.login_time >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+      AND e.employment_status = 'Y'
     GROUP BY d.department_code, d.department_name
     ORDER BY total_logins DESC
+  `,
+
+  // ================================
+  // 개발용 디버깅 쿼리
+  // ================================
+  
+  // 특정 사원의 상세 정보 조회 (비밀번호 포함)
+  debugUserInfo: `
+    SELECT 
+      e.employee_id,
+      e.employee_name,
+      e.position,
+      e.department_code,
+      d.department_name,
+      e.employment_status,
+      e.email,
+      e.phone,
+      e.hire_date,
+      e.gender,
+      e.profile_img,
+      e.password,
+      LENGTH(e.password) as password_length
+    FROM employees e
+    LEFT JOIN department d ON e.department_code = d.department_code
+    WHERE e.employee_id = ?
+  `,
+
+  // ================================
+  // 비밀번호 관리 쿼리 (필요시 사용)
+  // ================================
+  
+  // 비밀번호 업데이트
+  updateEmployeePassword: `
+    UPDATE employees 
+    SET password = ?, upd_date = NOW() 
+    WHERE employee_id = ? AND employment_status = 'Y'
+  `,
+  
+  // 비밀번호 변경 이력 테이블 생성 (선택사항)
+  createPasswordHistoryTable: `
+    CREATE TABLE IF NOT EXISTS password_history (
+      id BIGINT AUTO_INCREMENT PRIMARY KEY,
+      employee_id VARCHAR(20) NOT NULL,
+      old_password_hash VARCHAR(255),
+      new_password_hash VARCHAR(255),
+      changed_by VARCHAR(20),
+      change_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      change_reason VARCHAR(255),
+      INDEX idx_employee_date (employee_id, change_date)
+    )
   `
 };

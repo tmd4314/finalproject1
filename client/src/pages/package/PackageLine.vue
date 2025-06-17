@@ -14,7 +14,7 @@
         <h1>포장 라인 선택</h1>
         <p>작업할 포장 유형을 선택해주세요</p>
                
-        <!-- 🔥 동적 완료 알림 메시지 -->
+        <!--  동적 완료 알림 메시지 -->
         <div v-if="showCompletionMessage" class="completion-alert" :class="completionMessageType">
           {{ completionMessage }}
         </div>
@@ -25,9 +25,6 @@
         <div class="package-type-card"
             :class="{ completed: completedSteps.includes('INNER') }"
             @click="selectPackageType('INNER')">
-          <div class="card-icon">
-            <span>💊</span>
-          </div>
           <h3>내포장</h3>
           <p>정제를 PTP/병에 포장하는 작업</p>
           <div v-if="completedSteps.includes('INNER')" class="completion-badge">
@@ -47,19 +44,16 @@
               highlighted: completedSteps.includes('INNER') && !completedSteps.includes('OUTER')
             }"
             @click="selectPackageType('OUTER')">
-          <div class="card-icon">
-            <span>📦</span>
-          </div>
           <h3>외포장</h3>
           <p>내포장된 제품을 박스에 포장하는 작업</p>
           <div v-if="completedSteps.includes('OUTER')" class="completion-badge">
-            ✅ 작업완료
+            작업완료
             <div class="completion-time">{{ formatTime(outerCompletionTime) }}</div>
           </div>
           <button v-else-if="completedSteps.includes('INNER')" 
                   class="selection-button available highlighted"
                   @click.stop="selectPackageType('OUTER')">
-            ✨ 선택 가능 ✨
+            선택 가능 
           </button>
           <button v-else class="selection-button disabled" disabled>
             내포장 완료 후 선택 가능
@@ -69,7 +63,7 @@
       
       <div class="navigation-actions">
         <button @click="goBackToLineAdd" class="back-btn secondary">
-           라인 관리로 이동
+          라인 관리로 이동
         </button>
       </div>
       
@@ -78,7 +72,6 @@
         <h4>완료된 작업</h4>
         <div class="completed-items">
           <div v-if="completedSteps.includes('INNER')" class="completed-item">
-            <span class="icon">💊</span>
             <div class="item-content">
               <span class="item-title">내포장 완료</span>
               <span class="item-work">작업번호: {{ innerWorkNo || '작업번호없음' }}</span>
@@ -86,7 +79,6 @@
             <span class="time">{{ formatTime(innerCompletionTime) }}</span>
           </div>
           <div v-if="completedSteps.includes('OUTER')" class="completed-item">
-            <span class="icon">📦</span>
             <div class="item-content">
               <span class="item-title">외포장 완료</span>
               <span class="item-work">작업번호: {{ outerWorkNo || '작업번호없음' }}</span>
@@ -98,7 +90,7 @@
         <!-- 모든 작업 완료시 -->
         <div v-if="completedSteps.includes('INNER') && completedSteps.includes('OUTER')" class="all-complete-section">
           <div class="all-complete-message">
-            🎉 모든 포장 작업이 완료되었습니다!
+            모든 포장 작업이 완료되었습니다!
           </div>
           <div class="complete-summary-info">
             <p>총 작업시간: {{ getTotalWorkTime() }}</p>
@@ -130,7 +122,7 @@
         <p>사용 가능한 {{ getLineTypeText(selectedPackageType) }} 라인을 선택하여 작업을 시작하세요</p>
         
         
-        <!-- 🔥 단계별 진행 표시 -->
+        <!--  단계별 진행 표시 -->
         <div class="workflow-progress">
           <div class="progress-step" :class="{ completed: completedSteps.includes('INNER'), active: selectedPackageType === 'INNER' }">
             <div class="step-text">내포장</div>
@@ -241,9 +233,9 @@
               <span class="label">설비명:</span>
               <span class="value">{{ line.eq_name }}</span>
             </div>
-            <div v-if="line.work_no" class="detail-row">
+            <div v-if="line.curr_work_no" class="detail-row">
               <span class="label">작업번호:</span>
-              <span class="value">{{ line.work_no }}</span>
+              <span class="value">{{ line.curr_work_no }}</span>
             </div>
           </div>
           
@@ -254,28 +246,28 @@
               :class="{ recommended: isRecommendedLine(line) }"
               @click="startPackagingWork(line)"
             >
-              {{ isRecommendedLine(line) ? '⭐ 작업 시작' : '▶ 작업 시작' }}
+              {{ isRecommendedLine(line) ? ' 작업 시작' : ' 작업 시작' }}
             </button>
             <button
               v-else-if="line.line_status === 'WORKING'"
               class="action-btn continue"
               @click="continuePackagingWork(line)"
             >
-              🔄 작업 계속
+              작업 계속
             </button>
             <button
               v-else-if="line.line_status === 'MAINTENANCE'"
               disabled
               class="action-btn maintenance"
             >
-              🔧 점검 중
+              점검 중
             </button>
             <button
               v-else
               disabled
               class="action-btn stopped"
             >
-              ⏹ 정지
+              정지
             </button>
           </div>
         </div>
@@ -306,7 +298,7 @@
             <p><strong>타입:</strong> {{ getLineTypeText(selectedLineForStart?.line_type) }}</p>
           </div>
           
-          <!-- 🔥 워크플로우 정보 표시 -->
+          <!--  워크플로우 정보 표시 -->
           <div v-if="selectedPackageType === 'OUTER' && completedSteps.includes('INNER')" class="workflow-info">
             <div class="workflow-step completed">
               <span class="step-icon">✅</span>
@@ -315,9 +307,8 @@
                 <div class="step-meta">작업번호: {{ innerWorkNo }} • {{ formatTime(innerCompletionTime) }}</div>
               </div>
             </div>
-            <div class="workflow-arrow">⬇️</div>
+            <div class="workflow-arrow"></div>
             <div class="workflow-step current">
-              <span class="step-icon">🔄</span>
               <div class="step-details">
                 <strong>외포장 진행</strong>
                 <div class="step-meta">{{ selectedLineForStart?.line_name }}</div>
@@ -355,7 +346,7 @@ const outerCompletionTime = ref(null)
 const innerWorkNo = ref('')
 const outerWorkNo = ref('')
 
-// 🔥 동적 완료 메시지 시스템
+//  동적 완료 메시지 시스템
 const showCompletionMessage = ref(false)
 const completionMessage = ref('')
 const completionMessageType = ref('success')
@@ -404,14 +395,14 @@ const filteredLines = computed(() => {
   return lines
 })
 
-// 🔥 URL 파라미터 처리 (개선된 버전)
+//  URL 파라미터 처리 (개선된 버전)
 onBeforeMount(() => {
-  console.log('🚀 포장 라인 페이지 로드')
-  console.log('📍 URL 파라미터:', route.query)
+  console.log(' 포장 라인 페이지 로드')
+  console.log(' URL 파라미터:', route.query)
   
   // Case 1: 내포장 완료 후 외포장으로 자동 이동
   if (route.query.inner_completed === 'true' || route.query.completed_inner === 'true') {
-    console.log('✅ 내포장 완료 → 외포장 자동 활성화')
+    console.log(' 내포장 완료 → 외포장 자동 활성화')
     
     completedSteps.value = ['INNER']
     innerCompletionTime.value = new Date()
@@ -438,7 +429,7 @@ onBeforeMount(() => {
   
   // Case 2: 외포장 완료 후 돌아온 경우
   if (route.query.outer_completed === 'true') {
-    console.log('✅ 외포장 완료 → 전체 완료')
+    console.log(' 외포장 완료 → 전체 완료')
     
     completedSteps.value = ['INNER', 'OUTER']
     innerCompletionTime.value = new Date(Date.now() - 3600000) // 1시간 전
@@ -451,7 +442,7 @@ onBeforeMount(() => {
     
     // 전체 완료 메시지
     showCompletionMessage.value = true
-    completionMessage.value = '🎉 모든 포장 작업이 완료되었습니다!'
+    completionMessage.value = ' 모든 포장 작업이 완료되었습니다!'
     completionMessageType.value = 'success'
     
     setTimeout(() => {
@@ -465,7 +456,7 @@ onBeforeMount(() => {
   // Case 3: 작업 수행 중 다른 라인으로 돌아온 경우
   if (route.query.from_work === 'true') {
     const maintainType = route.query.maintain_type
-    console.log(`✅ ${maintainType} 작업에서 돌아옴`)
+    console.log(` ${maintainType} 작업에서 돌아옴`)
     
     selectedPackageType.value = maintainType
     currentStep.value = 'line-selection'
@@ -482,7 +473,7 @@ onBeforeMount(() => {
   }
   
   // Case 4: 일반 진입
-  console.log('📝 일반 진입 - 처음부터 시작')
+  console.log(' 일반 진입 - 처음부터 시작')
   currentStep.value = 'package-type-selection'
   selectedPackageType.value = null
   completedSteps.value = []
@@ -490,29 +481,40 @@ onBeforeMount(() => {
 
 // 컴포넌트 마운트 시 라인 목록 로드
 onMounted(() => {
-  console.log('🔄 컴포넌트 마운트 - 라인 목록 로드 시작')
-  loadCurrentEmployee()
+  console.log(' 컴포넌트 마운트 - 라인 목록 로드 시작')
   fetchLines()
 })
 
 // ====== API 함수들 ======
 
-// 현재 로그인한 사용자 정보 로드
+// 현재 로그인한 사용자 정보 로드 (에러 방지 버전)
 async function loadCurrentEmployee() {
   try {
-    console.log('👤 현재 사용자 정보 로드 시작...')
+    console.log(' 현재 사용자 정보 로드 시작...')
     const response = await axios.get('/lines/current-employee')
     
     if (response.data && response.data.success) {
       currentEmployee.value = response.data.data
-      console.log('✅ 현재 사용자 정보 로드 성공:', currentEmployee.value)
+      console.log(' 현재 사용자 정보 로드 성공:', currentEmployee.value)
     } else {
-      console.warn('⚠️ 사용자 정보 응답이 올바르지 않습니다:', response.data)
-      currentEmployee.value = { employee_name: '로그인 필요', employee_id: null }
+      throw new Error(response.data?.message || 'API 응답 오류')
     }
   } catch (error) {
-    console.error('❌ 현재 사용자 정보 로드 실패:', error)
-    currentEmployee.value = { employee_name: '로그인 필요', employee_id: null }
+    console.error(' 현재 사용자 정보 로드 실패:', error)
+    
+    //  기본 사용자 정보로 대체 (에러 방지)
+    currentEmployee.value = { 
+      employee_name: '김홍인', 
+      employee_id: 2 
+    }
+    
+    if (error.response?.status === 401) {
+      console.warn(' 로그인이 필요합니다. 기본 사용자로 진행합니다.')
+    } else if (error.code === 'ERR_NETWORK') {
+      console.warn(' API 서버에 연결할 수 없습니다. 기본값을 사용합니다.')
+    } else {
+      console.warn(' 사용자 정보를 불러올 수 없어 기본값을 사용합니다.')
+    }
   }
 }
 
@@ -525,13 +527,13 @@ async function fetchLines() {
     
     if (res.data && res.data.success && Array.isArray(res.data.data)) {
       packageLines.value = res.data.data
-      console.log('✅ 라인 목록 로드 완료:', res.data.data.length, '개')
+      console.log(' 라인 목록 로드 완료:', res.data.data.length, '개')
     } else {
       packageLines.value = []
       error.value = '데이터 형식이 올바르지 않습니다'
     }
   } catch (err) {
-    console.error('❌ 라인 목록 로드 실패:', err)
+    console.error(' 라인 목록 로드 실패:', err)
     error.value = '라인 목록을 불러오지 못했습니다.'
     packageLines.value = []
   } finally {
@@ -541,7 +543,7 @@ async function fetchLines() {
 
 // 🔥 포장 타입 선택 (워크플로우 개선)
 function selectPackageType(type) {
-  console.log('🎯 포장 타입 선택:', type)
+  console.log(' 포장 타입 선택:', type)
   console.log('현재 완료된 단계:', completedSteps.value)
   
   if (type === 'OUTER' && !completedSteps.value.includes('INNER')) {
@@ -555,7 +557,7 @@ function selectPackageType(type) {
   lineStatusFilter.value = ''
   searchText.value = ''
   
-  console.log(`✅ ${type === 'INNER' ? '내포장' : '외포장'} 라인 선택 화면으로 이동`)
+  console.log(` ${type === 'INNER' ? '내포장' : '외포장'} 라인 선택 화면으로 이동`)
 }
 
 // 포장 타입 선택으로 돌아가기
@@ -578,7 +580,7 @@ function goBackToLineAdd() {
   }
 }
 
-// 🔥 모든 단계 초기화 (개선된 버전)
+//  모든 단계 초기화 (개선된 버전)
 function resetAllSteps() {
   if (confirm('모든 작업 내역이 초기화됩니다. 정말 새 작업을 시작하시겠습니까?')) {
     currentStep.value = 'package-type-selection'
@@ -592,7 +594,7 @@ function resetAllSteps() {
     lineTypeFilter.value = ''
     lineStatusFilter.value = ''
     searchText.value = ''
-    console.log('🔄 모든 단계 초기화 완료')
+    console.log(' 모든 단계 초기화 완료')
   }
 }
 
@@ -607,7 +609,7 @@ function clearAllFilters() {
   searchText.value = ''
 }
 
-// 🔥 추천 라인 판별 (외포장 시 특정 라인 추천)
+//  추천 라인 판별 (외포장 시 특정 라인 추천)
 function isRecommendedLine(line) {
   if (selectedPackageType.value === 'OUTER' && completedSteps.value.includes('INNER')) {
     // 외포장 시 특정 조건의 라인을 추천
@@ -629,37 +631,37 @@ function continuePackagingWork(line) {
   navigateToWorkPage(line)
 }
 
-// 🔥 작업 시작 확인 (개선된 버전)
+//  작업 시작 확인 (개선된 버전)
 async function confirmStartWork() {
   if (!selectedLineForStart.value) return
   
   try {
-    console.log('🚀 작업 시작:', selectedLineForStart.value)
+    console.log(' 작업 시작:', selectedLineForStart.value)
     navigateToWorkPage(selectedLineForStart.value)
   } catch (err) {
-    console.error('❌ 작업 시작 중 오류:', err)
+    console.error(' 작업 시작 중 오류:', err)
     alert('작업 시작 중 오류가 발생했습니다.')
   } finally {
     closeStartModal()
   }
 }
 
-// 🔥 작업 수행 페이지로 이동 (워크플로우 상태 전달)
+//  작업 수행 페이지로 이동 (워크플로우 상태 전달)
 function navigateToWorkPage(line) {
-  console.log('🚀 작업 페이지로 이동:', line)
+  console.log(' 작업 페이지로 이동:', line)
   
   const queryParams = {
     line_id: line.line_id,
     line_name: line.line_name,
     line_type: line.line_type,
-    work_no: line.work_no || '',
+    work_no: line.curr_work_no || '',
     return_to: 'package_line',
     current_package_type: selectedPackageType.value,
     employee_id: currentEmployee.value?.employee_id || '',
     employee_name: currentEmployee.value?.employee_name || ''
   }
   
-  // 🔥 워크플로우 상태 정보 추가
+  //  워크플로우 상태 정보 추가
   if (selectedPackageType.value === 'OUTER' && completedSteps.value.includes('INNER')) {
     queryParams.workflow_step = 'OUTER'
     queryParams.inner_completed = 'true'
@@ -676,9 +678,9 @@ function navigateToWorkPage(line) {
       name: 'package_work',
       query: queryParams
     })
-    console.log('✅ 작업 페이지로 이동 성공')
+    console.log(' 작업 페이지로 이동 성공')
   } catch (routerError) {
-    console.error('❌ 라우터 이동 실패:', routerError)
+    console.error(' 라우터 이동 실패:', routerError)
     
     const params = new URLSearchParams(queryParams)
     window.location.href = `/packaging/work?${params.toString()}`
@@ -691,7 +693,7 @@ function closeStartModal() {
   selectedLineForStart.value = null
 }
 
-// 🔥 워크플로우 관련 텍스트 함수들
+//  워크플로우 관련 텍스트 함수들
 function getWorkStartTitle() {
   if (selectedPackageType.value === 'OUTER' && completedSteps.value.includes('INNER')) {
     return '외포장 작업 시작 확인'
@@ -701,7 +703,7 @@ function getWorkStartTitle() {
 
 function getWorkStartButtonText() {
   if (selectedPackageType.value === 'OUTER' && completedSteps.value.includes('INNER')) {
-    return '✨ 외포장 작업 시작'
+    return ' 외포장 작업 시작'
   }
   return '작업 시작'
 }
@@ -733,12 +735,12 @@ function getStatusText(status) {
 
 function getStatusIcon(status) {
   const icons = {
-    'AVAILABLE': '✅',
-    'WORKING': '▶',
-    'MAINTENANCE': '🔧',
-    'STOPPED': '⏹'
+    'AVAILABLE': '',
+    'WORKING': '',
+    'MAINTENANCE': '',
+    'STOPPED': ''
   }
-  return icons[status] || '❓'
+  return icons[status] || ''
 }
 
 function formatTime(date) {

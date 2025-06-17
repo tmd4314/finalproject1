@@ -3,7 +3,7 @@
     <!-- 인증 헤더 -->
     <div class="auth-header">
       <div v-if="authStore.isLoggedIn" class="user-info">
-        <span>{{ authStore.user?.name || '사용자' }}님</span>
+        <span>{{ authStore.user?.employee_name || '사용자' }}님</span>
         <button @click="handleLogout" class="logout-btn">로그아웃</button>
       </div>
       <div v-else class="guest-info">
@@ -188,9 +188,6 @@
               <td>
                 <div class="work-info">
                   <div class="work-no">{{ line.curr_work_no || '-' }}</div>
-                  <div v-if="line.process_group_code" class="work-details">
-                    {{ line.process_group_code }}
-                  </div>
                 </div>
               </td>
             </tr>
@@ -215,8 +212,8 @@
                 <input :value="editingLine?.line_id" type="text" disabled />
               </div>
               <div class="form-group">
-                <label>라인명</label>
-                <input :value="editingLine?.line_name" type="text" disabled />
+                <label>작업번호</label>
+                <input :value="editingLine?.curr_work_no" type="text" disabled />
               </div>
             </div>
 
@@ -280,14 +277,14 @@
               </div>
             </div>
 
-            <!-- 🔥 작업 번호 선택 추가 -->
+            <!-- 작업 번호 선택 추가 -->
             <div class="form-row">
               <div class="form-group">
                 <label>작업번호</label>
                 <select v-model="editFormData.curr_work_no">
                   <option value="">작업번호 선택</option>
                   <option v-for="work in availableWorkResults" :key="work.work_order_no" :value="work.work_order_no">
-                    {{ work.work_order_no }} ({{ work.process_group_code }})
+                    {{ work.work_order_no }}
                   </option>
                 </select>
               </div>
@@ -326,6 +323,7 @@
             <h4>내포장/외포장 동시 등록</h4>
             <p>선택한 라인 ID로 <strong>내포장</strong>과 <strong>외포장</strong> 라인이 동시에 등록됩니다.</p>
             <p><strong>담당자:</strong> 각 포장 유형별로 담당자를 선택할 수 있습니다.</p>
+            <p><strong>작업번호:</strong> 미할당 상태인 작업번호만 선택 가능합니다.</p>
           </div>
 
           <form @submit.prevent="dualRegisterLine" class="line-form">
@@ -339,8 +337,13 @@
                 <div v-if="dualErrors.line_id" class="error-message">{{ dualErrors.line_id }}</div>
               </div>
               <div class="form-group">
-                <label>라인명</label>
-                <input value="자동 생성" type="text" disabled />
+                <label>작업번호</label>
+                <select v-model="dualFormData.curr_work_no">
+                  <option value="">작업번호 선택</option>
+                  <option v-for="work in unassignedWorkOrders" :key="work.work_order_no" :value="work.work_order_no">
+                    {{ work.work_order_no }}
+                  </option>
+                </select>
               </div>
             </div>
 
@@ -349,9 +352,9 @@
                 <label>내포장 설비명 *</label>
                 <select v-model="dualFormData.inner_eq_name" :class="{ error: dualErrors.inner_eq_name }">
                   <option value="">설비 선택</option>
-                  <option value="10정용 블리스터 포장기">10정용 블리스터 포장기</option>
-                  <option value="30정용 블리스터 포장기">30정용 블리스터 포장기</option>
-                  <option value="50정용 블리스터 포장기">50정용 블리스터 포장기</option>
+                  <option v-for="eq in innerEquipments" :key="eq.eq_name" :value="eq.eq_name">
+                    {{ eq.eq_name }}
+                  </option>
                 </select>
                 <div v-if="dualErrors.inner_eq_name" class="error-message">{{ dualErrors.inner_eq_name }}</div>
               </div>
@@ -359,9 +362,9 @@
                 <label>외포장 설비명 *</label>
                 <select v-model="dualFormData.outer_eq_name" :class="{ error: dualErrors.outer_eq_name }">
                   <option value="">설비 선택</option>
-                  <option value="소형 카톤 포장기">소형 카톤 포장기</option>
-                  <option value="중형 카톤 포장기">중형 카톤 포장기</option>
-                  <option value="대형 카톤 포장기">대형 카톤 포장기</option>
+                  <option v-for="eq in outerEquipments" :key="eq.eq_name" :value="eq.eq_name">
+                    {{ eq.eq_name }}
+                  </option>
                 </select>
                 <div v-if="dualErrors.outer_eq_name" class="error-message">{{ dualErrors.outer_eq_name }}</div>
               </div>
@@ -417,7 +420,6 @@
               </div>
             </div>
 
-            <!-- 🔥 담당자 선택 필드 추가 -->
             <div class="form-row">
               <div class="form-group">
                 <label>내포장 담당자 *</label>
@@ -490,7 +492,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { useAuthStore } from '../../stores/authStore'
+import { useAuthStore } from '@/stores/authStore'
 import axios from 'axios'
 
 const router = useRouter()
@@ -535,11 +537,31 @@ const showDualModal = ref(false)
 const showAuthModal = ref(false)
 const editingLine = ref(null)
 
-// 🔥 작업결과 목록 추가
+// 작업결과 목록 추가
 const availableWorkResults = ref([])
 
-// 🔥 담당자 목록 추가
+// 담당자 목록 추가
 const availableEmployees = ref([])
+
+// 설비명 목록 추가
+const availableEquipments = ref([])
+const innerEquipments = ref([])
+const outerEquipments = ref([])
+
+// 미할당 작업번호 목록을 위한 computed 속성 추가
+const unassignedWorkOrders = computed(() => {
+  if (!availableWorkResults.value) return []
+  
+  // 현재 할당된 작업번호들 수집
+  const assignedWorkNos = lines.value
+    .filter(line => line.curr_work_no)
+    .map(line => line.curr_work_no)
+  
+  // 미할당 작업번호만 필터링
+  return availableWorkResults.value.filter(work => 
+    !assignedWorkNos.includes(work.work_order_no)
+  )
+})
 
 // 폼 데이터
 const editFormData = ref({
@@ -549,20 +571,22 @@ const editFormData = ref({
   current_speed: 30,
   curr_work_no: '',
   target_qty: 0,
-  employee_id: '',  // 🔥 담당자 ID 추가
+  employee_id: '',
   description: ''
 })
 
+// 수정된 dualFormData 초기화
 const dualFormData = ref({
   line_id: '',
+  curr_work_no: '',
   inner_eq_name: '',
   outer_eq_name: '',
   inner_capacity: 1000,
   outer_capacity: 800,
   inner_speed: 30,
-  outer_speed: 25,
-  inner_employee_id: '', // 🔥 내포장 담당자 추가
-  outer_employee_id: '', // 🔥 외포장 담당자 추가
+  outer_speed: 30,
+  inner_employee_id: '',
+  outer_employee_id: '',
   description: ''
 })
 
@@ -578,17 +602,9 @@ const getEditEquipmentOptions = computed(() => {
   if (!editingLine.value) return []
   
   if (editingLine.value.line_type === 'INNER') {
-    return [
-      '10정용 블리스터 포장기',
-      '30정용 블리스터 포장기',
-      '50정용 블리스터 포장기'
-    ]
+    return innerEquipments.value.map(eq => eq.eq_name)
   } else {
-    return [
-      '소형 카톤 포장기',
-      '중형 카톤 포장기',
-      '대형 카톤 포장기'
-    ]
+    return outerEquipments.value.map(eq => eq.eq_name)
   }
 })
 
@@ -622,13 +638,14 @@ const sortedLines = computed(() => {
 })
 
 // 라이프사이클
-onMounted(() => {
-  authStore.loadAuth()
-  loadCurrentEmployee()
-  loadLines()
-  loadAvailableLineIds()
-  loadAvailableWorkResults()  // 🔥 작업결과 목록 로드 추가
-  loadAvailableEmployees()   // 🔥 담당자 목록 로드 추가
+onMounted(async () => {
+  await authStore.initialize()  // ✅ loadAuth() → initialize()
+  await loadCurrentEmployee()
+  await loadLines()
+  await loadAvailableLineIds()
+  await loadAvailableWorkResults()
+  await loadAvailableEmployees()
+  await loadAvailableEquipments()
 })
 
 // 체크박스 감시
@@ -673,8 +690,8 @@ async function loadCurrentEmployee() {
   try {
     if (authStore.isLoggedIn && authStore.user) {
       currentEmployee.value = {
-        employee_name: authStore.user.name,
-        employee_id: authStore.user.id
+        employee_name: authStore.user.employee_name,  // ✅ name → employee_name
+        employee_id: authStore.user.employee_id       // ✅ id → employee_id
       }
       return
     }
@@ -698,7 +715,7 @@ async function loadCurrentEmployee() {
   }
 }
 
-// 🔥 작업결과 목록 로드 함수 추가
+// 작업결과 목록 로드 함수 추가
 async function loadAvailableWorkResults() {
   try {
     const response = await axios.get(`${API_BASE_URL}/available-work-results`)
@@ -715,7 +732,7 @@ async function loadAvailableWorkResults() {
   }
 }
 
-// 🔥 담당자 목록 로드 함수 추가
+// 담당자 목록 로드 함수 추가
 async function loadAvailableEmployees() {
   try {
     const response = await axios.get(`${API_BASE_URL}/available-employees`)
@@ -736,6 +753,46 @@ async function loadAvailableEmployees() {
       { employee_id: 5, employee_name: '이승민' }
     ]
   }
+}
+
+// 설비명 목록 로드 함수 추가
+async function loadAvailableEquipments() {
+  try {
+    const response = await axios.get(`${API_BASE_URL}/available-equipments`)
+    
+    if (response.data && response.data.success) {
+      availableEquipments.value = response.data.data
+      
+      // 내포장/외포장별로 분리
+      innerEquipments.value = availableEquipments.value.filter(eq => 
+        eq.line_type === 'INNER' || eq.eq_type === 'INNER'
+      )
+      outerEquipments.value = availableEquipments.value.filter(eq => 
+        eq.line_type === 'OUTER' || eq.eq_type === 'OUTER'
+      )
+      
+      console.log('설비명 목록 로드 성공:', availableEquipments.value.length, '개')
+    } else {
+      // 기본 설비명 설정 (API 실패시)
+      setDefaultEquipments()
+    }
+  } catch (error) {
+    console.error('설비명 목록 로드 실패:', error)
+    setDefaultEquipments()
+  }
+}
+
+function setDefaultEquipments() {
+  innerEquipments.value = [
+    { eq_name: '10정용 블리스터 포장기', line_type: 'INNER' },
+    { eq_name: '30정용 블리스터 포장기', line_type: 'INNER' },
+    { eq_name: '50정용 블리스터 포장기', line_type: 'INNER' }
+  ]
+  outerEquipments.value = [
+    { eq_name: '소형 카톤 포장기', line_type: 'OUTER' },
+    { eq_name: '중형 카톤 포장기', line_type: 'OUTER' },
+    { eq_name: '대형 카톤 포장기', line_type: 'OUTER' }
+  ]
 }
 
 function setApiStatus(type, message) {
@@ -815,7 +872,6 @@ async function saveLine() {
       curr_work_no: editFormData.value.curr_work_no,
       target_qty: editFormData.value.target_qty,
       description: editFormData.value.description,
-      // 🔥 선택된 담당자 정보 사용
       employee_id: editFormData.value.employee_id,
       employee_name: availableEmployees.value.find(emp => emp.employee_id == editFormData.value.employee_id)?.employee_name || ''
     }
@@ -826,7 +882,7 @@ async function saveLine() {
       setApiStatus('success', response.data.message || '라인이 성공적으로 수정되었습니다')
       closeEditModal()
       await loadLines()
-      await loadAvailableWorkResults()  // 🔥 작업결과 목록 새로고침
+      await loadAvailableWorkResults()
     } else {
       throw new Error(response.data.message || '수정에 실패했습니다')
     }
@@ -838,6 +894,7 @@ async function saveLine() {
   }
 }
 
+// 수정된 라인 등록 함수
 async function dualRegisterLine() {
   if (!checkAuth('라인 등록')) return
   if (!validateDualForm()) return
@@ -848,19 +905,18 @@ async function dualRegisterLine() {
   try {
     const requestData = {
       line_id: dualFormData.value.line_id,
+      curr_work_no: dualFormData.value.curr_work_no,
       inner_eq_name: dualFormData.value.inner_eq_name,
       outer_eq_name: dualFormData.value.outer_eq_name,
       inner_capacity: dualFormData.value.inner_capacity,
       outer_capacity: dualFormData.value.outer_capacity,
       inner_speed: dualFormData.value.inner_speed,
       outer_speed: dualFormData.value.outer_speed,
-      // 🔥 각각의 담당자 정보 추가
       inner_employee_id: dualFormData.value.inner_employee_id,
       outer_employee_id: dualFormData.value.outer_employee_id,
       description: dualFormData.value.description,
-      // 기존 로그인 사용자 정보는 유지 (백엔드에서 사용)
-      employee_name: authStore.user?.name || currentEmployee.value?.employee_name,
-      employee_id: authStore.user?.id || currentEmployee.value?.employee_id
+      employee_name: authStore.user?.employee_name || currentEmployee.value?.employee_name,  // ✅ name → employee_name
+      employee_id: authStore.user?.employee_id || currentEmployee.value?.employee_id        // ✅ id → employee_id
     }
     
     const response = await axios.post(`${API_BASE_URL}/dual`, requestData)
@@ -870,8 +926,9 @@ async function dualRegisterLine() {
       closeDualModal()
       await loadLines()
       await loadAvailableLineIds()
-      await loadAvailableWorkResults()  // 🔥 작업결과 목록 새로고침
-      await loadAvailableEmployees()    // 🔥 담당자 목록 새로고침
+      await loadAvailableWorkResults()
+      await loadAvailableEmployees()
+      await loadAvailableEquipments()
     } else {
       throw new Error(response.data.message || '동시 등록에 실패했습니다')
     }
@@ -941,7 +998,7 @@ async function deleteSelectedLines() {
       
       await loadLines()
       await loadAvailableLineIds()
-      await loadAvailableWorkResults()  // 🔥 작업결과 목록 새로고침
+      await loadAvailableWorkResults()
       
     } catch (error) {
       console.error('일괄 삭제 실패:', error)
@@ -976,7 +1033,6 @@ function validateEditForm() {
     newErrors.current_speed = '현재 속도를 입력해주세요.'
   }
   
-  // 🔥 담당자 선택 유효성 검사 추가
   if (!editFormData.value.employee_id) {
     newErrors.employee_id = '담당자를 선택해주세요.'
   }
@@ -1016,7 +1072,6 @@ function validateDualForm() {
     newErrors.outer_speed = '외포장 현재 속도를 입력해주세요.'
   }
   
-  // 🔥 담당자 선택 유효성 검사 추가
   if (!dualFormData.value.inner_employee_id) {
     newErrors.inner_employee_id = '내포장 담당자를 선택해주세요.'
   }
@@ -1041,36 +1096,40 @@ function openEditModal(line) {
     current_speed: line.current_speed || 30,
     curr_work_no: line.curr_work_no || '',
     target_qty: line.target_qty || 0,
-    employee_id: line.employee_id || '',  // 🔥 현재 담당자 ID 설정
+    employee_id: line.employee_id || '',
     description: line.description || ''
   }
   
   editErrors.value = {}
-  // 🔥 담당자 목록 새로고침
   loadAvailableEmployees()
+  loadAvailableEquipments()
   showEditModal.value = true
 }
 
+// 수정된 모달 열기 함수
 async function openDualModal() {
   if (!checkAuth('라인 등록')) return
   
   dualFormData.value = {
     line_id: '',
+    curr_work_no: '',
     inner_eq_name: '',
     outer_eq_name: '',
     inner_capacity: 1000,
     outer_capacity: 800,
     inner_speed: 30,
-    outer_speed: 25,
-    inner_employee_id: '', // 🔥 담당자 필드 초기화 추가
-    outer_employee_id: '', // 🔥 담당자 필드 초기화 추가
+    outer_speed: 30,
+    inner_employee_id: '',
+    outer_employee_id: '',
     description: ''
   }
   
   dualErrors.value = {}
   
   await loadAvailableLineIds()
-  await loadAvailableEmployees() // 🔥 담당자 목록도 새로고침
+  await loadAvailableEmployees()
+  await loadAvailableWorkResults()
+  await loadAvailableEquipments()
   showDualModal.value = true
 }
 
@@ -1085,24 +1144,26 @@ function closeEditModal() {
     current_speed: 30,
     curr_work_no: '',
     target_qty: 0,
-    employee_id: '',  // 🔥 담당자 필드 초기화 추가
+    employee_id: '',
     description: ''
   }
 }
 
+// 수정된 모달 닫기 함수
 function closeDualModal() {
   showDualModal.value = false
   dualErrors.value = {}
   dualFormData.value = {
     line_id: '',
+    curr_work_no: '',
     inner_eq_name: '',
     outer_eq_name: '',
     inner_capacity: 1000,
     outer_capacity: 800,
     inner_speed: 30,
-    outer_speed: 25,
-    inner_employee_id: '', // 🔥 담당자 필드 초기화 추가
-    outer_employee_id: '', // 🔥 담당자 필드 초기화 추가
+    outer_speed: 30,
+    inner_employee_id: '',
+    outer_employee_id: '',
     description: ''
   }
 }
@@ -1116,8 +1177,9 @@ function clearFilters() {
 async function refreshData() {
   await loadLines()
   await loadAvailableLineIds()
-  await loadAvailableWorkResults()  // 🔥 작업결과 목록 새로고침
-  await loadAvailableEmployees()    // 🔥 담당자 목록 새로고침
+  await loadAvailableWorkResults()
+  await loadAvailableEmployees()
+  await loadAvailableEquipments()
 }
 
 async function retryConnection() {
@@ -1584,7 +1646,6 @@ defineOptions({
   color: #6c757d;
 }
 
-/* 🔥 작업정보 스타일 추가 */
 .work-info {
   display: flex;
   flex-direction: column;
