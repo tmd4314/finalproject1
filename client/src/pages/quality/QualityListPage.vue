@@ -2,25 +2,45 @@
   <div class="product-form">
     <h3 class="form-title">제품품질검사</h3>
     <br>
+
     <div class="form-section">
       <h3 class="form-title">조회</h3>
       <br>
-
       <div class="input-row">
-        <va-select></va-select>
+        <va-select
+          v-model="form.workNum"
+          :options="workOrderOptions"
+          label="작업지시서번호"
+          class="quarter-width"
+        />
       </div>
-      <br>
-      </div>
-      </div>
-
-
-
+    </div>
+  </div>
 </template>
 
 <script lang="ts" setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import axios from 'axios'
 
+// 작업지시서 선택 폼 바인딩 객체
+const form = ref({
+  workNum: '' // 선택된 작업지시서 번호
+})
+
+// 작업지시서 옵션 (드롭다운용)
+const workOrderOptions = ref<string[]>([])
+
+onMounted(async () => {
+  try {
+    // ✅ 백엔드에서 작업지시서 목록 가져오기
+    const response = await axios.get('/qualitys/workOrderList')
+    workOrderOptions.value = response.data.map((item: any) => item.work_order_no)
+
+    console.log('✅ 작업지시서 목록:', workOrderOptions.value)
+  } catch (err) {
+    console.error('❌ 작업지시서 불러오기 실패:', err)
+  }
+})
 </script>
 
 <style scoped>

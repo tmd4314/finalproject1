@@ -38,6 +38,7 @@ const proxyPaths = [
   'qualityTest',
   'uploads',
   'prodResult',
+  'qualitys',
   'productInbound',
   'processCheck'
 ]
