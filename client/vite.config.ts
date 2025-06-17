@@ -41,6 +41,12 @@ const proxyPaths = [
   'qualitys',
   'productInbound',
   'processCheck',
+  'equipment',
+  'prodResultDetail',
+  'eqStatus',
+  'prodResultStop',
+  'eqStop',
+  'prodEnd',
   'productOutbound',
 ]
 

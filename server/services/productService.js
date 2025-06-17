@@ -17,14 +17,12 @@ const addProduct = async(ProductInfo) => {
     return null; // 또는 throw err;
   });
 
-if (!resInfo) {
-  return {
-    isSuccessed: false,
-    message: 'DB insert 실패',
-  };
+  if (!resInfo) {
+    return {
+      isSuccessed: false,
+      message: 'DB insert 실패',
+    };
 }
-  
-
   let result = null;
   if(resInfo.affectedRows > 0){
     result = {

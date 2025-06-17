@@ -3,6 +3,7 @@
     <div class="va-mb-4 va-row va-gap-2">
       <va-input v-model="search.product_name" label="제품명" />
       <va-input v-model="search.product_stand" label="제품규격" />
+      <va-input v-model="search.result_id" label="실적ID" />
       <va-button @click="searchProducts">검색</va-button>
     </div>
 
@@ -35,7 +36,8 @@ const visible = computed({
 
 const search = ref({
   product_name: '',
-  product_stand: ''
+  product_stand: '',
+  result_id: ''
 })
 
 const productList = ref<any[]>([])
@@ -44,7 +46,8 @@ const columns = [
   { key: 'select', label: '선택', width: 60 },
   { key: 'work_order_no', label: '작업지시 코드' },
   { key: 'product_name', label: '제품명' },
-  { key: 'product_stand', label: '제품규격' }
+  { key: 'product_stand', label: '제품규격' },
+  { key: 'result_id', label: '실적 ID' }
 ]
 
 const searchProducts = async () => {

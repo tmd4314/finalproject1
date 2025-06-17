@@ -14,10 +14,16 @@ const selectResultList =
 `
   SELECT DISTINCT
         wr.result_id,
+        wrd.result_detail,
+        wrd.product_qual_qty,
         p.product_name,
         p.product_stand,
         pc.process_code,
         pc.process_name,
+        eq.eq_id,
+        eq.eq_name,
+        eq.last_inspection_time,
+        eq.last_cleaning_time,
         wr.work_start_date,
         wrd.work_start_time,
         wrd.work_end_time,
@@ -25,6 +31,7 @@ const selectResultList =
         wrd.pass_qty,
         cm.code_label AS result_code_label,
         cd.code_label AS detail_code_label,
+        cq.code_label,
         wrd.manager_id
   FROM   work_result wr
   JOIN   work_result_detail wrd
@@ -43,21 +50,28 @@ const selectResultList =
     ON   wr.code_value = cm.code_value
   JOIN   common_code cd
     ON   wrd.code_value = cd.code_value
+  JOIN   equipment eq
+    ON   wrd.eq_id = eq.eq_id
+  JOIN   common_code cq
+    ON   eq.eq_run_code = cq.code_value
   WHERE  wm.work_order_no = ?
+    AND  p.product_stand = ?
   ORDER BY pc.process_code ASC;
 `
 ;
 
 const selectNoList =
 `
-  SELECT  wm.work_order_no,
-          p.product_name,
-          p.product_stand
-  FROM    work_order_master wm
-  JOIN    work_order_detail wd
-    ON    wm.work_order_no = wd.work_order_no
-  JOIN    product p 
-    ON    wd.product_code = p.product_code
+SELECT
+    wr.result_id,
+    wr.work_order_no,
+    p.product_name,
+    p.product_stand
+  FROM work_result wr
+  JOIN process_group pg 
+    ON wr.process_group_code = pg.process_group_code
+  JOIN product p 
+    ON pg.product_code = p.product_code
 
 `
 ;
@@ -77,10 +91,93 @@ const selectProcessList =
 `
 ;
 
+const selectEqList = 
+`
+  SELECT eq.eq_id,
+         eq.eq_name,
+         eq.eq_run_code,
+         cm.code_label
+  FROM   equipment eq
+  JOIN   common_code cm
+    ON   eq.eq_run_code = cm.code_value 
+`
+;
+
+const insertResultDetail =
+`
+  INSERT INTO work_result_detail(
+                            result_id,
+                            pass_qty,
+                            manager_id,
+                            process_code,
+                            eq_id)
+  VALUES(?, ?, ?, ?, ?)
+`
+;
+
+const updateStart =
+`
+  UPDATE work_result_detail  
+  SET    work_start_time = ?,
+         pass_qty = ?,
+         code_value = "p3"
+  WHERE  result_detail = ?
+`
+;
+
+const updateStop =
+`
+  UPDATE work_result_detail  
+  SET    work_end_time = ?,
+         pass_qty = ?,
+         result_remark = ?,
+         code_value = "p4"
+  WHERE  result_detail = ?
+`
+;
+
+const updateEquipment =
+`
+  UPDATE equipment 
+  SET    eq_run_code = "s1"
+  WHERE  eq_id = ?
+`
+;
+
+const updateStopEq =
+`
+  UPDATE equipment 
+  SET    eq_run_code = "s3"
+  WHERE  eq_id = ?
+`
+
+const startResultWork =
+`
+  UPDATE work_result
+  SET    code_value = "p3"
+  WHERE  result_id = ?
+`
+
+const endResultWork =
+`
+  UPDATE work_result
+  SET    final_qty = ?,
+         code_value = "p4"
+  WHERE  result_id = ?
+`
+
 module.exports = {
   selectResultList,
   insertResult,
   deleteResult,
   selectNoList,
-  selectProcessList
+  selectProcessList,
+  selectEqList,
+  insertResultDetail,
+  updateStart,
+  updateEquipment,
+  updateStop,
+  updateStopEq,
+  startResultWork,
+  endResultWork
 }
