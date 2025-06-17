@@ -4,6 +4,7 @@
     <div class="auth-header">
       <div v-if="authStore.isLoggedIn" class="user-info">
         <span>{{ authStore.user?.employee_name || '사용자' }}님</span>
+        <span class="department-info">({{ authStore.userRole }})</span>
         <button @click="handleLogout" class="logout-btn">로그아웃</button>
       </div>
       <div v-else class="guest-info">
@@ -25,16 +26,23 @@
       <div class="header-content">
         <div class="header-info">
           <h1>포장 라인 관리</h1>
-          <p>포장 라인을 등록, 수정, 삭제할 수 있습니다.</p>
+          <p v-if="authStore.canManageLines">포장 라인을 등록, 수정, 삭제할 수 있습니다.</p>
+          <p v-else>포장 라인 목록을 조회할 수 있습니다.</p>
         </div>
         
+        <!-- 포장 부서 권한이 있는 경우만 등록 버튼 표시 -->
         <button 
-          v-if="authStore.isLoggedIn"
+          v-if="authStore.canManageLines"
           @click="openDualModal()" 
           class="btn-register"
         >
           라인 등록
         </button>
+        <!-- 권한이 없는 경우 안내 메시지 -->
+        <div v-else-if="authStore.isLoggedIn" class="permission-notice">
+          {{ authStore.getPermissionMessage('line_manage') }}
+        </div>
+        <!-- 로그인이 필요한 경우 -->
         <div v-else class="login-required-notice">
           라인 등록은 로그인 후 이용 가능합니다
         </div>
@@ -88,15 +96,16 @@
           <button @click="refreshData" class="btn-refresh" :disabled="loading">
             새로고침
           </button>
+          <!-- 포장 부서 권한이 있는 경우만 수정/삭제 버튼 표시 -->
           <button 
-            v-if="authStore.isLoggedIn && selectedLines.length > 0" 
+            v-if="authStore.canManageLines && selectedLines.length > 0" 
             @click="editSelectedLines" 
             class="btn-edit"
           >
             선택 수정 ({{ selectedLines.length }})
           </button>
           <button 
-            v-if="authStore.isLoggedIn && selectedLines.length > 0" 
+            v-if="authStore.canManageLines && selectedLines.length > 0" 
             @click="deleteSelectedLines" 
             class="btn-delete"
           >
@@ -123,7 +132,7 @@
         <h4>{{ lines.length === 0 ? '등록된 라인이 없습니다' : '조건에 맞는 라인이 없습니다' }}</h4>
         <p>{{ lines.length === 0 ? '새로운 라인을 등록해주세요.' : '검색 조건을 변경해주세요.' }}</p>
         <button 
-          v-if="lines.length === 0 && authStore.isLoggedIn" 
+          v-if="lines.length === 0 && authStore.canManageLines" 
           @click="openDualModal()" 
           class="btn-register"
         >
@@ -136,7 +145,8 @@
         <table class="data-table">
           <thead>
             <tr>
-              <th v-if="authStore.isLoggedIn" class="checkbox-col">
+              <!-- 포장 부서 권한이 있는 경우만 체크박스 표시 -->
+              <th v-if="authStore.canManageLines" class="checkbox-col">
                 <input 
                   type="checkbox" 
                   v-model="selectAll"
@@ -151,11 +161,13 @@
               <th>생산능력</th>
               <th>담당자</th>
               <th>작업번호</th>
+              <!-- 포장 부서 권한이 있는 경우만 작업 열 표시 -->
+              <th v-if="authStore.canManageLines">작업</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="(line, index) in sortedLines" :key="`${line.line_id}-${line.line_type}`">
-              <td v-if="authStore.isLoggedIn" class="checkbox-col">
+              <td v-if="authStore.canManageLines" class="checkbox-col">
                 <input 
                   type="checkbox" 
                   v-model="selectedLines"
@@ -190,6 +202,12 @@
                   <div class="work-no">{{ line.curr_work_no || '-' }}</div>
                 </div>
               </td>
+              <!-- 포장 부서 권한이 있는 경우만 수정 버튼 표시 -->
+              <td v-if="authStore.canManageLines">
+                <button @click="openEditModal(line)" class="btn-edit-single">
+                  수정
+                </button>
+              </td>
             </tr>
           </tbody>
         </table>
@@ -197,7 +215,7 @@
     </div>
 
     <!-- 수정 모달 -->
-    <div v-if="showEditModal && authStore.isLoggedIn" class="modal-overlay" @click="closeEditModal">
+    <div v-if="showEditModal && authStore.canManageLines" class="modal-overlay" @click="closeEditModal">
       <div class="modal-content" @click.stop>
         <div class="modal-header">
           <h3>라인 수정</h3>
@@ -311,7 +329,7 @@
     </div>
 
     <!-- 라인 등록 모달 -->
-    <div v-if="showDualModal && authStore.isLoggedIn" class="modal-overlay" @click="closeDualModal">
+    <div v-if="showDualModal && authStore.canManageLines" class="modal-overlay" @click="closeDualModal">
       <div class="modal-content" @click.stop>
         <div class="modal-header">
           <h3>라인 등록</h3>
@@ -464,25 +482,36 @@
     </div>
 
     <!-- 권한 알림 모달 -->
-    <div v-if="showAuthModal" class="modal-overlay" @click="closeAuthModal">
+    <div v-if="showPermissionModal" class="modal-overlay" @click="closePermissionModal">
       <div class="modal-content" @click.stop>
         <div class="modal-header">
-          <h3>로그인이 필요합니다</h3>
-          <button @click="closeAuthModal" class="modal-close">×</button>
+          <h3>접근 권한 없음</h3>
+          <button @click="closePermissionModal" class="modal-close">×</button>
         </div>
         <div class="modal-body">
-          <div class="auth-notice">
-            <h4>접근 권한이 필요합니다</h4>
-            <p>이 기능을 사용하려면 로그인이 필요합니다.</p>
-            <ul>
-              <li>라인 등록 및 수정</li>
-              <li>작업 데이터 변경</li>
-            </ul>
+          <div class="permission-notice-modal">
+            <h4>{{ permissionMessage }}</h4>
+            <p v-if="authStore.userPermissionSummary">
+              현재 부서: <strong>{{ authStore.userPermissionSummary.departmentName }}부서</strong><br>
+              부서 권한: {{ authStore.userPermissionSummary.description }}
+            </p>
+            <p>포장 라인 관리는 <strong>포장부서</strong> 직원만 사용할 수 있습니다.</p>
+            <div class="available-actions">
+              <h5>사용 가능한 기능:</h5>
+              <ul>
+                <li v-if="authStore.canViewLines">✓ 라인 목록 조회</li>
+                <li v-if="authStore.canManageProduction">✓ 생산 관리</li>
+                <li v-if="authStore.canManageMaterial">✓ 자재 관리</li>
+                <li v-if="authStore.canManageQuality">✓ 품질 관리</li>
+                <li v-if="authStore.canManageLogistics">✓ 물류 관리</li>
+                <li v-if="authStore.canManageAdmin">✓ 관리자 기능</li>
+                <li v-if="authStore.canManageSales">✓ 영업 관리</li>
+              </ul>
+            </div>
           </div>
         </div>
         <div class="modal-actions">
-          <button @click="closeAuthModal" class="btn-cancel">취소</button>
-          <button @click="goToLogin" class="btn-login">로그인하기</button>
+          <button @click="closePermissionModal" class="btn-cancel">확인</button>
         </div>
       </div>
     </div>
@@ -534,8 +563,9 @@ const selectedLines = ref([])
 // 모달 상태
 const showEditModal = ref(false)
 const showDualModal = ref(false)
-const showAuthModal = ref(false)
+const showPermissionModal = ref(false)
 const editingLine = ref(null)
+const permissionMessage = ref('')
 
 // 작업결과 목록 추가
 const availableWorkResults = ref([])
@@ -639,7 +669,7 @@ const sortedLines = computed(() => {
 
 // 라이프사이클
 onMounted(async () => {
-  await authStore.initialize()  // ✅ loadAuth() → initialize()
+  await authStore.initialize()
   await loadCurrentEmployee()
   await loadLines()
   await loadAvailableLineIds()
@@ -672,17 +702,26 @@ function goToLogin() {
   router.push({ name: 'login' })
 }
 
-function checkAuth(action = '이 작업') {
+// 🔥 권한 체크 함수 업데이트
+function checkPackagingPermission(action = '이 작업') {
   if (!authStore.isLoggedIn) {
-    showAuthModal.value = true
-    setApiStatus('warning', `${action}을 위해서는 로그인이 필요합니다.`)
+    permissionMessage.value = '로그인이 필요합니다.'
+    showPermissionModal.value = true
     return false
   }
+  
+  if (!authStore.canManageLines) {
+    permissionMessage.value = authStore.getPermissionMessage('line_manage')
+    showPermissionModal.value = true
+    return false
+  }
+  
   return true
 }
 
-function closeAuthModal() {
-  showAuthModal.value = false
+function closePermissionModal() {
+  showPermissionModal.value = false
+  permissionMessage.value = ''
 }
 
 // API 함수들
@@ -690,8 +729,8 @@ async function loadCurrentEmployee() {
   try {
     if (authStore.isLoggedIn && authStore.user) {
       currentEmployee.value = {
-        employee_name: authStore.user.employee_name,  // ✅ name → employee_name
-        employee_id: authStore.user.employee_id       // ✅ id → employee_id
+        employee_name: authStore.user.employee_name,
+        employee_id: authStore.user.employee_id
       }
       return
     }
@@ -855,7 +894,7 @@ async function loadAvailableLineIds() {
 }
 
 async function saveLine() {
-  if (!checkAuth('라인 수정')) return
+  if (!checkPackagingPermission('라인 수정')) return
   if (!validateEditForm()) return
   
   saving.value = true
@@ -896,7 +935,7 @@ async function saveLine() {
 
 // 수정된 라인 등록 함수
 async function dualRegisterLine() {
-  if (!checkAuth('라인 등록')) return
+  if (!checkPackagingPermission('라인 등록')) return
   if (!validateDualForm()) return
   
   saving.value = true
@@ -915,8 +954,8 @@ async function dualRegisterLine() {
       inner_employee_id: dualFormData.value.inner_employee_id,
       outer_employee_id: dualFormData.value.outer_employee_id,
       description: dualFormData.value.description,
-      employee_name: authStore.user?.employee_name || currentEmployee.value?.employee_name,  // ✅ name → employee_name
-      employee_id: authStore.user?.employee_id || currentEmployee.value?.employee_id        // ✅ id → employee_id
+      employee_name: authStore.user?.employee_name || currentEmployee.value?.employee_name,
+      employee_id: authStore.user?.employee_id || currentEmployee.value?.employee_id
     }
     
     const response = await axios.post(`${API_BASE_URL}/dual`, requestData)
@@ -941,7 +980,7 @@ async function dualRegisterLine() {
 }
 
 function editSelectedLines() {
-  if (!checkAuth('라인 수정')) return
+  if (!checkPackagingPermission('라인 수정')) return
   if (selectedLines.value.length === 0) return
   
   if (selectedLines.value.length === 1) {
@@ -958,7 +997,7 @@ function editSelectedLines() {
 }
 
 async function deleteSelectedLines() {
-  if (!checkAuth('라인 삭제')) return
+  if (!checkPackagingPermission('라인 삭제')) return
   if (selectedLines.value.length === 0) return
   
   const selectedCount = selectedLines.value.length
@@ -1009,7 +1048,7 @@ async function deleteSelectedLines() {
 
 // UI 함수들
 function toggleSelectAll() {
-  if (!authStore.isLoggedIn) return
+  if (!authStore.canManageLines) return
   
   if (selectAll.value) {
     selectedLines.value = sortedLines.value.map(line => `${line.line_id}-${line.line_type}`)
@@ -1085,7 +1124,7 @@ function validateDualForm() {
 }
 
 function openEditModal(line) {
-  if (!checkAuth('라인 수정')) return
+  if (!checkPackagingPermission('라인 수정')) return
   
   editingLine.value = line
   
@@ -1108,7 +1147,7 @@ function openEditModal(line) {
 
 // 수정된 모달 열기 함수
 async function openDualModal() {
-  if (!checkAuth('라인 등록')) return
+  if (!checkPackagingPermission('라인 등록')) return
   
   dualFormData.value = {
     line_id: '',
@@ -1236,6 +1275,11 @@ defineOptions({
   font-size: 14px;
 }
 
+.department-info {
+  color: #6c757d;
+  font-size: 12px;
+}
+
 .guest-text {
   color: #6c757d;
 }
@@ -1299,7 +1343,7 @@ defineOptions({
   margin: 0;
 }
 
-.login-required-notice {
+.login-required-notice, .permission-notice {
   padding: 6px 10px;
   background: #f8f9fa;
   border: 1px solid #dee2e6;
@@ -1308,9 +1352,15 @@ defineOptions({
   font-size: 12px;
 }
 
+.permission-notice {
+  background: #fff3cd;
+  border-color: #ffeaa7;
+  color: #856404;
+}
+
 .btn-register {
   padding: 8px 16px;
-  background: #2476f0;
+  background: #28a745;
   color: white;
   border: none;
   border-radius: 4px;
@@ -1340,19 +1390,19 @@ defineOptions({
   background: #0056b3;
 }
 
-.btn-login {
-  padding: 6px 16px;
+.btn-edit-single {
+  padding: 4px 8px;
   background: #007bff;
   color: white;
   border: none;
   border-radius: 4px;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 500;
   cursor: pointer;
   transition: background-color 0.15s;
 }
 
-.btn-login:hover {
+.btn-edit-single:hover {
   background: #0056b3;
 }
 
@@ -1764,6 +1814,49 @@ defineOptions({
   color: #495057;
 }
 
+.permission-notice-modal {
+  text-align: center;
+  padding: 20px;
+}
+
+.permission-notice-modal h4 {
+  margin: 0 0 12px 0;
+  font-size: 16px;
+  color: #856404;
+}
+
+.permission-notice-modal p {
+  margin: 0 0 16px 0;
+  color: #6c757d;
+  font-size: 14px;
+}
+
+.available-actions {
+  text-align: left;
+  margin-top: 20px;
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 4px;
+}
+
+.available-actions h5 {
+  margin: 0 0 8px 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #495057;
+}
+
+.available-actions ul {
+  margin: 0;
+  padding-left: 16px;
+  color: #6c757d;
+  font-size: 12px;
+}
+
+.available-actions li {
+  margin: 4px 0;
+}
+
 .line-form {
   display: flex;
   flex-direction: column;
@@ -1854,7 +1947,7 @@ defineOptions({
 }
 
 .btn-save {
-  background: #0b41d4;
+  background: #28a745;
   color: white;
 }
 
@@ -1865,31 +1958,6 @@ defineOptions({
 .btn-save:disabled {
   background: #adb5bd;
   cursor: not-allowed;
-}
-
-.auth-notice {
-  text-align: center;
-  padding: 20px;
-}
-
-.auth-notice h4 {
-  margin: 0 0 12px 0;
-  font-size: 14px;
-  color: #495057;
-}
-
-.auth-notice p {
-  margin: 0 0 16px 0;
-  color: #6c757d;
-  font-size: 12px;
-}
-
-.auth-notice ul {
-  text-align: left;
-  color: #6c757d;
-  margin: 0;
-  padding-left: 20px;
-  font-size: 12px;
 }
 
 @media (max-width: 768px) {

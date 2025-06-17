@@ -1,4 +1,4 @@
-// src/stores/authStore.ts (axios 설정 수정 버전)
+// src/stores/authStore.ts (완전 수정된 버전)
 import { defineStore } from 'pinia'
 import { ref, computed, readonly } from 'vue'
 import axios from 'axios'
@@ -6,14 +6,31 @@ import { useToast } from 'vuestic-ui'
 
 const AUTH_STORAGE_KEY = 'auth-store'
 
+// 🔥 사용자 타입 정의
+interface User {
+  employee_id: string | number
+  employee_name: string
+  department_code: string
+  department_name?: string
+  position?: string
+  [key: string]: any
+}
+
+// 🔥 부서 권한 타입 정의
+interface DepartmentPermission {
+  name: string
+  modules: string[]
+  description: string
+}
+
 export const useAuthStore = defineStore('auth', () => {
   // ================================
   // 상태 관리
   // ================================
-  const user = ref<any>(null)
-  const token = ref('')
-  const isLoading = ref(false)
-  const isInitialized = ref(false)
+  const user = ref<User | null>(null)
+  const token = ref<string>('')
+  const isLoading = ref<boolean>(false)
+  const isInitialized = ref<boolean>(false)
   
   // ================================
   // 계산된 속성
@@ -30,7 +47,7 @@ export const useAuthStore = defineStore('auth', () => {
   const userRole = computed(() => {
     if (!user.value) return ''
     
-    const parts = []
+    const parts: string[] = []
     if (user.value.position) parts.push(user.value.position)
     if (user.value.department_name || user.value.department_code) {
       parts.push(user.value.department_name || user.value.department_code)
@@ -38,13 +55,188 @@ export const useAuthStore = defineStore('auth', () => {
     
     return parts.join(' • ')
   })
+
+  // ================================
+  // 🔥 부서별 권한 관리 시스템
+  // ================================
+  
+  // 부서별 권한 매핑 (department 테이블의 department_code 기준)
+  const DEPARTMENT_PERMISSIONS: Record<string, DepartmentPermission> = {
+    '01': {
+      name: '생산',
+      modules: ['production'], // 생산 관리만
+      description: '생산 관리 권한'
+    },
+    '02': {
+      name: '자재',
+      modules: ['material', 'inventory'], // 자재/재고 관리만
+      description: '자재 관리 권한'
+    },
+    '03': {
+      name: '포장',
+      modules: ['packaging'], // 포장 관리 (라인 관리 포함)
+      description: '포장 라인 관리 권한'
+    },
+    '04': {
+      name: '품질',
+      modules: ['quality', 'inspection'], // 품질 관리만
+      description: '품질 관리 권한'
+    },
+    '05': {
+      name: '물류',
+      modules: ['logistics', 'shipping'], // 물류 관리만
+      description: '물류 관리 권한'
+    },
+    '06': {
+      name: '총무',
+      modules: ['admin', 'user_manage'], // 관리자 권한만
+      description: '총무 관리 권한'
+    },
+    '07': {
+      name: '영업',
+      modules: ['sales', 'order'], // 영업 관리만
+      description: '영업 관리 권한'
+    }
+  }
+  
+  // 사용자 부서 정보
+  const userDepartment = computed(() => {
+    if (!user.value || !user.value.department_code) return null
+    return DEPARTMENT_PERMISSIONS[user.value.department_code] || null
+  })
+  
+  // 특정 모듈 권한 확인 함수
+  const hasModulePermission = (module: string): boolean => {
+    if (!isLoggedIn.value) return false
+    
+    // 🔥 관리자는 모든 권한 허용
+    if (user.value?.position === '관리자') return true
+    
+    if (!userDepartment.value) return false
+    return userDepartment.value.modules.includes(module)
+  }
+  
+  // 부서별 권한 확인 (Computed Properties)
+  const isPackagingEmployee = computed(() => hasModulePermission('packaging'))
+  // 🔥 포장 라인은 포장 부서 전용이므로 관리/조회 권한이 동일
+  const canManageLines = computed(() => 
+    user.value?.position === '관리자' || user.value?.department_code === '03'
+  )
+  const canViewLines = computed(() => 
+    user.value?.position === '관리자' || user.value?.department_code === '03'
+  )
+  const canManageProduction = computed(() => hasModulePermission('production'))
+  const canManageMaterial = computed(() => hasModulePermission('material'))
+  const canManageQuality = computed(() => hasModulePermission('quality'))
+  const canManageLogistics = computed(() => hasModulePermission('logistics'))
+  const canManageAdmin = computed(() => hasModulePermission('admin'))
+  const canManageSales = computed(() => hasModulePermission('sales'))
+  
+  // 권한 메시지 생성 (모듈별)
+  const getPermissionMessage = (module: string = 'line_manage'): string => {
+    if (!isLoggedIn.value) {
+      return '이 기능을 사용하려면 로그인이 필요합니다.'
+    }
+    
+    // 🔥 관리자는 모든 권한이 있으므로 메시지 없음
+    if (user.value?.position === '관리자') {
+      return ''
+    }
+    
+    // 🔥 라인 관련 기능은 포장 부서 전용
+    if (module === 'line_manage' || module === 'line_view') {
+      if (user.value?.department_code !== '03') {
+        return '라인 관리는 포장부서 전용 기능입니다.'
+      }
+      return ''
+    }
+    
+    if (!userDepartment.value) {
+      return '부서 정보를 확인할 수 없습니다. 관리자에게 문의하세요.'
+    }
+    
+    if (!hasModulePermission(module)) {
+      const moduleNames: Record<string, string> = {
+        'production': '생산 관리',
+        'material': '자재 관리',
+        'quality': '품질 관리',
+        'logistics': '물류 관리',
+        'admin': '관리자',
+        'sales': '영업 관리',
+        'packaging': '포장 관리'
+      }
+      
+      const moduleName = moduleNames[module] || module
+      return `${moduleName} 권한이 없습니다. (현재: ${userDepartment.value.name}부서 - ${userDepartment.value.description})`
+    }
+    
+    return ''
+  }
+  
+  // 사용자 권한 요약
+  const userPermissionSummary = computed(() => {
+    if (!user.value) return null
+    
+    // 🔥 관리자인 경우 모든 권한 허용
+    if (user.value.position === '관리자') {
+      return {
+        departmentName: '관리자',
+        departmentCode: user.value.department_code,
+        description: '전체 시스템 관리 권한',
+        modules: ['admin', 'packaging', 'production', 'material', 'quality', 'logistics', 'sales'],
+        permissions: {
+          canViewLines: true,
+          canManageLines: true,
+          canManageProduction: true,
+          canManageMaterial: true,
+          canManageQuality: true,
+          canManageLogistics: true,
+          canManageAdmin: true,
+          canManageSales: true
+        }
+      }
+    }
+    
+    if (!userDepartment.value) return null
+    
+    return {
+      departmentName: userDepartment.value.name,
+      departmentCode: user.value?.department_code,
+      description: userDepartment.value.description,
+      modules: userDepartment.value.modules,
+      permissions: {
+        canViewLines: canViewLines.value,
+        canManageLines: canManageLines.value,
+        canManageProduction: canManageProduction.value,
+        canManageMaterial: canManageMaterial.value,
+        canManageQuality: canManageQuality.value,
+        canManageLogistics: canManageLogistics.value,
+        canManageAdmin: canManageAdmin.value,
+        canManageSales: canManageSales.value
+      }
+    }
+  })
   
   // ================================
   // 인증 관련 함수들
   // ================================
   
+  // axios 인증 헤더 설정
+  const setAxiosAuthHeader = (authToken: string) => {
+    if (axios?.defaults?.headers?.common) {
+      axios.defaults.headers.common['Authorization'] = `Bearer ${authToken}`
+    }
+  }
+  
+  // axios 인증 헤더 제거
+  const removeAxiosAuthHeader = () => {
+    if (axios?.defaults?.headers?.common) {
+      delete axios.defaults.headers.common['Authorization']
+    }
+  }
+  
   // 인증 데이터 저장
-  const saveAuthData = (userData: any, userToken: string) => {
+  const saveAuthData = (userData: User, userToken: string) => {
     const authData = {
       user: userData,
       token: userToken,
@@ -67,20 +259,8 @@ export const useAuthStore = defineStore('auth', () => {
     setAxiosAuthHeader(userToken)
     
     console.log('인증 데이터 저장됨:', userData.employee_name || userData.employee_id)
-  }
-  
-  // axios 인증 헤더 설정
-  const setAxiosAuthHeader = (authToken: string) => {
-    if (axios?.defaults?.headers?.common) {
-      axios.defaults.headers.common['Authorization'] = `Bearer ${authToken}`
-    }
-  }
-  
-  // axios 인증 헤더 제거
-  const removeAxiosAuthHeader = () => {
-    if (axios?.defaults?.headers?.common) {
-      delete axios.defaults.headers.common['Authorization']
-    }
+    console.log('부서 정보:', userData.department_name || userData.department_code)
+    console.log('권한 정보:', userData.department_code ? DEPARTMENT_PERMISSIONS[userData.department_code] || '권한 없음' : '권한 없음')
   }
   
   // 인증 데이터 로드
@@ -102,7 +282,6 @@ export const useAuthStore = defineStore('auth', () => {
         const sevenDaysInMs = 7 * 24 * 60 * 60 * 1000
         if (Date.now() - authData.timestamp > sevenDaysInMs) {
           console.log('인증 데이터가 7일 이상 지났지만 유지함')
-          // 자동 로그아웃 제거 - 사용자가 직접 로그아웃할 때까지 유지
         }
         
         user.value = authData.user
@@ -111,6 +290,7 @@ export const useAuthStore = defineStore('auth', () => {
         setAxiosAuthHeader(authData.token)
         
         console.log('저장된 인증 데이터 로드됨:', authData.user.employee_name || authData.user.employee_id)
+        console.log('부서 정보:', authData.user.department_name || authData.user.department_code)
         return true
       }
       
@@ -172,9 +352,7 @@ export const useAuthStore = defineStore('auth', () => {
       isLoading.value = true
       
       console.log('로그인 요청:', { employee_id })
-      console.log('전송할 데이터:', { employee_id, password: '***' })
       
-      // 중요: 명시적으로 Content-Type 헤더 설정
       const response = await axios.post('http://localhost:3000/auth/login', {
         employee_id: employee_id.toString().trim(),
         password: password.toString().trim()
@@ -194,13 +372,35 @@ export const useAuthStore = defineStore('auth', () => {
         // 인증 데이터 저장
         saveAuthData(userData, userToken)
         
+        // 🔥 관리자/부서별 권한 메시지 표시
+        let welcomeMessage = `${userData.employee_name || userData.employee_id}님 환영합니다!`
+        
+        if (userData.position === '관리자') {
+          welcomeMessage += ` (관리자 - 전체 시스템 관리 권한)`
+        } else {
+          const departmentInfo = DEPARTMENT_PERMISSIONS[userData.department_code]
+          if (departmentInfo) {
+            welcomeMessage += ` (${departmentInfo.name}부서 - ${departmentInfo.description})`
+          } else {
+            welcomeMessage += ` (${userData.department_name || userData.department_code} - 조회 전용)`
+          }
+        }
+        
         showToast({
-          message: `${userData.employee_name || userData.employee_id}님 환영합니다!`,
+          message: welcomeMessage,
           color: 'success',
-          duration: 3000
+          duration: 4000
         })
         
         console.log('로그인 성공:', userData.employee_name || userData.employee_id)
+        console.log('권한 정보:', {
+          department: userData.department_name || userData.department_code,
+          position: userData.position,
+          permissions: userData.position === '관리자' ? 
+            '전체 권한' : 
+            (userData.department_code ? DEPARTMENT_PERMISSIONS[userData.department_code] || '권한 없음' : '권한 없음')
+        })
+        
         return { success: true, user: userData }
       } else {
         throw new Error(response.data.message || '로그인에 실패했습니다.')
@@ -208,7 +408,6 @@ export const useAuthStore = defineStore('auth', () => {
       
     } catch (error: any) {
       console.error('로그인 에러:', error)
-      console.error('에러 응답:', error.response?.data)
       
       let errorMessage = '로그인에 실패했습니다.'
       
@@ -226,8 +425,6 @@ export const useAuthStore = defineStore('auth', () => {
         errorMessage = '로그인 요청 시간이 초과되었습니다. 네트워크를 확인해주세요.'
       } else if (error.request) {
         errorMessage = '서버에 연결할 수 없습니다. 네트워크를 확인해주세요.'
-      } else if (error.message) {
-        errorMessage = error.message
       }
       
       showToast({
@@ -250,12 +447,6 @@ export const useAuthStore = defineStore('auth', () => {
       isLoading.value = true
       
       console.log('로그아웃 시작...')
-      
-      showToast({
-        message: '로그아웃 중...',
-        color: 'info',
-        duration: 1000
-      })
       
       // 서버에 로그아웃 요청
       if (token.value) {
@@ -315,7 +506,7 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
   
-  // 초기화 (앱 시작시) - axios 설정 개선
+  // 초기화 (앱 시작시)
   const initialize = async () => {
     if (isInitialized.value) {
       console.log('이미 초기화됨')
@@ -325,52 +516,20 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       console.log('AuthStore 초기화 시작...')
       
-      // axios 기본 설정 개선
+      // axios 기본 설정
       if (typeof axios !== 'undefined') {
-        // 기본 URL 설정 - 명시적으로 백엔드 서버 포트 지정
         axios.defaults.baseURL = 'http://localhost:3000'
         axios.defaults.timeout = 15000
         axios.defaults.withCredentials = false
-        
-        // 중요: Content-Type 기본 헤더 설정
         axios.defaults.headers.common['Content-Type'] = 'application/json'
         axios.defaults.headers.common['Accept'] = 'application/json'
-        
-        // POST 요청용 헤더 설정
         axios.defaults.headers.post['Content-Type'] = 'application/json'
         
-        console.log('axios 기본 설정 완료:', {
-          baseURL: axios.defaults.baseURL,
-          timeout: axios.defaults.timeout,
-          contentType: axios.defaults.headers.common['Content-Type']
-        })
-        
-        // 요청 인터셉터 추가 (디버깅용)
-        axios.interceptors.request.use(
-          (config) => {
-            console.log('요청 전송:', {
-              method: config.method?.toUpperCase(),
-              url: config.url,
-              data: config.data,
-              headers: config.headers
-            })
-            return config
-          },
-          (error) => {
-            console.error('요청 인터셉터 에러:', error)
-            return Promise.reject(error)
-          }
-        )
+        console.log('axios 기본 설정 완료')
         
         // 응답 인터셉터 설정
         axios.interceptors.response.use(
-          (response) => {
-            console.log('응답 수신:', {
-              status: response.status,
-              data: response.data
-            })
-            return response
-          },
+          (response) => response,
           (error) => {
             console.error('응답 에러:', {
               status: error.response?.status,
@@ -380,7 +539,6 @@ export const useAuthStore = defineStore('auth', () => {
             
             if (error.response?.status === 401) {
               console.log('401 에러 발생했지만 자동 로그아웃하지 않음')
-              // 자동 로그아웃 제거 - 사용자가 직접 로그아웃할 때까지 유지
             }
             return Promise.reject(error)
           }
@@ -393,18 +551,13 @@ export const useAuthStore = defineStore('auth', () => {
       
       if (hasAuth && token.value) {
         console.log('인증 데이터 있음, 사용자:', user.value?.employee_name || user.value?.employee_id)
-        
-        // 선택적 토큰 검증 (실패해도 로그아웃하지 않음)
-        try {
-          const isValid = await verifyToken()
-          if (!isValid) {
-            console.log('토큰 검증 실패했지만 로그인 상태 유지')
-            // 자동 로그아웃 제거 - 사용자가 직접 로그아웃할 때까지 유지
-          }
-        } catch (verifyError) {
-          console.warn('토큰 검증 중 네트워크 오류:', verifyError)
-          console.log('네트워크 오류로 인한 토큰 검증 실패 - 기존 정보 유지')
-        }
+        console.log('부서 권한:', {
+          department: user.value?.department_name || user.value?.department_code,
+          position: user.value?.position,
+          permissions: user.value?.position === '관리자' ? 
+            '전체 권한' : 
+            (user.value?.department_code ? DEPARTMENT_PERMISSIONS[user.value.department_code] || '권한 없음' : '권한 없음')
+        })
       } else {
         console.log('인증 데이터 없음 - 게스트 모드')
       }
@@ -446,14 +599,37 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
   
-  // 자동 로그인 시도 (개발용)
-  const autoLogin = async (credentials?: { employee_id: string, password: string }) => {
-    if (process.env.NODE_ENV !== 'development') return
-    
-    if (credentials) {
-      console.log('개발용 자동 로그인 시도...')
-      return await login(credentials.employee_id, credentials.password)
+  // 🔥 권한 체크 함수 (모듈별)
+  const checkPermission = (module: string = 'line_manage', action: string = '이 작업'): boolean => {
+    if (!isLoggedIn.value) {
+      console.log(`권한 체크 실패: 로그인 필요 - ${action}`)
+      return false
     }
+    
+    // 🔥 관리자는 모든 권한 허용
+    if (user.value?.position === '관리자') {
+      console.log(`권한 체크 성공: 관리자 권한 - ${action}`)
+      return true
+    }
+    
+    // 🔥 라인 관련 기능은 포장 부서 전용
+    if (module === 'line_manage' || module === 'line_view') {
+      if (user.value?.department_code === '03') {
+        console.log(`권한 체크 성공: 포장부서 라인 권한 - ${action}`)
+        return true
+      } else {
+        console.log(`권한 체크 실패: 포장부서 전용 기능 - ${action}`)
+        return false
+      }
+    }
+    
+    if (!hasModulePermission(module)) {
+      console.log(`권한 체크 실패: ${module} 모듈 권한 없음 - ${action}`)
+      return false
+    }
+    
+    console.log(`권한 체크 성공: ${module} 모듈 - ${action}`)
+    return true
   }
   
   // ================================
@@ -471,6 +647,21 @@ export const useAuthStore = defineStore('auth', () => {
     displayName,
     userRole,
     
+    // 🔥 권한 관련 추가
+    isPackagingEmployee,
+    canManageLines,
+    canViewLines,
+    canManageProduction,
+    canManageMaterial,
+    canManageQuality,
+    canManageLogistics,
+    canManageAdmin,
+    canManageSales,
+    userDepartment,
+    userPermissionSummary,
+    hasModulePermission,
+    getPermissionMessage,
+    
     // 주요 액션
     login,
     logout,
@@ -483,64 +674,12 @@ export const useAuthStore = defineStore('auth', () => {
     checkAuth,
     forceLogout,
     
+    // 🔥 권한 체크 함수 추가
+    checkPermission,
+    
     // 기타 유틸리티
     formatDate,
-    autoLogin,
   }
 })
-
-// 전역 유틸리티
-if (typeof window !== 'undefined') {
-  (window as any).authUtils = {
-    getStore: () => useAuthStore(),
-    
-    getUser: () => {
-      const store = useAuthStore()
-      return store.user || null
-    },
-    
-    getToken: () => {
-      const store = useAuthStore()
-      return store.token || null
-    },
-    
-    isAuthenticated: () => {
-      const store = useAuthStore()
-      return store.isLoggedIn
-    },
-    
-    logout: async () => {
-      const store = useAuthStore()
-      await store.logout()
-      if (typeof window !== 'undefined') {
-        setTimeout(() => {
-          window.location.href = '/dashboard'
-        }, 1000)
-      }
-    },
-    
-    forceLogout: () => {
-      const store = useAuthStore()
-      store.forceLogout()
-    }
-  }
-  
-  // 개발용 전역 함수
-  if (process.env.NODE_ENV === 'development') {
-    (window as any).devAuth = {
-      clearAuth: () => {
-        const store = useAuthStore()
-        store.clearAuthData()
-      },
-      
-      checkAuth: () => {
-        const store = useAuthStore()
-        console.log('인증 상태:', store.isLoggedIn)
-        console.log('사용자:', store.user)
-        console.log('토큰:', store.token ? '***' + store.token.slice(-4) : 'None')
-      }
-    }
-  }
-}
 
 export default useAuthStore
