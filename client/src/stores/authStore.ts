@@ -1,4 +1,4 @@
-// 📁 src/stores/authStore.ts (순환 의존성 해결 버전)
+// src/stores/authStore.ts (axios 설정 수정 버전)
 import { defineStore } from 'pinia'
 import { ref, computed, readonly } from 'vue'
 import axios from 'axios'
@@ -8,7 +8,7 @@ const AUTH_STORAGE_KEY = 'auth-store'
 
 export const useAuthStore = defineStore('auth', () => {
   // ================================
-  // 🎯 상태 관리
+  // 상태 관리
   // ================================
   const user = ref<any>(null)
   const token = ref('')
@@ -16,7 +16,7 @@ export const useAuthStore = defineStore('auth', () => {
   const isInitialized = ref(false)
   
   // ================================
-  // 💡 계산된 속성
+  // 계산된 속성
   // ================================
   const isLoggedIn = computed(() => !!user.value && !!token.value)
   
@@ -40,7 +40,7 @@ export const useAuthStore = defineStore('auth', () => {
   })
   
   // ================================
-  // 🔐 인증 관련 함수들
+  // 인증 관련 함수들
   // ================================
   
   // 인증 데이터 저장
@@ -60,13 +60,13 @@ export const useAuthStore = defineStore('auth', () => {
       localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(authData))
       sessionStorage.removeItem(AUTH_STORAGE_KEY) // 중복 방지
     } catch (error) {
-      console.error('❌ localStorage 저장 실패:', error)
+      console.error('localStorage 저장 실패:', error)
     }
     
     // axios 기본 헤더 설정
     setAxiosAuthHeader(userToken)
     
-    console.log('✅ 인증 데이터 저장됨:', userData.employee_name || userData.employee_id)
+    console.log('인증 데이터 저장됨:', userData.employee_name || userData.employee_id)
   }
   
   // axios 인증 헤더 설정
@@ -90,7 +90,7 @@ export const useAuthStore = defineStore('auth', () => {
                           sessionStorage.getItem(AUTH_STORAGE_KEY)
       
       if (!authDataStr) {
-        console.log('📭 저장된 인증 데이터 없음')
+        console.log('저장된 인증 데이터 없음')
         return false
       }
       
@@ -98,12 +98,11 @@ export const useAuthStore = defineStore('auth', () => {
       
       // 데이터 유효성 검사
       if (authData?.user && authData?.token) {
-        // 만료 시간 검사 (7일)
+        // 만료 시간 검사 (7일) - 경고만 표시하고 로그아웃하지 않음
         const sevenDaysInMs = 7 * 24 * 60 * 60 * 1000
         if (Date.now() - authData.timestamp > sevenDaysInMs) {
-          console.log('⏰ 인증 데이터 만료됨')
-          clearAuthData()
-          return false
+          console.log('인증 데이터가 7일 이상 지났지만 유지함')
+          // 자동 로그아웃 제거 - 사용자가 직접 로그아웃할 때까지 유지
         }
         
         user.value = authData.user
@@ -111,14 +110,14 @@ export const useAuthStore = defineStore('auth', () => {
         
         setAxiosAuthHeader(authData.token)
         
-        console.log('✅ 저장된 인증 데이터 로드됨:', authData.user.employee_name || authData.user.employee_id)
+        console.log('저장된 인증 데이터 로드됨:', authData.user.employee_name || authData.user.employee_id)
         return true
       }
       
-      console.log('❌ 인증 데이터 형식 오류')
+      console.log('인증 데이터 형식 오류')
       return false
     } catch (error) {
-      console.error('❌ 인증 데이터 로드 에러:', error)
+      console.error('인증 데이터 로드 에러:', error)
       clearAuthData()
       return false
     }
@@ -133,12 +132,12 @@ export const useAuthStore = defineStore('auth', () => {
       localStorage.removeItem(AUTH_STORAGE_KEY)
       sessionStorage.removeItem(AUTH_STORAGE_KEY)
     } catch (error) {
-      console.error('❌ localStorage 삭제 실패:', error)
+      console.error('localStorage 삭제 실패:', error)
     }
     
     removeAxiosAuthHeader()
     
-    console.log('🧹 인증 데이터 삭제됨')
+    console.log('인증 데이터 삭제됨')
   }
   
   // 토큰 검증
@@ -147,39 +146,47 @@ export const useAuthStore = defineStore('auth', () => {
       const targetToken = tokenToVerify || token.value
       if (!targetToken) return false
       
-      const response = await axios.get('/auth/verify', {
+      const response = await axios.get('http://localhost:3000/auth/verify', {
         headers: { Authorization: `Bearer ${targetToken}` },
         timeout: 10000
       })
       
       const isValid = response.data?.success === true
-      console.log(isValid ? '✅ 토큰 검증 성공' : '❌ 토큰 검증 실패')
+      console.log(isValid ? '토큰 검증 성공' : '토큰 검증 실패')
       return isValid
     } catch (error: any) {
-      console.warn('⚠️ 토큰 검증 실패:', error.response?.status || error.message)
+      console.warn('토큰 검증 실패:', error.response?.status || error.message)
       return false
     }
   }
   
   // ================================
-  // 🚀 주요 액션들
+  // 주요 액션들
   // ================================
   
-  // 로그인
+  // 로그인 (개선된 버전)
   const login = async (employee_id: string, password: string) => {
     const { init: showToast } = useToast()
     
     try {
       isLoading.value = true
       
-      console.log('🔐 로그인 요청:', { employee_id })
+      console.log('로그인 요청:', { employee_id })
+      console.log('전송할 데이터:', { employee_id, password: '***' })
       
-      const response = await axios.post('/auth/login', {
-        employee_id,
-        password
+      // 중요: 명시적으로 Content-Type 헤더 설정
+      const response = await axios.post('http://localhost:3000/auth/login', {
+        employee_id: employee_id.toString().trim(),
+        password: password.toString().trim()
       }, {
-        timeout: 15000 // 15초 타임아웃
+        timeout: 15000,
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        }
       })
+      
+      console.log('서버 응답:', response.data)
       
       if (response.data.success) {
         const { user: userData, token: userToken } = response.data
@@ -193,14 +200,15 @@ export const useAuthStore = defineStore('auth', () => {
           duration: 3000
         })
         
-        console.log('✅ 로그인 성공:', userData.employee_name || userData.employee_id)
+        console.log('로그인 성공:', userData.employee_name || userData.employee_id)
         return { success: true, user: userData }
       } else {
         throw new Error(response.data.message || '로그인에 실패했습니다.')
       }
       
     } catch (error: any) {
-      console.error('❌ 로그인 에러:', error)
+      console.error('로그인 에러:', error)
+      console.error('에러 응답:', error.response?.data)
       
       let errorMessage = '로그인에 실패했습니다.'
       
@@ -208,6 +216,8 @@ export const useAuthStore = defineStore('auth', () => {
         errorMessage = error.response.data.message
       } else if (error.response?.status === 401) {
         errorMessage = '사원번호 또는 비밀번호가 올바르지 않습니다.'
+      } else if (error.response?.status === 400) {
+        errorMessage = '입력값을 확인해주세요.'
       } else if (error.response?.status === 429) {
         errorMessage = '너무 많은 로그인 시도입니다. 잠시 후 다시 시도해주세요.'
       } else if (error.response?.status === 500) {
@@ -232,14 +242,14 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
   
-  // 로그아웃 (라우터 인스턴스를 매개변수로 받음)
+  // 로그아웃
   const logout = async (routerInstance?: any) => {
     const { init: showToast } = useToast()
     
     try {
       isLoading.value = true
       
-      console.log('🚪 로그아웃 시작...')
+      console.log('로그아웃 시작...')
       
       showToast({
         message: '로그아웃 중...',
@@ -250,14 +260,13 @@ export const useAuthStore = defineStore('auth', () => {
       // 서버에 로그아웃 요청
       if (token.value) {
         try {
-          await axios.post('/auth/logout', {}, {
+          await axios.post('http://localhost:3000/auth/logout', {}, {
             headers: { Authorization: `Bearer ${token.value}` },
             timeout: 5000
           })
-          console.log('✅ 서버 로그아웃 요청 완료')
+          console.log('서버 로그아웃 요청 완료')
         } catch (err) {
-          console.warn('⚠️ 서버 로그아웃 요청 실패:', err)
-          // 서버 요청 실패해도 로컬 데이터는 삭제
+          console.warn('서버 로그아웃 요청 실패:', err)
         }
       }
       
@@ -269,24 +278,21 @@ export const useAuthStore = defineStore('auth', () => {
         duration: 2000
       })
       
-      console.log('✅ 로그아웃 완료')
+      console.log('로그아웃 완료')
       
-      // 라우터가 전달된 경우에만 네비게이션
       if (routerInstance) {
         setTimeout(() => {
           routerInstance.push({ name: 'dashboard' })
         }, 500)
       } else {
-        // 라우터가 없는 경우 페이지 새로고침
         setTimeout(() => {
           window.location.href = '/dashboard'
         }, 500)
       }
       
     } catch (error) {
-      console.error('❌ 로그아웃 에러:', error)
+      console.error('로그아웃 에러:', error)
       
-      // 에러가 발생해도 로컬 데이터는 삭제
       clearAuthData()
       
       showToast({
@@ -309,49 +315,72 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
   
-  // 초기화 (앱 시작시) - 가장 중요한 함수
+  // 초기화 (앱 시작시) - axios 설정 개선
   const initialize = async () => {
     if (isInitialized.value) {
-      console.log('🔄 이미 초기화됨')
+      console.log('이미 초기화됨')
       return
     }
     
     try {
-      console.log('🚀 AuthStore 초기화 시작...')
+      console.log('AuthStore 초기화 시작...')
       
-      // axios 기본 설정
+      // axios 기본 설정 개선
       if (typeof axios !== 'undefined') {
-        // 기본 URL 설정 (환경에 맞게 수정)
-        axios.defaults.baseURL = process.env.VUE_APP_API_BASE_URL || 'http://localhost:3000'
+        // 기본 URL 설정 - 명시적으로 백엔드 서버 포트 지정
+        axios.defaults.baseURL = 'http://localhost:3000'
         axios.defaults.timeout = 15000
-        axios.defaults.withCredentials = false // 공개 API와의 호환성
+        axios.defaults.withCredentials = false
         
-        // 응답 인터셉터 설정 (기존 인터셉터가 있으면 제거하지 않음)
-        axios.interceptors.response.use(
-          (response) => response,
+        // 중요: Content-Type 기본 헤더 설정
+        axios.defaults.headers.common['Content-Type'] = 'application/json'
+        axios.defaults.headers.common['Accept'] = 'application/json'
+        
+        // POST 요청용 헤더 설정
+        axios.defaults.headers.post['Content-Type'] = 'application/json'
+        
+        console.log('axios 기본 설정 완료:', {
+          baseURL: axios.defaults.baseURL,
+          timeout: axios.defaults.timeout,
+          contentType: axios.defaults.headers.common['Content-Type']
+        })
+        
+        // 요청 인터셉터 추가 (디버깅용)
+        axios.interceptors.request.use(
+          (config) => {
+            console.log('요청 전송:', {
+              method: config.method?.toUpperCase(),
+              url: config.url,
+              data: config.data,
+              headers: config.headers
+            })
+            return config
+          },
           (error) => {
+            console.error('요청 인터셉터 에러:', error)
+            return Promise.reject(error)
+          }
+        )
+        
+        // 응답 인터셉터 설정
+        axios.interceptors.response.use(
+          (response) => {
+            console.log('응답 수신:', {
+              status: response.status,
+              data: response.data
+            })
+            return response
+          },
+          (error) => {
+            console.error('응답 에러:', {
+              status: error.response?.status,
+              data: error.response?.data,
+              message: error.message
+            })
+            
             if (error.response?.status === 401) {
-              console.log('🔒 인증 만료 감지, 자동 정리')
-              
-              // 인증 데이터 정리
-              clearAuthData()
-              
-              // 토스트 메시지
-              const { init: showToast } = useToast()
-              showToast({
-                message: '세션이 만료되었습니다. 다시 로그인해주세요.',
-                color: 'warning',
-                duration: 4000
-              })
-              
-              // 로그인 페이지로 리다이렉트 (현재 페이지가 로그인이 아닌 경우)
-              if (typeof window !== 'undefined' && 
-                  !window.location.pathname.includes('/login')) {
-                console.log('🔄 로그인 페이지로 리다이렉트')
-                setTimeout(() => {
-                  window.location.href = '/login'
-                }, 1000)
-              }
+              console.log('401 에러 발생했지만 자동 로그아웃하지 않음')
+              // 자동 로그아웃 제거 - 사용자가 직접 로그아웃할 때까지 유지
             }
             return Promise.reject(error)
           }
@@ -360,47 +389,38 @@ export const useAuthStore = defineStore('auth', () => {
       
       // 저장된 인증 데이터 로드
       const hasAuth = loadAuthData()
-      console.log('🔍 초기화 - 인증 데이터 확인:', hasAuth)
+      console.log('초기화 - 인증 데이터 확인:', hasAuth)
       
       if (hasAuth && token.value) {
-        console.log('✅ 인증 데이터 있음, 사용자:', user.value?.employee_name || user.value?.employee_id)
+        console.log('인증 데이터 있음, 사용자:', user.value?.employee_name || user.value?.employee_id)
         
-        // 선택적 토큰 검증 (네트워크 오류 시에도 기존 데이터 유지)
+        // 선택적 토큰 검증 (실패해도 로그아웃하지 않음)
         try {
           const isValid = await verifyToken()
           if (!isValid) {
-            console.log('🔒 유효하지 않은 토큰, 정리')
-            clearAuthData()
-            
-            const { init: showToast } = useToast()
-            showToast({
-              message: '세션이 만료되었습니다. 로그인 버튼을 눌러 다시 로그인해주세요.',
-              color: 'warning',
-              duration: 4000
-            })
+            console.log('토큰 검증 실패했지만 로그인 상태 유지')
+            // 자동 로그아웃 제거 - 사용자가 직접 로그아웃할 때까지 유지
           }
         } catch (verifyError) {
-          console.warn('⚠️ 토큰 검증 중 네트워크 오류:', verifyError)
-          // 네트워크 오류의 경우 기존 인증 정보 유지
-          console.log('🔄 네트워크 오류로 인한 토큰 검증 실패 - 기존 정보 유지')
+          console.warn('토큰 검증 중 네트워크 오류:', verifyError)
+          console.log('네트워크 오류로 인한 토큰 검증 실패 - 기존 정보 유지')
         }
       } else {
-        console.log('❌ 인증 데이터 없음 - 게스트 모드')
+        console.log('인증 데이터 없음 - 게스트 모드')
       }
       
       isInitialized.value = true
-      console.log('✅ AuthStore 초기화 완료')
+      console.log('AuthStore 초기화 완료')
       
     } catch (error) {
-      console.error('❌ 초기화 중 에러:', error)
-      // 에러가 발생해도 앱이 중단되지 않도록 기본 상태로 설정
+      console.error('초기화 중 에러:', error)
       isInitialized.value = true
-      console.log('🔄 초기화 에러 발생 - 기본 상태로 계속 진행')
+      console.log('초기화 에러 발생 - 기본 상태로 계속 진행')
     }
   }
   
   // ================================
-  // 🛠️ 유틸리티 함수들
+  // 유틸리티 함수들
   // ================================
   const formatDate = (dateString: string): string => {
     if (!dateString) return '-'
@@ -411,14 +431,14 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
   
-  // 인증 상태 확인 (간단한 헬퍼)
+  // 인증 상태 확인
   const checkAuth = (): boolean => {
     return loadAuthData()
   }
   
-  // 강제 로그아웃 (에러 상황에서 사용)
+  // 강제 로그아웃
   const forceLogout = () => {
-    console.log('🚨 강제 로그아웃 실행')
+    console.log('강제 로그아웃 실행')
     clearAuthData()
     
     if (typeof window !== 'undefined') {
@@ -431,13 +451,13 @@ export const useAuthStore = defineStore('auth', () => {
     if (process.env.NODE_ENV !== 'development') return
     
     if (credentials) {
-      console.log('🔧 개발용 자동 로그인 시도...')
+      console.log('개발용 자동 로그인 시도...')
       return await login(credentials.employee_id, credentials.password)
     }
   }
   
   // ================================
-  // 🎭 반환할 것들
+  // 반환할 것들
   // ================================
   return {
     // 상태 (읽기 전용으로 노출)
@@ -469,15 +489,11 @@ export const useAuthStore = defineStore('auth', () => {
   }
 })
 
-// ================================
-// 🌍 전역 유틸리티 (하위 호환성용)
-// ================================
+// 전역 유틸리티
 if (typeof window !== 'undefined') {
   (window as any).authUtils = {
-    // Pinia 스토어와 연결된 전역 함수들
     getStore: () => useAuthStore(),
     
-    // 편의 함수들
     getUser: () => {
       const store = useAuthStore()
       return store.user || null
@@ -496,7 +512,6 @@ if (typeof window !== 'undefined') {
     logout: async () => {
       const store = useAuthStore()
       await store.logout()
-      // 페이지 새로고침으로 상태 리셋
       if (typeof window !== 'undefined') {
         setTimeout(() => {
           window.location.href = '/dashboard'

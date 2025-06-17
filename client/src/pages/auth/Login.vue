@@ -28,11 +28,11 @@
         @clickAppendInner.stop="isPasswordVisible.value = !isPasswordVisible.value"
       >
         <template #appendInner>
-          <VaIcon
-            :name="isPasswordVisible.value ? 'mso-visibility_off' : 'mso-visibility'"
-            class="cursor-pointer"
-            color="secondary"
-          />
+          <span
+            class="password-toggle"
+          >
+            {{ isPasswordVisible.value ? '숨기기' : '보기' }}
+          </span>
         </template>
       </VaInput>
     </VaValue>
@@ -58,7 +58,7 @@
         :disabled="authStore.isLoading"
         @click="goToDashboard"
       >
-        📋 대시보드로 돌아가기
+        대시보드로 돌아가기
       </VaButton>
     </div>
 
@@ -71,62 +71,58 @@ import { useRouter } from 'vue-router'
 import { useForm } from 'vuestic-ui'
 import { useAuthStore } from '@/stores/authStore'
 
-// ================================
-// 🔧 컴포넌트 설정
-// ================================
+// 컴포넌트 설정
 const { validate } = useForm('form')
 const router = useRouter()
 const authStore = useAuthStore()
 
-// ================================
-// 📝 유효성 검사 규칙
-// ================================
+// 유효성 검사 규칙
 const validators = {
   required: (value: string) => !!value || '필수 입력 항목입니다.'
 }
 
-// ================================
-// 🎯 상태 관리
-// ================================
+// 상태 관리
 const formData = reactive({
   employee_id: '',
   password: '',
 })
 
-// ================================
-// 🚀 네비게이션 함수
-// ================================
+// 네비게이션 함수
 const goToDashboard = () => {
   router.push({ name: 'dashboard' })
 }
 
-// ================================
-// 🔐 로그인 처리 함수
-// ================================
+// 로그인 처리 함수
 const handleLogin = async () => {
   // 폼 유효성 검사
   if (!(await validate())) return
   
-  // Pinia 스토어의 login 함수 사용 (모든 로직이 스토어에서 처리됨)
+  console.log('로그인 시도:', formData.employee_id)
+  
+  // Pinia 스토어의 login 함수 사용
   const result = await authStore.login(formData.employee_id, formData.password)
   
   if (result.success) {
-    // 성공 시 대시보드로 이동 (1초 후)
+    console.log('로그인 성공, 대시보드로 이동')
+    // 성공 시 대시보드로 이동
     setTimeout(() => {
       router.push({ name: 'dashboard' })
     }, 2000)
   } else {
-    // 실패 시 비밀번호 필드만 초기화 (에러 메시지는 스토어에서 처리)
+    console.log('로그인 실패:', result.message)
+    // 실패 시 비밀번호 필드만 초기화
     formData.password = ''
   }
 }
 
-// ================================
-// 🚀 컴포넌트 초기화
-// ================================
+// 컴포넌트 초기화
 onMounted(async () => {
+  console.log('Login.vue 마운트됨')
+  
   // 스토어 초기화 (axios 설정, 인증 상태 확인 등)
   await authStore.initialize()
+  console.log('Login.vue - authStore 초기화 완료')
+  console.log('Login.vue - 현재 로그인 상태:', authStore.isLoggedIn)
   
   // 이미 로그인된 경우 대시보드로 이동
   if (authStore.isLoggedIn) {
@@ -145,5 +141,23 @@ onMounted(async () => {
 .va-button--disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.password-toggle {
+  color: #6c757d;
+  font-size: 14px;
+  padding: 4px 8px;
+  display: inline-block;
+  white-space: nowrap;
+  line-height: 1;
+  min-width: 40px;
+  text-align: center;
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.2s ease;
+}
+
+.password-toggle:hover {
+  color: #495057;
 }
 </style>
