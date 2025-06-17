@@ -10,7 +10,7 @@ const selectWorkOrderDetail = async (workOrderNo) => {
 
 // 제품명 목록 조회
 const selectProductList = async () => {
-  return await mariadb.query("selectProductList")
+  return await mariadb.query("selectProductLists")
 }
 
 // 제품명으로 작업지시서 목록 조회
