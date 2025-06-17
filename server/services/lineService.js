@@ -140,20 +140,34 @@ const getAvailableLineIds = async () => {
 
 // ========== 프론트엔드용 통합 라인 관리 ==========
 
-// 라인 목록 조회 - 마스터 + 최신 상태 + 작업결과 통합
+// 🔥 라인 목록 조회 - 마스터 + 최신 상태 + 작업결과 통합 (중복 제거 포함)
 const getLineList = async () => {
   try {
     console.log('=== 통합 라인 리스트 조회 시작 ===');
     
     const list = await mariadb.query('selectLineList');
     
-    console.log('통합 라인 리스트 조회 성공:', list.length, '건');
-    if (list.length > 0) {
-      console.log('첫 번째 데이터:', JSON.stringify(list[0], null, 2));
-    }
+    console.log('DB에서 조회된 라인 개수:', list.length);
+    
+    // 🔥 중복 제거: line_id + line_type 조합으로 중복 제거
+    const uniqueLines = [];
+    const seenCombinations = new Set();
+    
+    list.forEach(line => {
+      const key = `${line.line_id}_${line.line_type}`;
+      
+      if (!seenCombinations.has(key)) {
+        seenCombinations.add(key);
+        uniqueLines.push(line);
+      } else {
+        console.log(`⚠️ 중복 제거: ${line.line_id}라인 ${line.line_type}`);
+      }
+    });
+    
+    console.log('중복 제거 후 라인 개수:', uniqueLines.length);
     
     // 🔥 프론트엔드 형식에 맞게 데이터 변환 (작업결과 정보 포함)
-    const formattedList = list.map(line => ({
+    const formattedList = uniqueLines.map(line => ({
       line_id: line.line_id,
       line_name: line.line_name,
       line_type: line.line_type,
@@ -227,7 +241,7 @@ const insertIntegratedLine = async (formData) => {
       line_masterid: line_masterid,
       pkg_type: formData.line_type,
       line_status: formData.line_status || 'AVAILABLE',
-      curr_work_no: '',
+      curr_work_no: formData.curr_work_no || '',
       target_qty: 0,
       eq_name: formData.eq_name || '',
       current_speed: formData.current_speed || 0,
@@ -381,19 +395,28 @@ const updateIntegratedLine = async (lineId, formData) => {
 const deleteIntegratedLine = async (lineId) => {
   try {
     console.log('=== 통합 라인 삭제 시작 ===');
+    console.log('삭제 대상 라인 ID:', lineId);
 
     const existingMaster = await getLineMasterByLineId(lineId);
     if (!existingMaster) {
-      throw new Error('삭제할 라인을 찾을 수 없습니다: ' + lineId);
+      throw new Error(`삭제할 라인을 찾을 수 없습니다: ${lineId}라인`);
     }
 
+    console.log('삭제할 라인 정보:', existingMaster);
+
+    // 1. 라인 상태 데이터 삭제 (package_line)
     await deleteLineByMasterId(lineId);
+    console.log('✅ 라인 상태 데이터 삭제 완료');
+
+    // 2. 라인 마스터 데이터 삭제 (package_master)
     await deleteLineMaster(existingMaster.line_masterid);
+    console.log('✅ 라인 마스터 데이터 삭제 완료');
     
     return {
       success: true,
       line_id: lineId,
-      message: '라인이 성공적으로 삭제되었습니다.'
+      deleted_master_id: existingMaster.line_masterid,
+      message: `${lineId}라인이 성공적으로 삭제되었습니다.`
     };
     
   } catch (error) {
@@ -406,16 +429,25 @@ const deleteIntegratedLine = async (lineId) => {
 const bulkDeleteLines = async (lineIds) => {
   try {
     console.log('=== 라인 일괄 삭제 시작 ===');
+    console.log('삭제 대상 라인 ID들:', lineIds);
 
     let deletedCount = 0;
     const errors = [];
+    const successfulDeletes = [];
 
     for (const lineId of lineIds) {
       try {
-        await deleteIntegratedLine(lineId);
+        const result = await deleteIntegratedLine(lineId);
         deletedCount++;
+        successfulDeletes.push({
+          line_id: lineId,
+          message: result.message
+        });
+        console.log(`✅ ${lineId} 삭제 성공`);
       } catch (error) {
-        errors.push(`${lineId}: ${error.message}`);
+        const errorMsg = `${lineId}: ${error.message}`;
+        errors.push(errorMsg);
+        console.error(`❌ ${lineId} 삭제 실패:`, error.message);
       }
     }
     
@@ -423,8 +455,9 @@ const bulkDeleteLines = async (lineIds) => {
       success: true,
       deletedCount: deletedCount,
       totalRequested: lineIds.length,
+      successfulDeletes: successfulDeletes,
       errors: errors,
-      message: `${deletedCount}개의 라인이 삭제되었습니다.`
+      message: `${deletedCount}개의 라인이 삭제되었습니다. ${errors.length > 0 ? `(실패: ${errors.length}개)` : ''}`
     };
     
   } catch (error) {
@@ -461,14 +494,91 @@ const getAvailableEmployees = async () => {
   }
 };
 
-// ========== 작업결과 관리 ==========
+// ========== 설비명 관리 ==========
 
-// 🔥 사용 가능한 작업 결과 목록 조회
-const getAvailableWorkResults = async () => {
+// 🔥 사용 가능한 설비명 목록 조회 (사용 중인 설비명 제외)
+const getAvailableEquipments = async (excludeLineId = null) => {
+  try {
+    console.log('사용 가능한 설비명 목록 조회 시작...');
+    if (excludeLineId) {
+      console.log('제외할 라인 ID:', excludeLineId);
+    }
+    
+    // 🔥 전체 기본 설비명 목록 정의
+    const allEquipments = [
+      { eq_name: '10정 블리스터 포장기', line_type: 'INNER', eq_type: 'INNER' },
+      { eq_name: '30정 블리스터 포장기', line_type: 'INNER', eq_type: 'INNER' },
+      { eq_name: '60정 블리스터 포장기', line_type: 'INNER', eq_type: 'INNER' },
+      { eq_name: '병 모노블럭', line_type: 'INNER', eq_type: 'INNER' },
+      { eq_name: '소형 카톤포장기', line_type: 'OUTER', eq_type: 'OUTER' },
+      { eq_name: '중형 카톤포장기', line_type: 'OUTER', eq_type: 'OUTER' },
+      { eq_name: '대형 카톤포장기', line_type: 'OUTER', eq_type: 'OUTER' },
+      { eq_name: '트레이 수축포장기', line_type: 'OUTER', eq_type: 'OUTER' },
+    ];
+    
+    // 🔥 현재 사용 중인 설비명 조회
+    let usedEquipments = [];
+    try {
+      let query = 'selectUsedEquipments';
+      let params = [];
+      
+      // 특정 라인 수정 시 해당 라인의 설비명은 제외하지 않음
+      if (excludeLineId) {
+        query = 'selectUsedEquipmentsExcludeLine';
+        params = [excludeLineId];
+      }
+      
+      const usedResult = await mariadb.query(query, params);
+      usedEquipments = usedResult.map(row => row.eq_name).filter(name => name && name.trim() !== '');
+      console.log('현재 사용 중인 설비명:', usedEquipments);
+    } catch (dbError) {
+      console.warn('사용 중인 설비명 조회 실패:', dbError.message);
+    }
+    
+    // 🔥 사용 중이지 않은 설비명만 필터링
+    const availableEquipments = allEquipments.filter(eq => 
+      !usedEquipments.includes(eq.eq_name)
+    );
+    
+    console.log('전체 설비명:', allEquipments.length, '개');
+    console.log('사용 중인 설비명:', usedEquipments.length, '개');
+    console.log('사용 가능한 설비명:', availableEquipments.length, '개');
+    
+    return convertData(availableEquipments);
+    
+  } catch (error) {
+    console.error('설비명 조회 전체 실패:', error);
+    
+    // 🔥 에러 시 기본값 반환 (사용 중 여부 체크 없이)
+    const fallbackEquipments = [
+      { eq_name: '기본 블리스터 포장기', line_type: 'INNER', eq_type: 'INNER' },
+      { eq_name: '기본 카톤 포장기', line_type: 'OUTER', eq_type: 'OUTER' }
+    ];
+    
+    return convertData(fallbackEquipments);
+  }
+};
+
+// ========== 작업결과 관리 (라인별 격리 정책) ==========
+
+// 🔥 사용 가능한 작업 결과 목록 조회 (라인별 격리 적용)
+const getAvailableWorkResults = async (lineCode = null) => {
   try {
     console.log('사용 가능한 작업 결과 목록 조회 시작...');
-    const results = await mariadb.query('selectAvailableWorkResults');
-    console.log('사용 가능한 작업 결과 조회 성공:', results.length, '건');
+    console.log('요청 라인 코드:', lineCode);
+    
+    let results;
+    
+    if (lineCode) {
+      // 특정 라인의 사용 가능한 작업번호만 조회
+      results = await mariadb.query('selectAvailableWorkResultsForLine', [lineCode]);
+      console.log(`${lineCode}라인 전용 작업 결과 조회 성공:`, results.length, '건');
+    } else {
+      // 전체 작업번호 조회 (관리자용)
+      results = await mariadb.query('selectAvailableWorkResults');
+      console.log('전체 작업 결과 조회 성공:', results.length, '건');
+    }
+    
     return convertData(results);
   } catch (error) {
     console.error('사용 가능한 작업 결과 조회 에러:', error);
@@ -476,16 +586,83 @@ const getAvailableWorkResults = async () => {
   }
 };
 
-// 🔥 특정 작업 결과 상세 조회
+// 🔥 특정 작업 결과 상세 조회 (라인 사용현황 포함)
 const getWorkResultDetail = async (workOrderNo) => {
   try {
     const result = await mariadb.query('selectWorkResultDetail', [workOrderNo]);
     const [data] = result;
-    console.log('작업 결과 상세 조회 성공:', workOrderNo);
+    
+    if (data) {
+      // 해당 작업번호를 사용 중인 라인 정보도 함께 조회
+      const usageInfo = await mariadb.query('checkWorkOrderLineUsage', [workOrderNo]);
+      data.currentUsage = usageInfo;
+      
+      console.log('작업 결과 상세 조회 성공:', workOrderNo);
+      console.log('현재 사용 중인 라인:', usageInfo.length, '개');
+    }
+    
     return convertData(data);
   } catch (error) {
     console.error('작업 결과 상세 조회 에러:', error);
     throw new Error('작업 결과 상세 조회 실패: ' + (error.err?.message || error.message));
+  }
+};
+
+// 🔥 작업번호 사용 현황 조회 (디버깅/관리용)
+const getWorkOrderUsageStats = async () => {
+  try {
+    console.log('작업번호 사용 현황 조회 시작...');
+    const usageStats = await mariadb.query('checkWorkOrderUsage');
+    
+    console.log('작업번호 사용 현황 조회 성공:', usageStats.length, '건');
+    return convertData(usageStats);
+  } catch (error) {
+    console.error('작업번호 사용 현황 조회 에러:', error);
+    throw new Error('작업번호 사용 현황 조회 실패: ' + (error.err?.message || error.message));
+  }
+};
+
+// 🔥 작업번호 할당 가능 여부 검증
+const validateWorkOrderAssignment = async (workOrderNo, targetLineCode) => {
+  try {
+    console.log(`작업번호 할당 검증: ${workOrderNo} → ${targetLineCode}라인`);
+    
+    // 해당 작업번호를 현재 사용 중인 라인들 조회
+    const currentUsage = await mariadb.query('checkWorkOrderLineUsage', [workOrderNo]);
+    
+    if (currentUsage.length === 0) {
+      // 아무도 사용하지 않음 → 할당 가능
+      console.log('✅ 작업번호 할당 가능: 현재 미사용');
+      return { canAssign: true, reason: '미사용 작업번호' };
+    }
+    
+    // 사용 중인 라인들의 라인 코드 확인
+    const usingLineCodes = [...new Set(currentUsage.map(usage => usage.line_code))];
+    
+    if (usingLineCodes.length === 1 && usingLineCodes[0] === targetLineCode) {
+      // 같은 라인 코드에서만 사용 중 → 할당 가능
+      console.log('✅ 작업번호 할당 가능: 같은 라인 코드 내 공유');
+      return { 
+        canAssign: true, 
+        reason: `${targetLineCode}라인 내 공유`,
+        currentUsage: currentUsage
+      };
+    } else {
+      // 다른 라인 코드에서 사용 중 → 할당 불가
+      console.log('❌ 작업번호 할당 불가: 다른 라인에서 사용 중');
+      return { 
+        canAssign: false, 
+        reason: `${usingLineCodes.join(', ')}라인에서 사용 중`,
+        currentUsage: currentUsage
+      };
+    }
+    
+  } catch (error) {
+    console.error('작업번호 할당 검증 에러:', error);
+    return { 
+      canAssign: false, 
+      reason: '검증 실패: ' + error.message
+    };
   }
 };
 
@@ -632,18 +809,23 @@ module.exports = {
   deleteIntegratedLine,
   bulkDeleteLines,
 
-  // 🔥 담당자 관리 (새로 추가)
+  // 담당자 관리
   getAvailableEmployees,
 
-  // 작업결과 관리
-  getAvailableWorkResults,
-  getWorkResultDetail,
+  // 🔥 설비명 관리 (수정됨)
+  getAvailableEquipments,
+
+  // 🔥 작업결과 관리 (라인별 격리 정책 적용)
+  getAvailableWorkResults,      // ← 수정됨 (lineCode 파라미터 추가)
+  getWorkResultDetail,          // ← 수정됨 (사용현황 포함)
+  getWorkOrderUsageStats,       // ← 새로 추가
+  validateWorkOrderAssignment,  // ← 새로 추가
 
   // 기존 라인 상태 관리
   getLineDetail,
   insertLine,
   updateLine,
-  updateLineByMasterId,  // 🔥 추가
+  updateLineByMasterId,
   deleteLine,
   deleteLineByMasterId,
   getLineWithMaster,

@@ -107,17 +107,30 @@ router.get('/available-ids', async (req, res) => {
   }
 });
 
-// 🔥 사용 가능한 작업 결과 목록 조회 API
+// 🔥 사용 가능한 작업 결과 목록 조회 API (라인별 격리 적용)
 router.get('/available-work-results', async (req, res) => {
   try {
     console.log('📋 사용 가능한 작업 결과 조회 API 호출');
-    const workResults = await lineService.getAvailableWorkResults();
+    
+    // 🔥 쿼리 파라미터로 라인 코드 받기
+    const lineCode = req.query.lineCode;
+    
+    if (lineCode) {
+      console.log(`🔄 ${lineCode}라인 전용 작업 결과 조회`);
+    } else {
+      console.log('🔄 전체 작업 결과 조회 (관리자 모드)');
+    }
+    
+    const workResults = await lineService.getAvailableWorkResults(lineCode);
     
     res.json({
       success: true,
       data: workResults,
       total: workResults.length,
-      message: '사용 가능한 작업 결과 조회 성공'
+      lineCode: lineCode || null,
+      message: lineCode ? 
+        `${lineCode}라인 작업 결과 조회 성공` : 
+        '전체 작업 결과 조회 성공'
     });
     
   } catch (err) {
@@ -155,18 +168,60 @@ router.get('/available-employees', async (req, res) => {
   }
 });
 
-// 🔥 현재 로그인 사원 정보 조회 API
-router.get('/current-employee', extractEmployeeInfo, async (req, res) => {
+// 🔥 사용 가능한 설비명 목록 조회 API (설비명 중복 방지)
+router.get('/available-equipments', async (req, res) => {
   try {
+    console.log('🔧 사용 가능한 설비명 목록 조회 API 호출');
+    
+    // 🔥 쿼리 파라미터로 제외할 라인 ID 받기 (라인 수정 시 사용)
+    const excludeLineId = req.query.excludeLineId;
+    
+    if (excludeLineId) {
+      console.log('🔄 라인 수정 모드 - 제외할 라인 ID:', excludeLineId);
+    }
+    
+    const equipments = await lineService.getAvailableEquipments(excludeLineId);
+    
     res.json({
       success: true,
-      data: req.currentEmployee,
-      message: '현재 로그인 사원 정보 조회 성공'
+      data: equipments,
+      total: equipments.length,
+      message: '설비명 목록 조회 성공',
+      excludedLine: excludeLineId || null
     });
+    
   } catch (err) {
+    console.error('❌ 설비명 목록 조회 실패:', err);
     res.status(500).json({
       success: false,
-      message: '사원 정보 조회 실패'
+      data: [],
+      message: '설비명 목록을 조회할 수 없습니다.',
+      error: err.message
+    });
+  }
+});
+
+// 🔥 작업번호 사용 현황 조회 API (새로 추가)
+router.get('/work-order-usage', async (req, res) => {
+  try {
+    console.log('📊 작업번호 사용 현황 조회 API 호출');
+    
+    const usageStats = await lineService.getWorkOrderUsageStats();
+    
+    res.json({
+      success: true,
+      data: usageStats,
+      total: usageStats.length,
+      message: '작업번호 사용 현황 조회 성공'
+    });
+    
+  } catch (err) {
+    console.error('❌ 작업번호 사용 현황 조회 실패:', err);
+    res.status(500).json({
+      success: false,
+      data: [],
+      message: '작업번호 사용 현황을 조회할 수 없습니다.',
+      error: err.message
     });
   }
 });
@@ -193,7 +248,7 @@ router.get('/stats/status', async (req, res) => {
   }
 });
 
-// 🔥 특정 작업 결과 상세 조회 API
+// 🔥 특정 작업 결과 상세 조회 API (사용현황 포함)
 router.get('/work-result/:workOrderNo', async (req, res) => {
   try {
     const { workOrderNo } = req.params;
@@ -298,7 +353,15 @@ router.get('/:lineId', async (req, res) => {
     const { lineId } = req.params;
     console.log('🔍 라인 상세 조회 API 호출:', lineId);
     
-    const lineDetail = await lineService.getLineMasterByLineId(lineId);
+    // 🔥 A-INNER, A-OUTER 형식의 ID 처리
+    let actualLineId = lineId;
+    if (lineId.includes('-')) {
+      // "A-INNER" -> "A"로 변환
+      actualLineId = lineId.split('-')[0];
+      console.log('🔄 라인 ID 변환:', lineId, '->', actualLineId);
+    }
+    
+    const lineDetail = await lineService.getLineMasterByLineId(actualLineId);
     
     if (!lineDetail) {
       return res.status(404).json({
@@ -407,6 +470,37 @@ router.post('/dual', extractEmployeeInfo, async (req, res) => {
   }
 });
 
+// 🔥 작업번호 할당 검증 API (새로 추가)
+router.post('/validate-work-order', async (req, res) => {
+  try {
+    const { workOrderNo, lineCode } = req.body;
+    console.log('🔍 작업번호 할당 검증 API 호출:', workOrderNo, '→', lineCode);
+    
+    if (!workOrderNo || !lineCode) {
+      return res.status(400).json({
+        success: false,
+        message: '작업번호와 라인 코드를 입력해주세요.'
+      });
+    }
+    
+    const validation = await lineService.validateWorkOrderAssignment(workOrderNo, lineCode);
+    
+    res.json({
+      success: true,
+      data: validation,
+      message: validation.canAssign ? '할당 가능' : '할당 불가'
+    });
+    
+  } catch (err) {
+    console.error('❌ 작업번호 할당 검증 실패:', err);
+    res.status(500).json({
+      success: false,
+      message: '작업번호 할당 검증에 실패했습니다.',
+      error: err.message
+    });
+  }
+});
+
 // 라인 마스터 등록
 router.post('/master', async (req, res) => {
   try {
@@ -481,6 +575,14 @@ router.put('/:lineId', extractEmployeeInfo, async (req, res) => {
     console.log('수정 데이터:', req.body);
     console.log('현재 사원:', req.currentEmployee);
     
+    // 🔥 A-INNER, A-OUTER 형식의 ID 처리
+    let actualLineId = lineId;
+    if (lineId.includes('-')) {
+      // "A-INNER" -> "A"로 변환
+      actualLineId = lineId.split('-')[0];
+      console.log('🔄 라인 ID 변환:', lineId, '->', actualLineId);
+    }
+    
     // 🔥 로그인 사원 정보를 요청 데이터에 추가
     const requestData = {
       ...req.body,
@@ -488,7 +590,7 @@ router.put('/:lineId', extractEmployeeInfo, async (req, res) => {
       employee_name: req.currentEmployee.employee_name
     };
     
-    const result = await lineService.updateIntegratedLine(lineId, requestData);
+    const result = await lineService.updateIntegratedLine(actualLineId, requestData);
     
     res.json({
       success: true,
@@ -529,7 +631,19 @@ router.delete('/bulk/delete', async (req, res) => {
       });
     }
     
-    const result = await lineService.bulkDeleteLines(lineIds);
+    // 🔥 A-INNER, A-OUTER 형식의 ID들을 실제 라인 코드로 변환
+    const actualLineIds = lineIds.map(lineId => {
+      if (lineId.includes('-')) {
+        return lineId.split('-')[0]; // "A-INNER" -> "A"
+      }
+      return lineId;
+    });
+    
+    // 🔥 중복 제거 (A-INNER, A-OUTER -> A 하나만)
+    const uniqueLineIds = [...new Set(actualLineIds)];
+    console.log('🔄 변환된 라인 ID들:', lineIds, '->', uniqueLineIds);
+    
+    const result = await lineService.bulkDeleteLines(uniqueLineIds);
     
     res.json({
       success: true,
@@ -585,7 +699,15 @@ router.delete('/:lineId', async (req, res) => {
     const { lineId } = req.params;
     console.log('🗑️ 라인 삭제 API 호출:', lineId);
     
-    const result = await lineService.deleteIntegratedLine(lineId);
+    // 🔥 A-INNER, A-OUTER 형식의 ID 처리
+    let actualLineId = lineId;
+    if (lineId.includes('-')) {
+      // "A-INNER" -> "A"로 변환
+      actualLineId = lineId.split('-')[0];
+      console.log('🔄 라인 ID 변환:', lineId, '->', actualLineId);
+    }
+    
+    const result = await lineService.deleteIntegratedLine(actualLineId);
     
     res.json({
       success: true,

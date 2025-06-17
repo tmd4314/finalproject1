@@ -1,10 +1,10 @@
-// routers/authRouter.js - 인증 관련 라우터
+// routers/authRouter.js - 인증 관련 라우터 (완전한 버전)
 const express = require('express');
 const router = express.Router();
 const authService = require('../services/authService');
 
 // ================================
-// 🎯 간단한 토큰 생성/검증 시스템
+// 간단한 토큰 생성/검증 시스템
 // ================================
 const activeSessions = new Map();
 
@@ -13,6 +13,7 @@ function generateToken(userInfo) {
     employee_id: userInfo.employee_id,
     employee_name: userInfo.employee_name,
     department_code: userInfo.department_code,
+    department_name: userInfo.department_name,
     position: userInfo.position,
     timestamp: Date.now(),
     expires: Date.now() + (8 * 60 * 60 * 1000) // 8시간
@@ -24,6 +25,8 @@ function generateToken(userInfo) {
   // 메모리에 세션 저장
   activeSessions.set(token, tokenPayload);
   
+  console.log(`토큰 생성됨: ${userInfo.employee_id} - 만료시간: ${new Date(tokenPayload.expires).toLocaleString()}`);
+  
   return token;
 }
 
@@ -32,17 +35,20 @@ function verifyToken(token) {
     const sessionData = activeSessions.get(token);
     
     if (!sessionData) {
+      console.log('토큰 검증 실패: 세션 없음');
       return null;
     }
     
     // 토큰 만료 확인
     if (sessionData.expires < Date.now()) {
+      console.log('토큰 검증 실패: 만료됨');
       activeSessions.delete(token);
       return null;
     }
     
     return sessionData;
   } catch (error) {
+    console.log('토큰 검증 에러:', error);
     return null;
   }
 }
@@ -58,7 +64,7 @@ function getClientIP(req) {
 }
 
 // ================================
-// 🛡️ 인증 미들웨어
+// 인증 미들웨어
 // ================================
 async function authMiddleware(req, res, next) {
   const authHeader = req.headers.authorization;
@@ -112,7 +118,7 @@ async function authMiddleware(req, res, next) {
 }
 
 // ================================
-// 🔐 로그인 API
+// 로그인 API
 // ================================
 router.post('/login', async (req, res) => {
   const { employee_id, password } = req.body;
@@ -121,22 +127,33 @@ router.post('/login', async (req, res) => {
 
   // 입력값 검증
   if (!employee_id || !password) {
+    console.log('로그인 실패: 빈 입력값');
     return res.status(400).json({
       success: false,
       message: '사원번호와 비밀번호를 모두 입력해주세요.'
     });
   }
 
+  // 입력값 정리
+  const cleanEmployeeId = String(employee_id).trim();
+  const cleanPassword = String(password).trim();
+
   try {
-    console.log(`로그인 시도: ${employee_id}, IP: ${clientIP}`);
+    console.log(`로그인 시도: ${cleanEmployeeId}, IP: ${clientIP}`);
+    console.log(`입력된 비밀번호 길이: ${cleanPassword.length}`);
+
+    // 디버깅용 사용자 정보 확인
+    await authService.debugUserInfo(cleanEmployeeId);
 
     // 로그인 처리
-    const loginResult = await authService.login(employee_id, password);
+    const loginResult = await authService.login(cleanEmployeeId, cleanPassword);
     
     if (!loginResult.success) {
+      console.log(`로그인 실패: ${loginResult.message}`);
+      
       // 실패 로그 기록
       await authService.logLoginAttempt(
-        employee_id, 
+        cleanEmployeeId, 
         clientIP, 
         userAgent, 
         false, 
@@ -156,13 +173,13 @@ router.post('/login', async (req, res) => {
 
     // 성공 로그 기록
     await authService.logLoginAttempt(
-      employee_id, 
+      cleanEmployeeId, 
       clientIP, 
       userAgent, 
       true
     );
 
-    console.log(`로그인 성공: ${employee_id} - ${userInfo.employee_name}`);
+    console.log(`로그인 성공: ${cleanEmployeeId} - ${userInfo.employee_name}`);
 
     // 성공 응답
     res.json({
@@ -175,7 +192,8 @@ router.post('/login', async (req, res) => {
         department_code: userInfo.department_code,
         department_name: userInfo.department_name,
         email: userInfo.email,
-        phone: userInfo.phone
+        phone: userInfo.phone,
+        employment_status: userInfo.employment_status
       },
       token: token
     });
@@ -185,7 +203,7 @@ router.post('/login', async (req, res) => {
     
     // 에러 로그 기록
     await authService.logLoginAttempt(
-      employee_id, 
+      cleanEmployeeId, 
       clientIP, 
       userAgent, 
       false, 
@@ -200,11 +218,13 @@ router.post('/login', async (req, res) => {
 });
 
 // ================================
-// 🔍 토큰 검증 API
+// 토큰 검증 API
 // ================================
 router.get('/verify', authMiddleware, async (req, res) => {
   try {
     const userInfo = req.user;
+    
+    console.log(`토큰 검증 성공: ${userInfo.employee_id}`);
     
     res.json({
       success: true,
@@ -215,7 +235,8 @@ router.get('/verify', authMiddleware, async (req, res) => {
         department_code: userInfo.department_code,
         department_name: userInfo.department_name,
         email: userInfo.email,
-        phone: userInfo.phone
+        phone: userInfo.phone,
+        employment_status: userInfo.employment_status
       }
     });
   } catch (error) {
@@ -228,7 +249,7 @@ router.get('/verify', authMiddleware, async (req, res) => {
 });
 
 // ================================
-// 🚪 로그아웃 API
+// 로그아웃 API
 // ================================
 router.post('/logout', authMiddleware, async (req, res) => {
   try {
@@ -239,6 +260,7 @@ router.post('/logout', authMiddleware, async (req, res) => {
     // 세션에서 토큰 제거
     if (token) {
       activeSessions.delete(token);
+      console.log(`토큰 삭제됨: ${userInfo.employee_id}`);
     }
     
     console.log(`로그아웃: ${userInfo.employee_id} - ${userInfo.employee_name}`);
@@ -257,7 +279,7 @@ router.post('/logout', authMiddleware, async (req, res) => {
 });
 
 // ================================
-// 📊 DB 테스트 API
+// DB 테스트 API
 // ================================
 router.get('/test-db', async (req, res) => {
   try {
@@ -284,185 +306,60 @@ router.get('/test-db', async (req, res) => {
 });
 
 // ================================
-// 👥 사원 관리 API
+// 사용자 디버깅 API (개발용)
 // ================================
-
-// 전체 사원 목록 조회
-router.get('/employees', authMiddleware, async (req, res) => {
+router.get('/debug/user/:employeeId', async (req, res) => {
   try {
-    const employees = await authService.getAllEmployees();
+    const { employeeId } = req.params;
+    const userInfo = await authService.debugUserInfo(employeeId);
     
     res.json({
       success: true,
-      data: employees
+      data: userInfo
     });
   } catch (error) {
-    console.error('사원 목록 조회 에러:', error);
+    console.error('사용자 디버깅 에러:', error);
     res.status(500).json({
       success: false,
-      message: '사원 목록을 불러오는 중 오류가 발생했습니다.'
-    });
-  }
-});
-
-// 사원 검색
-router.get('/employees/search', authMiddleware, async (req, res) => {
-  try {
-    const { name } = req.query;
-    
-    if (!name) {
-      return res.status(400).json({
-        success: false,
-        message: '검색할 이름을 입력해주세요.'
-      });
-    }
-    
-    const employees = await authService.searchEmployeesByName(name);
-    
-    res.json({
-      success: true,
-      data: employees
-    });
-  } catch (error) {
-    console.error('사원 검색 에러:', error);
-    res.status(500).json({
-      success: false,
-      message: '사원 검색 중 오류가 발생했습니다.'
-    });
-  }
-});
-
-// 부서별 사원 목록
-router.get('/employees/department/:departmentCode', authMiddleware, async (req, res) => {
-  try {
-    const { departmentCode } = req.params;
-    const employees = await authService.getEmployeesByDepartment(departmentCode);
-    
-    res.json({
-      success: true,
-      data: employees
-    });
-  } catch (error) {
-    console.error('부서별 사원 조회 에러:', error);
-    res.status(500).json({
-      success: false,
-      message: '부서별 사원 조회 중 오류가 발생했습니다.'
+      message: '사용자 정보 디버깅 중 오류가 발생했습니다.'
     });
   }
 });
 
 // ================================
-// 🏢 부서 관리 API
+// 헬스체크 API
 // ================================
-
-// 전체 부서 목록
-router.get('/departments', authMiddleware, async (req, res) => {
-  try {
-    const departments = await authService.getAllDepartments();
-    
-    res.json({
-      success: true,
-      data: departments
-    });
-  } catch (error) {
-    console.error('부서 목록 조회 에러:', error);
-    res.status(500).json({
-      success: false,
-      message: '부서 목록 조회 중 오류가 발생했습니다.'
-    });
-  }
-});
-
-// 부서별 사원 수 통계
-router.get('/departments/stats', authMiddleware, async (req, res) => {
-  try {
-    const stats = await authService.getEmployeeCountByDepartment();
-    
-    res.json({
-      success: true,
-      data: stats
-    });
-  } catch (error) {
-    console.error('부서별 통계 조회 에러:', error);
-    res.status(500).json({
-      success: false,
-      message: '부서별 통계 조회 중 오류가 발생했습니다.'
-    });
-  }
+router.get('/health', (req, res) => {
+  res.json({
+    status: 'OK',
+    service: 'Authentication API',
+    version: '1.0.0',
+    timestamp: new Date().toISOString(),
+    endpoints: {
+      login: 'POST /auth/login',
+      logout: 'POST /auth/logout',
+      verify: 'GET /auth/verify',
+      debug: 'GET /auth/debug/user/:employeeId',
+      testDb: 'GET /auth/test-db',
+      health: 'GET /auth/health'
+    },
+    activeSessions: activeSessions.size
+  });
 });
 
 // ================================
-// 📈 로그인 통계 API
+// 에러 처리 (라우터 레벨)
 // ================================
-
-// 로그인 통계
-router.get('/stats/login', authMiddleware, async (req, res) => {
-  try {
-    const stats = await authService.getLoginStats();
-    
-    res.json({
-      success: true,
-      data: stats
-    });
-  } catch (error) {
-    console.error('로그인 통계 조회 에러:', error);
-    res.status(500).json({
-      success: false,
-      message: '로그인 통계 조회 중 오류가 발생했습니다.'
-    });
-  }
-});
-
-// 부서별 로그인 통계
-router.get('/stats/department-login', authMiddleware, async (req, res) => {
-  try {
-    const stats = await authService.getDepartmentLoginStats();
-    
-    res.json({
-      success: true,
-      data: stats
-    });
-  } catch (error) {
-    console.error('부서별 로그인 통계 조회 에러:', error);
-    res.status(500).json({
-      success: false,
-      message: '부서별 로그인 통계 조회 중 오류가 발생했습니다.'
-    });
-  }
+router.use((err, req, res, next) => {
+  console.error('Auth Router 에러:', err);
+  res.status(500).json({
+    success: false,
+    message: '인증 처리 중 오류가 발생했습니다.',
+    error: process.env.NODE_ENV === 'development' ? err.message : undefined
+  });
 });
 
 // ================================
-// 🔧 시스템 초기화 API (개발용)
+// 중요: module.exports 
 // ================================
-
-// 로그인 로그 테이블 초기화
-router.post('/init/login-log-table', async (req, res) => {
-  try {
-    const result = await authService.initializeLoginLogTable();
-    
-    if (result) {
-      res.json({
-        success: true,
-        message: '로그인 로그 테이블이 성공적으로 초기화되었습니다.'
-      });
-    } else {
-      res.status(500).json({
-        success: false,
-        message: '로그인 로그 테이블 초기화에 실패했습니다.'
-      });
-    }
-  } catch (error) {
-    console.error('테이블 초기화 에러:', error);
-    res.status(500).json({
-      success: false,
-      message: '테이블 초기화 중 오류가 발생했습니다.'
-    });
-  }
-});
-
-// ================================
-// 🔧 export 설정
-// ================================
-router.authMiddleware = authMiddleware;
-
 module.exports = router;

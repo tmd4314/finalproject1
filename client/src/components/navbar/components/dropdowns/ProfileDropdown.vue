@@ -5,22 +5,23 @@
         <VaButton preset="secondary" color="textPrimary" class="profile-dropdown__button">
           <span class="profile-dropdown__anchor">
             <VaAvatar 
-              v-if="isLoggedIn && user?.profile_img" 
-              :src="user.profile_img" 
+              v-if="authStore.isLoggedIn && authStore.user?.profile_img" 
+              :src="authStore.user.profile_img" 
               :size="14" 
               class="mr-1"
             />
             <VaIcon 
               v-else 
-              :name="isLoggedIn ? 'account_circle' : 'person'" 
+              :name="authStore.isLoggedIn ? 'account_circle' : 'person'" 
               class="mr-1" 
               size="14"
             />
-            {{ displayName }}
+            {{ authStore.displayName }}
             <VaIcon name="expand_more" class="ml-1" size="12" />
           </span>
         </VaButton>
       </template>
+      
       <VaDropdownContent
         class="profile-dropdown__content w-50 p-0 m-0"
         :style="{ 
@@ -34,7 +35,7 @@
         }"
       >
         <!-- 로그인된 상태 -->
-        <template v-if="isLoggedIn">
+        <template v-if="authStore.isLoggedIn">
           <!-- 로그아웃 버튼만 (큰 크기) -->
           <div 
             class="menu-item cursor-pointer hover:bg-gray-50 flex items-center justify-center"
@@ -63,11 +64,10 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed } from 'vue'
 import { useColors } from 'vuestic-ui'
 import { useRouter } from 'vue-router'
-import { useToast } from 'vuestic-ui'
-import axios from 'axios'
+import { useAuthStore } from '@/stores/authStore'
 
 // ================================
 // 🔧 컴포넌트 설정
@@ -75,97 +75,15 @@ import axios from 'axios'
 const { colors, setHSLAColor } = useColors()
 const hoverColor = computed(() => setHSLAColor(colors.focus, { a: 0.1 }))
 const router = useRouter()
-const { init: showToast } = useToast()
 
 // ================================
-// 🎯 상태 관리
+// 🎯 상태 관리 (Pinia 스토어 사용)
 // ================================
-const user = ref<any>(null)
+const authStore = useAuthStore()
 const isShown = ref(false)
 
 // ================================
-// 💡 계산된 속성
-// ================================
-const isLoggedIn = computed(() => !!user.value)
-
-const displayName = computed(() => {
-  if (isLoggedIn.value && user.value) {
-    return user.value.employee_name || `사원 ${user.value.employee_id}` || '사용자'
-  }
-  return '계정'
-})
-
-// 사용자 역할 정보를 간소화
-const userRole = computed(() => {
-  if (!user.value) return ''
-  
-  const parts = []
-  if (user.value.position) parts.push(user.value.position)
-  if (user.value.department_name || user.value.department_code) {
-    parts.push(user.value.department_name || user.value.department_code)
-  }
-  
-  return parts.join(' • ')
-})
-
-// ================================
-// 🔐 인증 관련 함수들
-// ================================
-const AUTH_STORAGE_KEY = 'auth-store'
-
-// 인증 데이터 로드
-const loadAuthData = () => {
-  try {
-    let authDataStr = localStorage.getItem(AUTH_STORAGE_KEY) || sessionStorage.getItem(AUTH_STORAGE_KEY)
-    
-    if (!authDataStr) return null
-    
-    const authData = JSON.parse(authDataStr)
-    
-    if (authData?.user && authData?.token) {
-      return authData
-    }
-    
-    return null
-  } catch (error) {
-    console.error('ProfileDropdown: 인증 데이터 로드 에러:', error)
-    return null
-  }
-}
-
-// 인증 데이터 삭제
-const clearAuthData = () => {
-  localStorage.removeItem(AUTH_STORAGE_KEY)
-  sessionStorage.removeItem(AUTH_STORAGE_KEY)
-  
-  if (axios?.defaults?.headers?.common) {
-    delete axios.defaults.headers.common['Authorization']
-  }
-}
-
-// ================================
-// 🔐 인증 상태 확인 및 로드
-// ================================
-const checkAuthAndLoadUser = () => {
-  try {
-    const authData = loadAuthData()
-    
-    if (authData?.user) {
-      user.value = authData.user
-      console.log('ProfileDropdown: 사용자 정보 로드됨', authData.user.employee_name)
-    } else {
-      user.value = null
-      console.log('ProfileDropdown: 인증되지 않은 상태')
-    }
-    
-  } catch (error) {
-    console.error('ProfileDropdown: 인증 확인 중 에러:', error)
-    user.value = null
-  }
-}
-
-// ================================
-// 🚪 로그인/로그아웃 처리
+// 🚪 네비게이션 함수들
 // ================================
 const goToLogin = () => {
   isShown.value = false
@@ -174,89 +92,8 @@ const goToLogin = () => {
 
 const handleLogout = async () => {
   isShown.value = false
-  
-  try {
-    const authData = loadAuthData()
-    
-    showToast({
-      message: '로그아웃 중...',
-      color: 'info',
-      duration: 1000
-    })
-
-    // 서버에 로그아웃 요청
-    if (authData?.token) {
-      await axios.post('/auth/logout', {}, {
-        headers: { Authorization: `Bearer ${authData.token}` }
-      }).catch(err => console.warn('로그아웃 요청 실패:', err.message))
-    }
-    
-    clearAuthData()
-    user.value = null
-    
-    showToast({
-      message: '성공적으로 로그아웃되었습니다.',
-      color: 'success',
-      duration: 2000
-    })
-
-    // 상태 변경 이벤트 발생
-    window.dispatchEvent(new CustomEvent('auth-state-changed', { 
-      detail: { type: 'logout' } 
-    }))
-
-    // 대시보드로 이동 (로그인 페이지 대신)
-    router.push({ name: 'dashboard' })
-    
-  } catch (error) {
-    console.error('ProfileDropdown: 로그아웃 에러:', error)
-    showToast({
-      message: '로그아웃 중 오류가 발생했습니다.',
-      color: 'danger',
-      duration: 3000
-    })
-  }
+  await authStore.logout(router)  // router를 매개변수로 전달
 }
-
-// ================================
-// 🎧 이벤트 리스너들
-// ================================
-const handleAuthStateChange = (event: any) => {
-  console.log('ProfileDropdown: 인증 상태 변경 감지', event.detail)
-  
-  if (event.detail?.type === 'login') {
-    // 로그인 이벤트
-    if (event.detail.user) {
-      user.value = event.detail.user
-    } else {
-      checkAuthAndLoadUser()
-    }
-  } else if (event.detail?.type === 'logout') {
-    // 로그아웃 이벤트
-    user.value = null
-  }
-}
-
-// ================================
-// 🚀 컴포넌트 초기화
-// ================================
-onMounted(() => {
-  // axios 기본 설정
-  if (typeof axios !== 'undefined') {
-    axios.defaults.baseURL = 'http://localhost:3000'
-  }
-  
-  // 초기 인증 상태 확인
-  checkAuthAndLoadUser()
-  
-  // 전역 이벤트 리스너 등록
-  window.addEventListener('auth-state-changed', handleAuthStateChange)
-})
-
-onUnmounted(() => {
-  // 이벤트 리스너 정리
-  window.removeEventListener('auth-state-changed', handleAuthStateChange)
-})
 </script>
 
 <style lang="scss">
@@ -333,7 +170,7 @@ onUnmounted(() => {
   padding: 1px 3px !important;
 }
 
-/* 더 구체적한 선택자로 패딩 강제 적용 */
+/* 더 구체적인 선택자로 패딩 강제 적용 */
 .profile-dropdown .menu-item {
   padding: 3px 6px !important;
   height: 24px !important;

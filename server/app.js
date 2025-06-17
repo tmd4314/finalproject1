@@ -12,6 +12,7 @@ app.use((req, res, next) => {
     return res.status(200).send('OK');
   }
   next();
+
 });
 
 // 미들웨어 등록 영역
@@ -87,6 +88,8 @@ const qualityRouter = require('./routers/qualityRouter.js');
 
 const productInboundRouter = require('./routers/productInboundRouter.js');
 
+const dashboardRouter = require('./routers/dashboardRouter.js');
+
 const productOutboundRouter = require('./routers/productOutboundRouter.js');
 
 
@@ -135,6 +138,7 @@ app.use('/equipment-inspection', equipmentInspectionRouter);
 app.use('/lines', lineRouter);
 app.use('/packages', packageRouter);
 app.use('/auth', authRouter);
+app.use('/dashboard', dashboardRouter);
 
 //현기
 app.use('/inspections', inspectionRouter);

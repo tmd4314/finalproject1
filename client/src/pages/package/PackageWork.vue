@@ -21,30 +21,27 @@
             <span class="work-status-badge" :class="workStatus.toLowerCase()">
               {{ getWorkStatusText(workStatus) }}
             </span>
-            <!-- 🔥 워크플로우 단계 표시 -->
+            <!--  워크플로우 단계 표시 -->
             <span v-if="workflowInfo.step === 'OUTER'" class="workflow-badge">
               2단계: 최종 포장
             </span>
           </div>
         </div>
-        <!-- 🔥 워크플로우 진행 표시 -->
+        <!--  워크플로우 진행 표시 -->
         <div v-if="workflowInfo.step" class="workflow-indicator">
           <div class="workflow-step" :class="{ completed: workflowInfo.innerCompleted }">
-            <div class="step-icon">💊</div>
             <div class="step-text">내포장</div>
           </div>
           <div class="workflow-arrow">→</div>
           <div class="workflow-step" :class="{ active: workflowInfo.step === 'OUTER' }">
-            <div class="step-icon">📦</div>
             <div class="step-text">외포장</div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- 🔥 워크플로우 안내 메시지 -->
+    <!--  워크플로우 안내 메시지 -->
     <div v-if="workflowInfo.step === 'OUTER' && workflowInfo.innerCompleted" class="workflow-guide">
-      <div class="guide-icon">🎯</div>
       <div class="guide-content">
         <h3>외포장 작업 단계입니다</h3>
         <p>내포장 작업({{ workflowInfo.innerWorkNo }})이 완료되었습니다. 이제 최종 외포장 작업을 진행해주세요.</p>
@@ -62,7 +59,7 @@
       <div class="work-layout">
         <!-- 좌측: 작업 제어 및 진행 상황 -->
         <div class="work-main">
-          <!-- 🔥 개선된 작업 제어 패널 -->
+          <!--  개선된 작업 제어 패널 -->
           <div class="control-panel">
             <h3>작업 제어</h3>
             
@@ -75,7 +72,7 @@
                     <span v-if="availableWorkOrders.length > 0" class="available-count">
                       ({{ availableWorkOrders.length }}개 사용가능)
                     </span>
-                    <!-- 🔥 라인 정보 표시 -->
+                    <!--  라인 정보 표시 -->
                     <span class="line-info">{{ workInfo.lineName }}</span>
                   </label>
                   
@@ -90,7 +87,7 @@
                     <!-- 준비 상태 작업 -->
                     <optgroup 
                       v-if="readyWorks && readyWorks.length > 0" 
-                      label="🟢 시작 가능한 작업"
+                      label=" 시작 가능한 작업"
                     >
                       <option 
                         v-for="work in readyWorks" 
@@ -106,7 +103,7 @@
                     <!-- 진행중 작업 -->
                     <optgroup 
                       v-if="workingWorks && workingWorks.length > 0" 
-                      label="🔄 진행중인 작업"
+                      label=" 진행중인 작업"
                     >
                       <option 
                         v-for="work in workingWorks" 
@@ -122,7 +119,7 @@
                     <!-- 일시정지 작업 -->
                     <optgroup 
                       v-if="pausedWorks && pausedWorks.length > 0" 
-                      label="⏸ 일시정지/부분완료된 작업"
+                      label=" 일시정지/부분완료된 작업"
                     >
                       <option 
                         v-for="work in pausedWorks" 
@@ -136,9 +133,8 @@
                     </optgroup>
                   </select>
                   
-                  <!-- 🔥 작업번호 상태 안내 개선 -->
+                  <!--  작업번호 상태 안내 개선 -->
                   <div v-if="availableWorkOrders.length === 0 && !loading" class="no-work-message">
-                    <span class="warning-icon">⚠️</span>
                     <div>
                       <div><strong>{{ workInfo.lineName }}의 {{ workInfo.lineType === 'INNER' ? '내포장' : '외포장' }} 작업번호가 없습니다.</strong></div>
                       <div style="font-size: 12px; margin-top: 4px;">
@@ -149,9 +145,8 @@
                     </div>
                   </div>
                   
-                  <!-- 🔥 즉시 로딩 상태 표시 -->
+                  <!--  즉시 로딩 상태 표시 -->
                   <div v-if="loading && loadingMessage.includes('작업번호')" class="loading-work-message">
-                    <span class="loading-icon">🔄</span>
                     <div>
                       <strong>{{ workInfo.lineName }} 작업번호를 불러오는 중...</strong>
                       <div style="font-size: 12px; margin-top: 4px;">잠시만 기다려주세요.</div>
@@ -208,14 +203,14 @@
                     <option value="100">매우빠름 (100개/초)</option>
                   </select>
                 </div>
-                <!-- 🔥 투입수량 (외포장 워크플로우 연계 강화) -->
+                <!--  투입수량 (외포장 워크플로우 연계 강화) -->
                 <div class="control-group">
                   <label class="control-label">
                     투입수량
                     <span v-if="currentWork.target_quantity > 0" class="target-info">
                       (지시: {{ formatNumber(currentWork.target_quantity) }}개)
                     </span>
-                    <!-- 🔥 외포장 시 내포장 완료수량 안내 -->
+                    <!--  외포장 시 내포장 완료수량 안내 -->
                     <span v-if="workInfo.lineType === 'OUTER' && workflowInfo.innerOutputQty > 0" class="workflow-info">
                       (내포장 완료: {{ formatNumber(workflowInfo.innerOutputQty) }}개)
                     </span>
@@ -235,24 +230,24 @@
                     @input="onInputQuantityChange"
                   >
                   
-                  <!-- 🔥 외포장 워크플로우 연계 상태 표시 -->
+                  <!--  외포장 워크플로우 연계 상태 표시 -->
                   <div v-if="workInfo.lineType === 'OUTER' && workflowInfo.innerOutputQty > 0" class="workflow-linked-info">
                     🔗 내포장 완료수량으로 자동 설정됨 ({{ formatNumber(workflowInfo.innerOutputQty) }}개)
                   </div>
                   
-                  <!-- 🔥 부분완료 작업 안내 -->
+                  <!--  부분완료 작업 안내 -->
                   <div v-if="isPartialWork" class="partial-work-info">
-                    🔄 부분완료 작업 - 남은 수량: {{ formatNumber(getRemainingQuantity()) }}개
+                    부분완료 작업 - 남은 수량: {{ formatNumber(getRemainingQuantity()) }}개
                   </div>
                   
                   <!-- 투입수량 안내 -->
                   <div v-if="inputQuantity > currentWork.target_quantity && currentWork.target_quantity > 0" class="input-warning">
-                    ⚠️ 투입수량이 지시수량을 초과합니다
+                    투입수량이 지시수량을 초과합니다
                   </div>
                   
-                  <!-- 🔥 외포장 워크플로우 안내 -->
+                  <!--  외포장 워크플로우 안내 -->
                   <div v-if="workInfo.lineType === 'OUTER' && workflowInfo.innerOutputQty > 0 && inputQuantity !== workflowInfo.innerOutputQty" class="workflow-suggestion">
-                    💡 내포장 완료수량({{ formatNumber(workflowInfo.innerOutputQty) }}개)과 다릅니다
+                    내포장 완료수량({{ formatNumber(workflowInfo.innerOutputQty) }}개)과 다릅니다
                   </div>
                 </div>
               </div>
@@ -287,7 +282,7 @@
                     <span class="label">작업자:</span>
                     <span class="value">{{ currentWork.worker_name }}</span>
                   </div>
-                  <!-- 🔥 라인 정보 추가 -->
+                  <!--  라인 정보 추가 -->
                   <div class="preview-item">
                     <span class="label">라인:</span>
                     <span class="value">{{ workInfo.lineName }}</span>
@@ -296,59 +291,51 @@
               </div>
             </div>
             
-            <!-- 🔥 개선된 작업 버튼들 (라인 초기화 추가) -->
-            <div class="control-buttons">
-              <div class="primary-buttons">
-                <button 
-                  @click="handleWorkButton" 
-                  :disabled="!canStartWork && !isWorking && workStatus !== 'PAUSED'"
-                  class="btn-primary"
-                  :class="{ disabled: !canStartWork && !isWorking && workStatus !== 'PAUSED' }"
-                >
-                  {{ getWorkButtonText() }}
-                </button>
-                <button 
-                  @click="completeProduction" 
-                  :disabled="!isWorking && workStatus !== 'COMPLETED'"
-                  class="btn-success"
-                  :class="{ 
-                    disabled: !isWorking && workStatus !== 'COMPLETED',
-                    'btn-completed': workStatus === 'COMPLETED'
-                  }"
-                >
-                  {{ workStatus === 'COMPLETED' ? '📝 완료 처리' : '✅ 생산 완료' }}
-                </button>
-                <button 
-                  @click="stopWork" 
-                  :disabled="!isWorking"
-                  class="btn-warning"
-                  :class="{ disabled: !isWorking }"
-                >
-                  ⏹ 작업 종료
-                </button>
-              </div>
+            <!--  깔끔하게 개선된 작업 버튼들 -->
+          <div class="work-controls">
+            <!-- 주요 작업 버튼들 -->
+            <div class="main-actions">
+              <button 
+                @click="handleWorkButton" 
+                :disabled="!canStartWork && !isWorking && workStatus !== 'PAUSED'"
+                :class="['btn', 'btn-work', { 'working': isWorking }]"
+              >
+                {{ getWorkButtonText() }}
+              </button>
               
-              <div class="secondary-buttons">
-                <button 
-                  @click="refreshWorkOrders" 
-                  class="btn-secondary"
-                  :disabled="loading"
-                >
-                  🔄 새로고침
-                </button>
-                <!-- 🔥 라인 초기화 버튼 추가 -->
-                <button 
-                  @click="resetLineStatus" 
-                  class="btn-reset"
-                  :disabled="loading || isWorking"
-                  title="이 라인의 모든 작업 상태를 준비 상태로 초기화합니다"
-                >
-                  🔧 라인 초기화
-                </button>
-              </div>
+              <button 
+                @click="completeProduction" 
+                :disabled="!isWorking && workStatus !== 'COMPLETED'"
+                :class="['btn', 'btn-complete', { 'ready': workStatus === 'COMPLETED' }]"
+              >
+                {{ workStatus === 'COMPLETED' ? '완료 처리' : '생산 완료' }}
+              </button>
+              
+              <button 
+                @click="stopWork" 
+                :disabled="!isWorking"
+                class="btn btn-stop"
+              >
+                작업 종료
+              </button>
+            </div>
+            
+            <!-- 보조 기능 버튼들 -->
+            <div class="sub-actions">
+              <button @click="refreshWorkOrders" :disabled="loading" class="btn btn-refresh">
+                새로고침
+              </button>
+              <button 
+                @click="resetLineStatus" 
+                :disabled="loading || isWorking"
+                class="btn btn-reset"
+                title="라인 초기화"
+              >
+                초기화
+              </button>
             </div>
           </div>
-
+          </div>
           <!-- 실시간 진행 상황 -->
           <div class="progress-panel">
             <h3>실시간 진행 상황</h3>
@@ -356,7 +343,6 @@
               <div class="progress-card">
                 <div class="card-header">
                   <span class="card-title">생산수량</span>
-                  <span class="card-icon">⚙️</span>
                 </div>
                 <div class="card-value">{{ formatNumber(productionSettings.currentProgress) }}</div>
                 <div class="card-unit">개</div>
@@ -364,7 +350,6 @@
               <div class="progress-card success">
                 <div class="card-header">
                   <span class="card-title">합격수량</span>
-                  <span class="card-icon">✅</span>
                 </div>
                 <div class="card-value">{{ formatNumber(currentWork.output_qty) }}</div>
                 <div class="card-unit">개</div>
@@ -372,7 +357,6 @@
               <div class="progress-card danger">
                 <div class="card-header">
                   <span class="card-title">불량수량</span>
-                  <span class="card-icon">❌</span>
                 </div>
                 <div class="card-value">{{ formatNumber(currentWork.defect_qty) }}</div>
                 <div class="card-unit">개</div>
@@ -409,13 +393,12 @@
 
         <!-- 우측: 작업 정보 -->
         <div class="work-sidebar">
-          <!-- 🔥 워크플로우 정보 패널 (외포장 시에만 표시) -->
+          <!--  워크플로우 정보 패널 (외포장 시에만 표시) -->
           <div v-if="workflowInfo.step === 'OUTER' && workflowInfo.innerCompleted" class="workflow-panel">
             <h3>워크플로우 정보</h3>
             <div class="workflow-chain">
               <div class="chain-step completed">
                 <div class="step-header">
-                  <span class="step-icon">✅</span>
                   <span class="step-title">내포장 완료</span>
                 </div>
                 <div class="step-details">
@@ -433,10 +416,9 @@
                   </div>
                 </div>
               </div>
-              <div class="chain-arrow">⬇️</div>
+              <div class="chain-arrow"></div>
               <div class="chain-step current">
                 <div class="step-header">
-                  <span class="step-icon">🔄</span>
                   <span class="step-title">외포장 진행</span>
                 </div>
                 <div class="step-details">
@@ -549,30 +531,27 @@
             </div>
           </div>
 
-          <!-- 🔥 개선된 라인 변경 패널 -->
+          <!--  개선된 라인 변경 패널 -->
           <div class="line-change-panel">
             <button @click="goBackToLineSelection" class="btn-line-change">
-              🔄 다른 라인으로 변경하기
+              다른 라인으로 변경하기
             </button>
             <p class="line-change-help">
               현재: <strong>{{ workInfo.lineName }}</strong><br>
               잘못된 라인을 선택했거나 다른 라인에서 작업하고 싶다면 클릭하세요
             </p>
             
-            <!-- 🔥 라인 상태 요약 표시 -->
+            <!-- 라인 상태 요약 표시 -->
             <div v-if="availableWorkOrders.length > 0" class="line-status-summary">
               <h5>현재 라인 상태</h5>
               <div class="status-items">
                 <div v-if="readyWorks.length > 0" class="status-item">
-                  <span class="status-icon">🟢</span>
                   <span class="status-text">준비: {{ readyWorks.length }}개</span>
                 </div>
                 <div v-if="workingWorks.length > 0" class="status-item">
-                  <span class="status-icon">🔄</span>
                   <span class="status-text">진행중: {{ workingWorks.length }}개</span>
                 </div>
                 <div v-if="pausedWorks.length > 0" class="status-item">
-                  <span class="status-icon">⏸</span>
                   <span class="status-text">일시정지: {{ pausedWorks.length }}개</span>
                 </div>
               </div>
@@ -582,7 +561,7 @@
       </div>
     </div>
 
-    <!-- 🔥 작업 완료 확인 모달 (워크플로우 개선) -->
+    <!--  작업 완료 확인 모달 (워크플로우 개선) -->
     <div v-if="showCompleteModal" class="modal-overlay" @click="closeCompleteModal">
       <div class="modal-content" @click.stop>
         <div class="modal-header">
@@ -620,18 +599,17 @@
             </div>
           </div>
           
-          <!-- 🔥 워크플로우별 다음 단계 안내 -->
+          <!-- 워크플로우별 다음 단계 안내 -->
           <div v-if="workInfo.lineType === 'INNER' && !isPartialCompletion" class="next-step-info inner-completion">
             <div class="info-box">
-              <div class="info-icon">🎯</div>
               <div class="info-content">
                 <h5>다음 단계: 외포장 라인 선택</h5>
                 <p>내포장 작업 완료 후 외포장이 활성화된 라인 선택 페이지로 자동 이동합니다.</p>
                 <ul>
-                  <li>✅ 내포장 작업 완료 처리</li>
-                  <li>🔄 라인 선택 페이지로 자동 이동</li>
-                  <li>📋 외포장 라인 자동 활성화</li>
-                  <li>⭐ 추천 라인 표시</li>
+                  <li> 내포장 작업 완료 처리</li>
+                  <li>라인 선택 페이지로 자동 이동</li>
+                  <li>외포장 라인 자동 활성화</li>
+                  <li>추천 라인 표시</li>
                 </ul>
               </div>
             </div>
@@ -645,25 +623,22 @@
                 <p>모든 포장 단계가 완료되었습니다.</p>
                 <div class="completion-chain">
                   <div class="chain-item">
-                    <span class="chain-icon">💊</span>
                     <span class="chain-text">내포장</span>
-                    <span class="chain-status">✅</span>
+                    <span class="chain-status"></span>
                   </div>
                   <div class="chain-arrow">→</div>
                   <div class="chain-item">
-                    <span class="chain-icon">📦</span>
                     <span class="chain-text">외포장</span>
-                    <span class="chain-status">✅</span>
+                    <span class="chain-status"></span>
                   </div>
                 </div>
               </div>
             </div>
           </div>
           
-          <!-- 🔥 미완료 작업 안내 -->
+          <!--  미완료 작업 안내 -->
           <div v-if="isPartialCompletion" class="partial-completion-info">
             <div class="warning-box">
-              <div class="warning-icon">⚠️</div>
               <div class="warning-content">
                 <h5>지시량 미달성</h5>
                 <div class="completion-stats">
@@ -696,17 +671,17 @@
         <div class="modal-actions">
           <button @click="closeCompleteModal" class="btn-cancel">취소</button>
           
-          <!-- 🔥 미완료 시 선택 옵션 -->
+          <!--  미완료 시 선택 옵션 -->
           <div v-if="isPartialCompletion" class="completion-options">
             <button @click="confirmPartialComplete" class="btn-partial">
               {{ getPartialCompleteButtonText() }}
             </button>
             <button @click="confirmContinueLater" class="btn-continue">
-              🔄 나중에 계속하기
+              나중에 계속하기
             </button>
           </div>
           
-          <!-- 🔥 완전 완료 시 -->
+          <!--  완전 완료 시 -->
           <button v-else @click="confirmCompleteWork" class="btn-confirm">
             {{ getCompleteButtonText() }}
           </button>
@@ -714,10 +689,9 @@
       </div>
     </div>
 
-    <!-- 🔥 자동 이동 안내 오버레이 -->
+    <!--  자동 이동 안내 오버레이 -->
     <div v-if="showAutoTransition" class="auto-transition-overlay">
       <div class="transition-modal">
-        <div class="transition-icon">🔄</div>
         <h3>{{ getTransitionTitle() }}</h3>
         <p>{{ getTransitionMessage() }}</p>
         <div class="transition-progress">
@@ -739,7 +713,7 @@
     <div v-if="showError" class="error-overlay">
       <div class="error-modal">
         <div class="error-header">
-          <h3>⚠️ 연결 오류</h3>
+          <h3>연결 오류</h3>
         </div>
         <div class="error-body">
           <p>{{ errorMessage }}</p>
@@ -774,13 +748,13 @@ const workInfo = ref({
   lineType: route.query.line_type || 'INNER'
 })
 
-// 🔥 워크플로우 정보
+// 워크플로우 정보
 const workflowInfo = ref({
   step: route.query.workflow_step || null, // 'INNER' | 'OUTER'
   innerCompleted: route.query.inner_completed === 'true',
   innerWorkNo: route.query.inner_work_no || '',
   innerCompletionTime: route.query.inner_completion_time ? new Date(route.query.inner_completion_time) : null,
-  innerOutputQty: parseInt(route.query.inner_output_qty) || 0, // 🔥 내포장 완료수량 추가
+  innerOutputQty: parseInt(route.query.inner_output_qty) || 0, //  내포장 완료수량 추가
   autoStartGuide: route.query.auto_start_guide === 'true'
 })
 
@@ -805,17 +779,17 @@ const selectedWorkOrder = ref('')
 const inputQuantity = ref(500)
 const availableWorkOrders = ref([])
 
-// 🔥 자동 전환 상태
+//  자동 전환 상태
 const showAutoTransition = ref(false)
 const transitionProgress = ref(0)
 
-// 🔥 부분완료 작업 여부
+//  부분완료 작업 여부
 const isPartialWork = computed(() => {
   return currentWork.value.step_status === '부분완료' || 
          currentWork.value.step_status === 'PARTIAL_COMPLETE'
 })
 
-// 🔥 작업번호 상태별 분류 (정렬 추가)
+//  작업번호 상태별 분류 (정렬 추가)
 const readyWorks = computed(() => {
   const ready = availableWorkOrders.value.filter(work => {
     if (!work) return false
@@ -860,7 +834,7 @@ const pausedWorks = computed(() => {
     const status = (work.step_status || '').toLowerCase()
     return status === 'paused' || 
            status === '일시정지' ||
-           status === 'partial_complete' || // 🔥 부분완료 추가
+           status === 'partial_complete' || //  부분완료 추가
            status === '부분완료'
   })
   
@@ -888,7 +862,7 @@ const completedWorks = computed(() => {
   })
 })
 
-// 🔥 작업번호에서 숫자 추출 함수 (전역으로 이동)
+//  작업번호에서 숫자 추출 함수 (전역으로 이동)
 function extractWorkNumber(workNo) {
   if (!workNo) return 0
   
@@ -955,24 +929,24 @@ const canStartWork = computed(() => {
     return false
   }
   
-  // 🔥 부분완료 작업의 경우 특별 처리
+  //  부분완료 작업의 경우 특별 처리
   if (isPartialWork.value) {
     // 부분완료 작업은 작업번호만 선택되면 시작 가능
     // (투입수량은 남은 수량으로 자동 설정됨)
     return true
   }
   
-  // 🔥 일반 작업의 경우 기존 조건
+  //  일반 작업의 경우 기존 조건
   return inputQuantity.value > 0
 })
 
-// 🔥 미완료 여부 판단
+//  미완료 여부 판단
 const isPartialCompletion = computed(() => {
   return currentWork.value.output_qty < currentWork.value.target_quantity && 
          currentWork.value.target_quantity > 0
 })
 
-// 🔥 미달성 수량 계산 (수정됨)
+//  미달성 수량 계산 (수정됨)
 function getRemainingQuantity() {
   // 미달성 = 지시량 - 합격수량 = 5,000 - 490 = 4,510개
   // 하지만 실제로는 미투입량(4,500개)에서 불량 예상분을 빼야 함
@@ -980,13 +954,58 @@ function getRemainingQuantity() {
   return Math.max(0, currentWork.value.target_quantity - currentWork.value.current_quantity)
 }
 
-// 🔥 달성률 계산
+//  달성률 계산
 function getCompletionRate() {
   if (currentWork.value.target_quantity <= 0) return 100
   return Math.round((currentWork.value.output_qty / currentWork.value.target_quantity) * 100)
 }
 
-// 🔥 개선된 컴포넌트 마운트 (즉시 작업번호 로딩)
+//  작업 상태별 진행률 초기화 함수 (새로 추가)
+function initializeWorkProgress() {
+  const workStatus = (currentWork.value.step_status || '').toLowerCase()
+  
+  console.log(' 작업 상태별 진행률 초기화:', workStatus)
+  
+  if (!workStatus || workStatus === 'ready' || workStatus === '준비' || workStatus === '') {
+    //  새 작업: 0부터 시작
+    currentWork.value.output_qty = 0
+    currentWork.value.defect_qty = 0
+    currentWork.value.progressRate = 0
+    productionSettings.value.currentProgress = 0
+    addLog('✨ 새로운 작업입니다. 진행률 0%부터 시작합니다.', 'success')
+    return 'new'
+    
+  } else if (workStatus.includes('부분완료') || workStatus.includes('partial')) {
+    //  부분완료: 이전 진행률 유지
+    const previousOutput = currentWork.value.output_qty || 0
+    productionSettings.value.currentProgress = previousOutput
+    addLog(` 부분완료 작업입니다. 이전 생산량 ${formatNumber(previousOutput)}개에서 이어서 시작합니다.`, 'info')
+    return 'partial'
+    
+  } else if (workStatus.includes('진행') || workStatus.includes('working') || workStatus.includes('progress')) {
+    //  진행중: 이전 진행률 유지  
+    const previousOutput = currentWork.value.output_qty || 0
+    productionSettings.value.currentProgress = previousOutput
+    addLog(` 진행중인 작업입니다. 현재 생산량 ${formatNumber(previousOutput)}개에서 계속 진행합니다.`, 'info')
+    return 'continuing'
+    
+  } else if (workStatus.includes('일시정지') || workStatus.includes('paused')) {
+    //  일시정지: 이전 진행률 유지
+    const previousOutput = currentWork.value.output_qty || 0
+    productionSettings.value.currentProgress = previousOutput
+    addLog(` 일시정지된 작업입니다. 이전 생산량 ${formatNumber(previousOutput)}개에서 재시작 가능합니다.`, 'warning')
+    return 'paused'
+  }
+  
+  addLog(` 알 수 없는 작업 상태(${workStatus})입니다. 0%부터 시작합니다.`, 'warning')
+  currentWork.value.output_qty = 0
+  currentWork.value.defect_qty = 0
+  currentWork.value.progressRate = 0
+  productionSettings.value.currentProgress = 0
+  return 'unknown'
+}
+
+//  개선된 컴포넌트 마운트 (즉시 작업번호 로딩)
 onMounted(async () => {
   console.log('PackageWork 컴포넌트 마운트')
   console.log('라인 정보:', workInfo.value)
@@ -996,26 +1015,26 @@ onMounted(async () => {
     loading.value = true
     loadingMessage.value = '라인별 작업번호를 불러오는 중...'
     
-    // 🔥 1단계: 먼저 작업번호 목록을 확실히 로드
+    //  1단계: 먼저 작업번호 목록을 확실히 로드
     await loadAvailableWorkOrdersWithRetry()
     
-    // 🔥 2단계: 외포장인 경우 워크플로우 데이터 로드
+    //  2단계: 외포장인 경우 워크플로우 데이터 로드
     if (workInfo.value.lineType === 'OUTER') {
-      console.log('🔗 외포장 감지 - 워크플로우 데이터 로드 시작')
+      console.log(' 외포장 감지 - 워크플로우 데이터 로드 시작')
       await loadLinkedWorkflowData()
     }
     
-    // 🔥 3단계: URL에서 전달된 작업번호가 있으면 설정
+    //  3단계: URL에서 전달된 작업번호가 있으면 설정
     if (route.query.work_no) {
       await selectWorkOrderWithRetry(route.query.work_no)
     } else {
-      // 🔥 4단계: 자동 작업번호 선택 (라인별 첫 번째 사용 가능한 작업)
+      //  4단계: 자동 작업번호 선택 (라인별 첫 번째 사용 가능한 작업)
       await autoSelectFirstAvailableWork()
     }
     
     // 워크플로우 안내 메시지
     if (workflowInfo.value.step === 'OUTER' && workflowInfo.value.innerCompleted) {
-      addLog(`🎯 외포장 단계입니다. 내포장(${workflowInfo.value.innerWorkNo})이 완료되었습니다.`, 'success')
+      addLog(` 외포장 단계입니다. 내포장(${workflowInfo.value.innerWorkNo})이 완료되었습니다.`, 'success')
     }
     
     // 이전 작업 완료 메시지 표시
@@ -1033,14 +1052,14 @@ onMounted(async () => {
   }
 })
 
-// 🔥 투입수량 변경 감지 및 기투입량/미투입량 업데이트
+//  투입수량 변경 감지 및 기투입량/미투입량 업데이트
 watch(inputQuantity, (newQuantity) => {
   if (selectedWorkOrder.value && newQuantity > 0) {
-    // 🔥 외포장이면서 워크플로우 연계가 활성화된 경우 투입수량 변경 제한
+    //  외포장이면서 워크플로우 연계가 활성화된 경우 투입수량 변경 제한
     if (workInfo.value.lineType === 'OUTER' && workflowInfo.value.innerCompleted && workflowInfo.value.innerOutputQty > 0) {
       // 내포장 완료수량과 다르면 경고
       if (newQuantity !== workflowInfo.value.innerOutputQty) {
-        addLog(`⚠️ 워크플로우 연계 중입니다. 투입수량은 내포장 완료수량(${formatNumber(workflowInfo.value.innerOutputQty)}개)으로 고정됩니다.`, 'warning')
+        addLog(` 워크플로우 연계 중입니다. 투입수량은 내포장 완료수량(${formatNumber(workflowInfo.value.innerOutputQty)}개)으로 고정됩니다.`, 'warning')
         // 강제로 내포장 완료수량으로 되돌림
         nextTick(() => {
           inputQuantity.value = workflowInfo.value.innerOutputQty
@@ -1049,7 +1068,7 @@ watch(inputQuantity, (newQuantity) => {
       return
     }
     
-    // 🔥 일반적인 경우 기투입량 업데이트
+    //  일반적인 경우 기투입량 업데이트
     currentWork.value.current_quantity = newQuantity
     updateCurrentWorkInfo()
     console.log(`투입수량 변경: ${newQuantity}개 → 기투입량/미투입량 업데이트`)
@@ -1067,21 +1086,21 @@ onUnmounted(() => {
   }
 })
 
-// 🔥 재시도가 포함된 작업번호 로딩
+//  재시도가 포함된 작업번호 로딩
 async function loadAvailableWorkOrdersWithRetry(maxRetries = 3) {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      console.log(`🔄 작업번호 로딩 시도 ${attempt}/${maxRetries}`)
+      console.log(`작업번호 로딩 시도 ${attempt}/${maxRetries}`)
       await loadAvailableWorkOrdersImproved()
       
       if (availableWorkOrders.value.length > 0) {
-        console.log(`✅ 시도 ${attempt}에서 ${availableWorkOrders.value.length}개 작업번호 로드 성공`)
+        console.log(`시도 ${attempt}에서 ${availableWorkOrders.value.length}개 작업번호 로드 성공`)
         return
       } else {
-        console.log(`⚠️ 시도 ${attempt}: 작업번호가 없음`)
+        console.log(`시도 ${attempt}: 작업번호가 없음`)
       }
     } catch (error) {
-      console.error(`❌ 시도 ${attempt} 실패:`, error)
+      console.error(`시도 ${attempt} 실패:`, error)
       if (attempt === maxRetries) {
         throw error
       }
@@ -1091,15 +1110,15 @@ async function loadAvailableWorkOrdersWithRetry(maxRetries = 3) {
   }
 }
 
-// 🔥 개선된 작업번호 로딩 (라인별 정확한 필터링)
+//  개선된 작업번호 로딩 (라인별 정확한 필터링)
 async function loadAvailableWorkOrdersImproved() {
   try {
-    console.log('🔄 개선된 작업번호 목록 조회 시작')
-    console.log('📋 현재 라인:', workInfo.value.lineName, workInfo.value.lineType)
+    console.log('개선된 작업번호 목록 조회 시작')
+    console.log('현재 라인:', workInfo.value.lineName, workInfo.value.lineType)
     
-    // 🔥 라인명에서 기본 라인명 추출 (예: "A라인 내포장" → "A라인")
+    //  라인명에서 기본 라인명 추출 (예: "A라인 내포장" → "A라인")
     const baseLineName = workInfo.value.lineName.replace(/\s*(내포장|외포장).*$/, '')
-    console.log('🏷️ 기본 라인명:', baseLineName)
+    console.log('기본 라인명:', baseLineName)
     
     const response = await axios.get(`${PACKAGES_API_URL}/works`)
     
@@ -1108,11 +1127,11 @@ async function loadAvailableWorkOrdersImproved() {
       
       if (allWorks.length === 0) {
         availableWorkOrders.value = []
-        addLog('⚠️ 시스템에 작업 데이터가 없습니다.', 'warning')
+        addLog('시스템에 작업 데이터가 없습니다.', 'warning')
         return
       }
       
-      // 🔥 라인별 + 포장타입별 정확한 필터링
+      // 라인별 + 포장타입별 정확한 필터링
       const filteredWorks = allWorks.filter(work => {
         if (!work) return false
         
@@ -1122,7 +1141,7 @@ async function loadAvailableWorkOrdersImproved() {
         const lineType = (work.line_type || '').toLowerCase()
         const workLineName = (work.line_name || '').toLowerCase()
         
-        // 🔥 1단계: 라인명 매칭 확인
+        // 1단계: 라인명 매칭 확인
         let lineMatches = false
         if (workLineName) {
           // 정확한 라인명 매칭
@@ -1133,7 +1152,7 @@ async function loadAvailableWorkOrdersImproved() {
           lineMatches = true
         }
         
-        // 🔥 2단계: 포장타입 매칭
+        // 2단계: 포장타입 매칭
         let typeMatches = false
         
         if (workInfo.value.lineType === 'INNER') {
@@ -1173,20 +1192,20 @@ async function loadAvailableWorkOrdersImproved() {
         const finalMatch = lineMatches && typeMatches
         
         if (finalMatch) {
-          console.log(`✅ 매칭: ${work.work_no} (라인: ${lineMatches}, 타입: ${typeMatches})`)
+          console.log(`매칭: ${work.work_no} (라인: ${lineMatches}, 타입: ${typeMatches})`)
         }
         
         return finalMatch
       })
       
-      // 🔥 데이터 구조 정리 및 상태 초기화 방지
+      // 데이터 구조 정리 및 상태 초기화 방지
       const processedWorks = filteredWorks.map(work => {
         const outputQty = work.output_qty || 0
         const targetQty = work.order_qty || work.target_qty || 1000
         const inputQty = work.input_qty || 0
         const progressRate = targetQty > 0 ? Math.round((outputQty / targetQty) * 100) : 0
         
-        // 🔥 상태 정규화 (부분완료 상태 보존)
+        // 상태 정규화 (부분완료 상태 보존)
         let normalizedStatus = work.step_status || 'READY'
         
         // 기존 상태 보존 (초기화하지 않음)
@@ -1204,7 +1223,7 @@ async function loadAvailableWorkOrdersImproved() {
           work_no: work.work_no || '작업번호없음',
           step_name: work.step_name || work.work_no || '단계명없음',
           work_step: work.work_step || '',
-          step_status: normalizedStatus, // 🔥 기존 상태 보존
+          step_status: normalizedStatus, // 기존 상태 보존
           product_name: work.product_name || work.step_name || '제품명없음',
           order_qty: targetQty,
           target_qty: targetQty,
@@ -1348,9 +1367,9 @@ async function selectWorkOrderWithRetry(workNo, maxRetries = 3) {
   }
 }
 
-// 🔥 라인 초기화 함수 추가
+// 🔥 수정된 라인 초기화 함수
 async function resetLineStatus() {
-  if (!confirm('이 라인의 모든 작업 상태를 진행 상태로 초기화하시겠습니까?')) {
+  if (!confirm('이 라인의 부분완료 작업들을 진행 상태로 초기화하시겠습니까?')) {
     return
   }
   
@@ -1363,50 +1382,51 @@ async function resetLineStatus() {
     const resetData = {
       base_line_name: baseLineName,
       line_type: workInfo.value.lineType,
-      target_status: 'READY', // 모든 작업을 준비 상태로
-      reset_progress: true, // 진행률도 초기화
+      target_status: 'IN_PROGRESS', // 🔥 부분완료 → 진행 중으로 변경
+      reset_progress: false, // 🔥 진행률은 유지 (진행 중 상태이므로)
       reset_by: currentWork.value.employee_id || 2
     }
     
+    let serverSuccess = false
     try {
       await axios.post(`${PACKAGES_API_URL}/line/reset`, resetData)
       addLog('✅ 서버에서 라인 상태가 초기화되었습니다.', 'success')
+      serverSuccess = true
     } catch (apiError) {
       console.warn('API 호출 실패, 로컬에서 초기화 처리:', apiError)
       addLog('⚠️ 서버 연결 실패, 로컬에서 초기화를 처리합니다.', 'warning')
     }
     
-    // 🔥 로컬 데이터 초기화
-    availableWorkOrders.value = availableWorkOrders.value.map(work => ({
-      ...work,
-      step_status: 'READY',
-      progress_rate: 0,
-      output_qty: 0,
-      defect_qty: 0,
-      input_qty: 0
-    }))
+    // 🔥 로컬 데이터 초기화 (부분완료 → 진행 중)
+    availableWorkOrders.value = availableWorkOrders.value.map(work => {
+      if (work.step_status === 'PARTIALLY_COMPLETED') {
+        return {
+          ...work,
+          step_status: 'IN_PROGRESS'
+          // 진행률과 수량은 그대로 유지
+        }
+      }
+      return work
+    })
     
-    // 현재 작업도 초기화
-    if (selectedWorkOrder.value) {
-      resetCurrentWork()
-      workStatus.value = 'READY'
-      isWorking.value = false
-      
-      if (workTimer) {
-        clearInterval(workTimer)
-        workTimer = null
-      }
-      if (productionTimer) {
-        clearInterval(productionTimer)
-        productionTimer = null
-      }
+    // 🔥 현재 작업이 부분완료 상태라면 진행 중으로 변경
+    if (selectedWorkOrder.value && workStatus.value === 'PARTIALLY_COMPLETED') {
+      workStatus.value = 'IN_PROGRESS'
+      isWorking.value = false // 일시정지 상태로
+      addLog('현재 작업이 진행 중 상태로 변경되었습니다.', 'info')
     }
     
     addLog(`🔄 ${baseLineName} ${workInfo.value.lineType === 'INNER' ? '내포장' : '외포장'} 라인이 초기화되었습니다.`, 'success')
-    addLog('모든 작업이 준비 상태로 변경되었습니다.', 'info')
+    addLog('부분완료 작업들이 진행 중 상태로 변경되었습니다.', 'info')
     
-    // 작업 목록 새로고침
-    await loadAvailableWorkOrdersWithRetry()
+    // 🔥 서버 초기화가 성공했을 때만 새로고침 (로컬 변경사항 유지)
+    if (serverSuccess) {
+      // 약간의 지연 후 새로고침 (서버 반영 시간 확보)
+      setTimeout(async () => {
+        await loadAvailableWorkOrdersWithRetry()
+        addLog('서버 데이터로 동기화 완료', 'success')
+      }, 1000)
+    }
     
   } catch (error) {
     console.error('라인 초기화 실패:', error)
@@ -1416,7 +1436,7 @@ async function resetLineStatus() {
   }
 }
 
-// 🔥 개선된 작업 목록 새로고침
+// 🔥 개선된 작업 목록 새로고침 (변경사항 없음)
 async function refreshWorkOrders() {
   try {
     addLog('작업 목록을 새로고침합니다...', 'info')
@@ -1558,7 +1578,7 @@ async function loadLinkedWorkflowData() {
   }
 }
 
-// 🔥 작업번호 변경 시 (부분완료 감지 로직 추가)
+// 🔥 작업번호 변경 시 (진행률 초기화 개선)
 async function onWorkOrderChange() {
   if (!selectedWorkOrder.value) {
     resetCurrentWork()
@@ -1675,7 +1695,10 @@ async function onWorkOrderChange() {
       addLog(`🔗 워크플로우 연계: 내포장 완료수량 ${formatNumber(workflowInfo.value.innerOutputQty)}개를 기투입량으로 설정했습니다.`, 'success')
     }
     
-    // 🔥 부분완료된 작업 특별 처리 (핵심 수정)
+    // 🔥 핵심 개선: 작업 상태별 진행률 초기화
+    const initResult = initializeWorkProgress()
+    
+    // 🔥 부분완료된 작업 특별 처리 (기존 로직 유지)
     if (currentWork.value.step_status === '부분완료' || 
         currentWork.value.step_status === 'PARTIAL_COMPLETE') {
       
@@ -1772,7 +1795,7 @@ function selectQuickWork(work) {
   addLog(`빠른 선택: ${work.work_no} - ${work.product_name || work.step_name}`, 'info')
 }
 
-// 작업 시작
+// 🔥 개선된 작업 시작 (진행률 초기화 적용)
 async function startWork() {
   if (!isWorking.value) {
     try {
@@ -1812,13 +1835,21 @@ async function startWork() {
         throw new Error(response.data?.message || '작업 시작 실패')
       }
       
-      // 로컬 상태 업데이트
-      if (isPartialWork.value) {
-        // 부분완료 작업의 경우: 이전 생산량 유지하면서 추가 작업
+      // 🔥 로컬 상태 업데이트 (진행률 초기화 적용)
+      const workInitType = initializeWorkProgress()
+      
+      if (workInitType === 'new') {
+        // 🔥 새 작업: 0부터 시작
+        productionSettings.value.targetQty = actualInputQty
+        productionSettings.value.currentProgress = 0
+        addLog(`새 작업 시작 - 진행률 0%부터 시작합니다.`, 'success')
+      } else if (workInitType === 'partial') {
+        // 🔥 부분완료 작업: 이전 생산량에서 이어서
         productionSettings.value.targetQty = currentWork.value.target_quantity
-        // currentProgress는 이미 설정된 이전 생산량 유지
+        // currentProgress는 initializeWorkProgress에서 설정됨
+        addLog(`부분완료 작업 재시작 - 이전 생산량에서 이어서 진행합니다.`, 'info')
       } else {
-        // 새 작업의 경우
+        // 🔥 기타 작업: 기존 로직
         productionSettings.value.targetQty = actualInputQty
         productionSettings.value.currentProgress = currentWork.value.output_qty || 0
       }
@@ -2819,38 +2850,91 @@ function startWorkTimer() {
   gap: 8px;
 }
 
-.btn-partial,
-.btn-continue {
-  flex: 1;
-  padding: 12px 16px;
+.work-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.main-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.sub-actions {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.btn {
+  padding: 10px 16px;
   border: none;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 600;
+  border-radius: 6px;
+  font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
+  min-width: 80px;
 }
 
-.btn-partial {
-  background: linear-gradient(135deg, #f59e0b, #d97706);
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-work {
+  background: #3b82f6;
   color: white;
-  box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3);
 }
 
-.btn-partial:hover {
-  background: linear-gradient(135deg, #d97706, #b45309);
-  transform: translateY(-1px);
+.btn-work.working {
+  background: #f59e0b;
 }
 
-.btn-continue {
-  background: linear-gradient(135deg, #6b7280, #4b5563);
+.btn-complete {
+  background: #10b981;
   color: white;
-  box-shadow: 0 4px 15px rgba(107, 114, 128, 0.3);
 }
 
-.btn-continue:hover {
-  background: linear-gradient(135deg, #4b5563, #374151);
+.btn-complete.ready {
+  background: #8b5cf6;
+}
+
+.btn-stop {
+  background: #ef4444;
+  color: white;
+}
+
+.btn-refresh, .btn-reset {
+  background: #6b7280;
+  color: white;
+  min-width: 60px;
+}
+
+.btn:hover:not(:disabled) {
   transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+@media (max-width: 768px) {
+  .work-controls {
+    gap: 8px;
+  }
+  
+  .main-actions {
+    justify-content: center;
+  }
+  
+  .sub-actions {
+    justify-content: center;
+    margin-left: 0;
+  }
+  
+  .btn {
+    flex: 1;
+    min-width: 0;
+  }
 }
 
 /* 🔥 부분완료 상태 스타일 */

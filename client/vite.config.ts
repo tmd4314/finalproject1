@@ -64,6 +64,11 @@ export default defineConfig({
   server: {
     proxy: createProxy(proxyPaths)
   },
+  resolve: {
+    alias: {
+      '@': resolve(dirname(fileURLToPath(import.meta.url)), './src'),
+    },
+  },
   plugins: [
     vuestic({
       devtools: true,
