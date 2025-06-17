@@ -1,10 +1,10 @@
-// services/authService.js - 인증 관련 비즈니스 로직
+// services/authService.js - 인증 관련 비즈니스 로직 (수정된 버전)
 const mapper = require('../database/mapper');
 
 class AuthService {
   
   // ================================
-  // 🔐 로그인 처리
+  // 로그인 처리
   // ================================
   
   async login(employeeId, password) {
@@ -23,9 +23,15 @@ class AuthService {
       }
       
       const user = users[0];
+      console.log(`조회된 사용자 정보:`, {
+        employee_id: user.employee_id,
+        employee_name: user.employee_name,
+        employment_status: user.employment_status,
+        hasPassword: !!user.password
+      });
       
-      // 2. 재직 상태 확인
-      if (user.employment_status !== '재직중') {
+      // 2. 재직 상태 확인 ('Y'가 재직중을 의미)
+      if (user.employment_status !== 'Y') {  
         console.log(`로그인 실패: 재직중이 아님 - ${employeeId}, 상태: ${user.employment_status}`);
         return {
           success: false,
@@ -34,10 +40,14 @@ class AuthService {
       }
       
       // 3. 비밀번호 검증
+      console.log(`비밀번호 검증 시작 - 입력: "${password}", 저장됨: "${user.password}"`);
       const isPasswordValid = await this.verifyPassword(password, user.password);
       
       if (!isPasswordValid) {
         console.log(`로그인 실패: 비밀번호 불일치 - ${employeeId}`);
+        console.log(`입력된 비밀번호: "${password}"`);
+        console.log(`저장된 비밀번호: "${user.password}"`);
+        console.log(`비밀번호 길이 비교: 입력(${password.length}) vs 저장(${user.password ? user.password.length : 'null'})`);
         return {
           success: false,
           message: '사원번호 또는 비밀번호가 올바르지 않습니다.'
@@ -62,13 +72,28 @@ class AuthService {
   }
   
   // ================================
-  // 🔑 비밀번호 검증 (평문 비교)
+  // 비밀번호 검증 (개선된 버전)
   // ================================
   
   async verifyPassword(inputPassword, storedPassword) {
     try {
+      // 입력값 검증
+      if (!inputPassword || !storedPassword) {
+        console.log('비밀번호 검증 실패: 빈 값');
+        return false;
+      }
+      
+      // 문자열로 변환 후 공백 제거
+      const cleanInput = String(inputPassword).trim();
+      const cleanStored = String(storedPassword).trim();
+      
+      console.log(`비밀번호 비교: "${cleanInput}" === "${cleanStored}"`);
+      
       // 평문 비밀번호 비교
-      return inputPassword === storedPassword;
+      const isMatch = cleanInput === cleanStored;
+      
+      console.log(`비밀번호 검증 결과: ${isMatch}`);
+      return isMatch;
       
     } catch (error) {
       console.error('비밀번호 검증 에러:', error);
@@ -77,7 +102,7 @@ class AuthService {
   }
   
   // ================================
-  // 👤 사용자 정보 조회
+  // 사용자 정보 조회
   // ================================
   
   async getUserById(employeeId) {
@@ -91,7 +116,7 @@ class AuthService {
   }
   
   // ================================
-  // 📊 전체 사원 목록 조회
+  // 전체 사원 목록 조회
   // ================================
   
   async getAllEmployees() {
@@ -105,7 +130,7 @@ class AuthService {
   }
   
   // ================================
-  // 🔍 사원 검색
+  // 사원 검색
   // ================================
   
   async searchEmployeesByName(name) {
@@ -129,7 +154,7 @@ class AuthService {
   }
   
   // ================================
-  // 🏢 부서 관련
+  // 부서 관련
   // ================================
   
   async getAllDepartments() {
@@ -153,7 +178,7 @@ class AuthService {
   }
   
   // ================================
-  // 🔧 DB 연결 테스트
+  // DB 연결 테스트
   // ================================
   
   async testConnection() {
@@ -168,7 +193,7 @@ class AuthService {
   }
   
   // ================================
-  // 📊 로그인 로그 관리
+  // 로그인 로그 관리
   // ================================
   
   async initializeLoginLogTable() {
@@ -183,7 +208,9 @@ class AuthService {
   }
   
   async logLoginAttempt(employeeId, ipAddress, userAgent, success, failureReason = null) {
-    try {
+    try {   
+      // DB 저장 부분 주석 처리 (필요시 활성화)
+      /*
       await mapper.query('insertLoginLog', [
         employeeId,
         ipAddress,
@@ -191,16 +218,20 @@ class AuthService {
         success,
         failureReason
       ]);
+      */
       
-      console.log(`로그인 로그 기록: ${employeeId}, 성공: ${success}`);
+      // 콘솔 로그만 남기고 DB 저장은 하지 않음
+      console.log(`로그인 기록: 사원ID=${employeeId}, 성공=${success}, IP=${ipAddress}`);
+      if (failureReason) {
+        console.log(`실패 사유: ${failureReason}`);
+      }
     } catch (error) {
       console.error('로그인 로그 기록 에러:', error);
-      // 로그 기록 실패는 전체 로그인 프로세스를 중단시키지 않음
     }
   }
   
   // ================================
-  // 📈 로그인 통계
+  // 로그인 통계
   // ================================
   
   async getLoginStats() {
@@ -240,13 +271,44 @@ class AuthService {
   }
   
   // ================================
-  // 🔐 간단한 비밀번호 변경 (필요시 사용)
+  // 디버깅용 사용자 조회 (개발용)
+  // ================================
+  
+  async debugUserInfo(employeeId) {
+    try {
+      console.log(`디버깅: 사원 ${employeeId} 정보 조회`);
+      const users = await mapper.query('debugUserInfo', [employeeId]);
+      
+      if (users && users.length > 0) {
+        const user = users[0];
+        console.log('디버깅 결과:', {
+          employee_id: user.employee_id,
+          employee_name: user.employee_name,
+          employment_status: user.employment_status,
+          department_code: user.department_code,
+          department_name: user.department_name,
+          position: user.position,
+          password_length: user.password_length || 0,
+          password_preview: user.password ? user.password.substring(0, 3) + '...' : 'null',
+          actual_password: user.password // 개발용으로만 표시
+        });
+        return user;
+      } else {
+        console.log('디버깅: 사용자를 찾을 수 없음');
+        return null;
+      }
+    } catch (error) {
+      console.error('디버깅 중 에러:', error);
+      return null;
+    }
+  }
+  
+  // ================================
+  // 간단한 비밀번호 변경 (필요시 사용)
   // ================================
   
   async updatePassword(employeeId, newPassword) {
     try {
-      // 실제 구현 시 employees 테이블의 password 컬럼 업데이트
-      // 현재는 로직만 제공 (SQL 쿼리는 필요시 auth.js에 추가)
       console.log(`비밀번호 변경 요청: ${employeeId}`);
       
       // TODO: 실제 DB 업데이트 로직 구현

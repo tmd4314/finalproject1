@@ -1,6 +1,7 @@
 import './scss/main.scss'
 
 import { createApp } from 'vue'
+import { createPinia } from 'pinia'
 import App from './App.vue'
 import i18n from './i18n'
 import { createVuestic } from 'vuestic-ui'
@@ -10,8 +11,16 @@ import stores from './stores'
 import router from './router'
 import vuesticGlobalConfig from './services/vuestic-ui/global-config'
 
-const app = createApp(App)
+import { createPinia } from 'pinia'
+import piniaPersist from 'pinia-plugin-persistedstate'
 
+const pinia = createPinia()
+pinia.use(piniaPersist)
+
+const app = createApp(App)
+const pinia = createPinia()
+
+app.use(pinia)
 app.use(stores)
 app.use(router)
 app.use(i18n)

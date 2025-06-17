@@ -46,7 +46,8 @@ const proxyPaths = [
   'eqStatus',
   'prodResultStop',
   'eqStop',
-  'prodEnd'
+  'prodEnd',
+  'productOutbound',
 ]
 
 // ✅ 공통 proxy 설정 생성 함수
@@ -68,6 +69,11 @@ export default defineConfig({
   },
   server: {
     proxy: createProxy(proxyPaths)
+  },
+  resolve: {
+    alias: {
+      '@': resolve(dirname(fileURLToPath(import.meta.url)), './src'),
+    },
   },
   plugins: [
     vuestic({
