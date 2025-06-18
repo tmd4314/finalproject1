@@ -113,9 +113,7 @@
             </div>
             <div class="process-status">
               <div class="process-item">
-                <div class="process-label">
-                  자재 준비
-                </div>
+                <div class="process-label">자재 준비</div>
                 <div class="process-bar">
                   <div class="process-fill" :style="{ width: `${processStatus.material}%` }"></div>
                 </div>
@@ -123,9 +121,7 @@
               </div>
               
               <div class="process-item">
-                <div class="process-label">
-                  생산
-                </div>
+                <div class="process-label">생산</div>
                 <div class="process-bar">
                   <div class="process-fill" :style="{ width: `${processStatus.production}%` }"></div>
                 </div>
@@ -133,9 +129,7 @@
               </div>
               
               <div class="process-item">
-                <div class="process-label">
-                  품질검사
-                </div>
+                <div class="process-label">품질검사</div>
                 <div class="process-bar">
                   <div class="process-fill" :style="{ width: `${processStatus.quality}%` }"></div>
                 </div>
@@ -143,9 +137,7 @@
               </div>
               
               <div class="process-item">
-                <div class="process-label">
-                  포장
-                </div>
+                <div class="process-label">포장</div>
                 <div class="process-bar">
                   <div class="process-fill" :style="{ width: `${processStatus.packaging}%` }"></div>
                 </div>
@@ -153,9 +145,7 @@
               </div>
               
               <div class="process-item">
-                <div class="process-label">
-                  출하
-                </div>
+                <div class="process-label">출하</div>
                 <div class="process-bar">
                   <div class="process-fill" :style="{ width: `${processStatus.shipping}%` }"></div>
                 </div>
@@ -173,9 +163,7 @@
 import { onMounted, reactive, ref, computed } from 'vue'
 import axios from 'axios'
 
-// ================================
-//  타입 정의
-// ================================
+// 타입 정의
 interface DashboardStats {
   totalOrders: number
   equipmentEfficiency: number
@@ -194,6 +182,11 @@ interface ProductRatio {
   color: string
 }
 
+interface EquipmentData {
+  month: string
+  efficiency: number
+}
+
 interface ProcessStatus {
   material: number
   production: number
@@ -205,16 +198,12 @@ interface ProcessStatus {
 interface DashboardResponse {
   stats: DashboardStats
   productionData: ProductionData[]
-  equipmentData: number[]
+  equipmentData: EquipmentData[]
   productRatios: ProductRatio[]
   processStatus: ProcessStatus
 }
 
-// ================================
-//  컴포넌트 설정
-// ================================
-
-// 차트 참조
+// 컴포넌트 설정
 const productionChart = ref<HTMLCanvasElement>()
 const equipmentChart = ref<HTMLCanvasElement>()
 const productChart = ref<HTMLCanvasElement>()
@@ -234,7 +223,7 @@ const dashboardData = reactive<DashboardStats>({
 
 // 차트 데이터
 const productionData = ref<ProductionData[]>([])
-const equipmentData = ref<number[]>([])
+const equipmentData = ref<EquipmentData[]>([])
 const productRatioData = ref<ProductRatio[]>([])
 const processStatus = reactive<ProcessStatus>({
   material: 0,
@@ -249,9 +238,7 @@ const lastUpdated = computed(() => {
   return lastUpdatedTime.value.toLocaleString('ko-KR')
 })
 
-// ================================
-//  API 호출 함수 (완전 공개 - 인증 없음)
-// ================================
+// API 호출 함수 (완전 공개 - 인증 없음)
 const fetchDashboardData = async () => {
   try {
     loading.value = true
@@ -317,10 +304,7 @@ const fetchDashboardData = async () => {
   }
 }
 
-
-// ================================
-//  차트 렌더링 함수들
-// ================================
+// 차트 렌더링 함수들
 const drawLineChart = (canvas: HTMLCanvasElement, data: ProductionData[], label: string) => {
   const ctx = canvas.getContext('2d')
   if (!ctx || data.length === 0) return
@@ -384,7 +368,7 @@ const drawLineChart = (canvas: HTMLCanvasElement, data: ProductionData[], label:
   ctx.stroke()
 }
 
-const drawBarChart = (canvas: HTMLCanvasElement, data: number[]) => {
+const drawBarChart = (canvas: HTMLCanvasElement, data: any[]) => {
   const ctx = canvas.getContext('2d')
   if (!ctx || data.length === 0) return
 
@@ -398,11 +382,14 @@ const drawBarChart = (canvas: HTMLCanvasElement, data: number[]) => {
   ctx.fillStyle = '#fafafa'
   ctx.fillRect(0, 0, canvas.width, canvas.height)
   
-  const maxValue = Math.max(...data, 100)
+  const maxValue = Math.max(...data.map(d => d.efficiency || d), 100)
   const barWidth = chartWidth / data.length * 0.6
   const barSpacing = chartWidth / data.length * 0.4
   
-  data.forEach((value, index) => {
+  data.forEach((item, index) => {
+    const value = item.efficiency || item
+    const month = item.month || (index + 1)
+    
     const barHeight = (value / maxValue) * chartHeight
     const x = padding + index * (barWidth + barSpacing) + barSpacing / 2
     const y = padding + chartHeight - barHeight
@@ -416,6 +403,9 @@ const drawBarChart = (canvas: HTMLCanvasElement, data: number[]) => {
     ctx.font = '12px Arial'
     ctx.textAlign = 'center'
     ctx.fillText(`${value}%`, x + barWidth / 2, y - 5)
+    
+    // 월 표시
+    ctx.fillText(`${month}월`, x + barWidth / 2, canvas.height - 10)
   })
 }
 
@@ -475,9 +465,7 @@ const drawDoughnutChart = (canvas: HTMLCanvasElement, data: ProductRatio[]) => {
   })
 }
 
-// ================================
-// 🚀 컴포넌트 초기화
-// ================================
+// 컴포넌트 초기화
 onMounted(async () => {
   console.log('Dashboard 컴포넌트 마운트')
   
@@ -749,7 +737,6 @@ const renderCharts = () => {
   color: #333;
   text-align: right;
 }
-
 
 .last-updated {
   color: #666;

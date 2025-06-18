@@ -1,7 +1,26 @@
-// routers/authRouter.js - 인증 관련 라우터 (완전한 버전)
+// routers/authRouter.js - 인증 관련 라우터 (디버깅 추가 버전)
 const express = require('express');
 const router = express.Router();
 const authService = require('../services/authService');
+
+// ================================
+// 디버깅 미들웨어 추가
+// ================================
+router.use((req, res, next) => {
+  console.log('=== AUTH 라우터 디버깅 ===');
+  console.log(`${req.method} ${req.originalUrl}`);
+  console.log('Headers:', {
+    'content-type': req.headers['content-type'],
+    'authorization': req.headers.authorization ? 'Bearer ***' : 'None',
+    'origin': req.headers.origin,
+    'user-agent': req.headers['user-agent']?.substring(0, 50) + '...'
+  });
+  console.log('Body:', req.body);
+  console.log('Query:', req.query);
+  console.log('Params:', req.params);
+  console.log('==========================');
+  next();
+});
 
 // ================================
 // 간단한 토큰 생성/검증 시스템
@@ -118,19 +137,52 @@ async function authMiddleware(req, res, next) {
 }
 
 // ================================
-// 로그인 API
+// 테스트 엔드포인트 추가
+// ================================
+router.get('/test', (req, res) => {
+  console.log('AUTH 테스트 엔드포인트 호출됨');
+  res.json({
+    success: true,
+    message: 'Auth 라우터 작동 중',
+    timestamp: new Date().toISOString(),
+    activeSessions: activeSessions.size,
+    path: req.originalUrl
+  });
+});
+
+// ================================
+// 로그인 API (디버깅 강화)
 // ================================
 router.post('/login', async (req, res) => {
+  console.log('로그인 API 호출됨');
+  console.log('요청 바디:', req.body);
+  console.log('Content-Type:', req.headers['content-type']);
+  console.log('Origin:', req.headers.origin);
+  
   const { employee_id, password } = req.body;
   const clientIP = getClientIP(req);
   const userAgent = req.headers['user-agent'] || 'unknown';
 
+  console.log('추출된 값들:');
+  console.log('  - employee_id:', employee_id, `(타입: ${typeof employee_id})`);
+  console.log('  - password:', password ? '***' + password.slice(-2) : 'undefined', `(타입: ${typeof password})`);
+  console.log('  - IP:', clientIP);
+
   // 입력값 검증
   if (!employee_id || !password) {
     console.log('로그인 실패: 빈 입력값');
+    console.log('  - employee_id 체크:', !!employee_id);
+    console.log('  - password 체크:', !!password);
+    
     return res.status(400).json({
       success: false,
-      message: '사원번호와 비밀번호를 모두 입력해주세요.'
+      message: '사원번호와 비밀번호를 모두 입력해주세요.',
+      debug: {
+        received_employee_id: employee_id,
+        received_password: password ? '***' : 'undefined',
+        body_keys: Object.keys(req.body),
+        content_type: req.headers['content-type']
+      }
     });
   }
 
@@ -138,15 +190,27 @@ router.post('/login', async (req, res) => {
   const cleanEmployeeId = String(employee_id).trim();
   const cleanPassword = String(password).trim();
 
+  console.log('정리된 값들:');
+  console.log('  - cleanEmployeeId:', cleanEmployeeId);
+  console.log('  - cleanPassword 길이:', cleanPassword.length);
+
   try {
     console.log(`로그인 시도: ${cleanEmployeeId}, IP: ${clientIP}`);
     console.log(`입력된 비밀번호 길이: ${cleanPassword.length}`);
 
     // 디버깅용 사용자 정보 확인
+    console.log('사용자 정보 디버깅 시작...');
     await authService.debugUserInfo(cleanEmployeeId);
 
     // 로그인 처리
+    console.log('로그인 서비스 호출...');
     const loginResult = await authService.login(cleanEmployeeId, cleanPassword);
+    
+    console.log('로그인 결과:', {
+      success: loginResult.success,
+      message: loginResult.message,
+      hasUser: !!loginResult.user
+    });
     
     if (!loginResult.success) {
       console.log(`로그인 실패: ${loginResult.message}`);
@@ -167,8 +231,14 @@ router.post('/login', async (req, res) => {
     }
 
     const userInfo = loginResult.user;
+    console.log('로그인 성공 사용자:', {
+      employee_id: userInfo.employee_id,
+      employee_name: userInfo.employee_name,
+      department: userInfo.department_name
+    });
 
     // 토큰 생성
+    console.log('토큰 생성 중...');
     const token = generateToken(userInfo);
 
     // 성공 로그 기록
@@ -200,6 +270,7 @@ router.post('/login', async (req, res) => {
 
   } catch (error) {
     console.error('로그인 처리 중 서버 에러:', error);
+    console.error('에러 스택:', error.stack);
     
     // 에러 로그 기록
     await authService.logLoginAttempt(
@@ -212,7 +283,11 @@ router.post('/login', async (req, res) => {
     
     res.status(500).json({
       success: false,
-      message: '서버 내부 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'
+      message: '서버 내부 오류가 발생했습니다. 잠시 후 다시 시도해주세요.',
+      debug: process.env.NODE_ENV === 'development' ? {
+        error: error.message,
+        stack: error.stack
+      } : undefined
     });
   }
 });
@@ -283,7 +358,10 @@ router.post('/logout', authMiddleware, async (req, res) => {
 // ================================
 router.get('/test-db', async (req, res) => {
   try {
+    console.log('DB 연결 테스트 시작...');
     const isConnected = await authService.testConnection();
+    
+    console.log('DB 연결 결과:', isConnected);
     
     if (isConnected) {
       res.json({
@@ -300,7 +378,8 @@ router.get('/test-db', async (req, res) => {
     console.error('DB 연결 테스트 에러:', error);
     res.status(500).json({
       success: false,
-      message: '연결 테스트 중 오류 발생'
+      message: '연결 테스트 중 오류 발생',
+      error: error.message
     });
   }
 });
@@ -311,17 +390,21 @@ router.get('/test-db', async (req, res) => {
 router.get('/debug/user/:employeeId', async (req, res) => {
   try {
     const { employeeId } = req.params;
+    console.log(`사용자 디버깅 요청: ${employeeId}`);
+    
     const userInfo = await authService.debugUserInfo(employeeId);
     
     res.json({
       success: true,
-      data: userInfo
+      data: userInfo,
+      timestamp: new Date().toISOString()
     });
   } catch (error) {
     console.error('사용자 디버깅 에러:', error);
     res.status(500).json({
       success: false,
-      message: '사용자 정보 디버깅 중 오류가 발생했습니다.'
+      message: '사용자 정보 디버깅 중 오류가 발생했습니다.',
+      error: error.message
     });
   }
 });
@@ -330,6 +413,7 @@ router.get('/debug/user/:employeeId', async (req, res) => {
 // 헬스체크 API
 // ================================
 router.get('/health', (req, res) => {
+  console.log('헬스체크 호출됨');
   res.json({
     status: 'OK',
     service: 'Authentication API',
@@ -341,9 +425,11 @@ router.get('/health', (req, res) => {
       verify: 'GET /auth/verify',
       debug: 'GET /auth/debug/user/:employeeId',
       testDb: 'GET /auth/test-db',
-      health: 'GET /auth/health'
+      health: 'GET /auth/health',
+      test: 'GET /auth/test'
     },
-    activeSessions: activeSessions.size
+    activeSessions: activeSessions.size,
+    uptime: process.uptime()
   });
 });
 
@@ -355,7 +441,8 @@ router.use((err, req, res, next) => {
   res.status(500).json({
     success: false,
     message: '인증 처리 중 오류가 발생했습니다.',
-    error: process.env.NODE_ENV === 'development' ? err.message : undefined
+    error: process.env.NODE_ENV === 'development' ? err.message : undefined,
+    timestamp: new Date().toISOString()
   });
 });
 
