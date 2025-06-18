@@ -40,6 +40,7 @@
             label="검사항목명"
             class="quarter-width"
           />
+
           <va-input
             v-model="form.orderQty"
             label="투입량"
@@ -57,6 +58,10 @@
             class="quarter-width"
             readonly
           />
+        </div>
+
+        <div class="form-buttons">
+          <va-button @click="resetForm" color="secondary">초기화</va-button>
         </div>
       </div>
 
@@ -155,6 +160,22 @@
     )
   })
 
+  function resetForm() {
+  form.value = {
+    workNum: '',
+    productName: '',
+    managerId: '',
+    inspName: '',
+    orderQty: '',
+    defectQty: '',
+    orderAccepQty: ''
+  }
+
+ 
+  inspectionDetails.value = []
+  inspNameOptions.value = []
+}
+
   // 초기 제품명 목록 호출
   onMounted(async () => {
     try {
@@ -200,7 +221,7 @@
         const data = res.data[0]
         form.value.productName = data.product_name
         form.value.managerId = data.manager_id || ''
-        form.value.orderQty = data.work_order_qty || ''
+        form.value.orderQty = data.pass_qty || ''
 
         // insp_name 중복 제거
         const uniqueInspNames = Array.from(
@@ -264,8 +285,7 @@ watch(
     }
   }
 )
-
-  </script>
+</script>
 
 <style scoped>
 /* 전체 레이아웃 */

@@ -1,79 +1,34 @@
-<template>
+<!-- <template>
   <div class="product-form">
-    <h3 class="form-title">제품검사항목 등록</h3>
+    <h3 class="form-title">제품 검사서 등록</h3>
     <br>
     <div class="form-section">
-      <h3 class="form-title">기본정보</h3>
+      <h3 class="form-title">검사 유형 등록</h3>
       <br>
 
       <div class="input-row">
-        <select v-model="form.productCode">
-          <option v-for="item in productOptions" :key="item.value" :value="item.value">
-            {{ item.label }}
-          </option>
-        </select>
-      </div>
-      <br>
-
-      <div class="input-row">
-        <va-input v-model="form.inspCode" label="항목코드" class="quarter-width" />
-        <va-select v-model="form.inspName" :options="processOptions" label="공정명" class="quarter-width"/>
+        <va-input v-model="form.processName" label="공정명" class="quarter-width" />
         <va-input v-model="form.inspValueType" label="판정방식" class="quarter-width" />
-      </div>
-      <div class="input-row">
-        <va-input v-model="form.supplementary" label="비고" class="half-width" />
-      </div>
-    </div>
+        <va-input v-model="form.inspUnit" label="단위" class="quarter-width" />
 
-    <div class="form-section">
-      <h3 class="form-title">기준값 정보</h3>
+        
+      </div>
+      <div class="input-row">
+        <va-input v-model="form.inspValueQty" label="기준값" class="quarter-width" />        
+        <va-input v-model="form.inspQuantitaMin" label="최소범위" class="quarter-width" type="number" />
+        <va-input v-model="form.inspQuantitaMax" label="최대범위" class="quarter-width" type="number" />
+      </div>
+      <div class="input-row">
+        <va-input v-model="form.inspRemark"
+          label="비고"
+          class="quarter-width"
+          type="textarea"
+          placeholder="특이사항을 입력하세요"
+        />
+      </div>
       <br>
-      <div class="input-row">
-        <va-select
-          v-model="form.inspRefValue"
-          :options="['정량', '정성']"
-          label="기준값 유형"
-          class="quarter-width"
-        />
-        <va-input
-          v-model="form.inspQuantitaValue"
-          label="정량 기준값"
-          class="quarter-width"
-          :disabled="!isQuantitative"
-        />
-        <va-input
-          v-model="form.inspQualitaValue"
-          label="정성 기준값"
-          class="quarter-width"
-          :disabled="!isQualitative"
-        />
-      </div>
-      <div class="input-row">
-        <va-input
-          v-model="form.inspUnit"
-          label="단위"
-          class="quarter-width"
-          :disabled="!isQuantitative"
-        />
-        <va-input
-          v-model="form.inspQuantitaMin"
-          label="최소범위"
-          class="quarter-width"
-          type="number"
-          :disabled="!isQuantitative"
-        />
-        <va-input
-          v-model="form.inspQuantitaMax"
-          label="최대범위"
-          class="quarter-width"
-          type="number"
-          :disabled="!isQuantitative"
-        />
-      </div>
-      <div class="input-row">
-        <div class="form-buttons">
-          <va-button @click="submitForm" color="primary">등록</va-button>
-        </div>
+      <div class="form-buttons">
+        <va-button @click="submitForm" color="primary">등록</va-button>
       </div>
     </div>
 
@@ -81,22 +36,20 @@
       <table class="custom-table">
         <thead>
           <tr>
-            <th>항목코드</th>
-            <th>공정명</th>
             <th>판정방식</th>
-            <th>기준수치</th>
             <th>단위</th>
-            <th>비고</th>
+            <th>기준값</th>
+            <th>최소값</th>
+            <th>최대값</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="item in inspectionList" :key="item.insp_code">
-            <td>{{ item.insp_code }}</td>
-            <td>{{ item.insp_name }}</td>
-            <td>{{ item.insp_value_type }}</td>
-            <td>{{ item.insp_quantita_value }}</td>
-            <td>{{ item.insp_unit }}</td>
-            <td>{{ item.insp_remark }}</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
           </tr>
         </tbody>
       </table>
@@ -109,8 +62,7 @@ import { ref, computed, onMounted } from 'vue'
 import axios from 'axios'
 
 interface InspectionItem {
-  product_name: string;
-  product_code: string;
+  process_name: string;
   insp_code: string;
   insp_name: string;
   insp_value_type: string;
@@ -127,69 +79,29 @@ interface InspectionItem {
 
 const inspectionList = ref<InspectionItem[]>([])
 
-const processOptions = [
-  '칭량',
-  '혼합',
-  '과립',
-  '건조',
-  '타정',
-  '코팅'
-]
-
 const form = ref({
-  productCode: '',
-  prodName: '',
-  inspCode: '',
-  inspName: '',
+  processName: '',
   inspValueType: '',
   inspRefValue: '',
-  inspQuantitaValue: '',
-  inspQualitaValue: '',
   inspUnit: '',
+  inspValueQty: '',
   inspQuantitaMin: 0,
   inspQuantitaMax: 0,
-  inspJudgment: '',
   inspRemark: '',
-  supplementary: ''
 })
 
 const resetForm = () => {
   form.value = {
-    productCode: '',
-    prodName: '',
-    inspCode: '',
-    inspName: '',
-    inspValueType: '',
-    inspRefValue: '',
-    inspQuantitaValue: '',
-    inspQualitaValue: '',
-    inspUnit: '',
-    inspQuantitaMin: 0,
-    inspQuantitaMax: 0,
-    inspJudgment: '',
-    inspRemark: '',
-    supplementary: ''
+  processName: '',
+  inspValueType: '',
+  inspRefValue: '',
+  inspUnit: '',
+  inspValueQty: '',
+  inspQuantitaMin: 0,
+  inspQuantitaMax: 0,
+  inspRemark: '',
   }
 }
-
-const productOptions = ref<{ label: string; value: string }[]>([])
-
-const fetchProductNameList = async () => {
-  try {
-    const res = await axios.get('/inspections/productList')
-    productOptions.value = res.data
-      .filter((item: any) => item.product_name && item.product_code)
-      .map((item: any) => ({
-        label: item.product_name,
-        value: item.product_code.toString()
-      }))
-  } catch (err) {
-    console.error('제품명 리스트 조회 실패:', err)
-  }
-}
-
-const isQuantitative = computed(() => form.value.inspRefValue?.toLowerCase() === '정량')
-const isQualitative = computed(() => form.value.inspRefValue?.toLowerCase() === '정성')
 
 const fetchInspectionList = async () => {
   try {
@@ -236,9 +148,7 @@ const submitForm = async () => {
 
 onMounted(() => {
   fetchInspectionList()
-  fetchProductNameList().then(() => {
-    console.log('productOptions:', productOptions.value)
-  })
+
 })
 </script>
 
@@ -334,4 +244,5 @@ select {
   background-color: #ffffff;
   font-weight: bold;
 }
-</style>
+
+</style> -->
