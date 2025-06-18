@@ -6,7 +6,7 @@ import { useToast } from 'vuestic-ui'
 
 const AUTH_STORAGE_KEY = 'auth-store'
 
-// 🔥 사용자 타입 정의
+// 사용자 타입 정의
 interface User {
   employee_id: string | number
   employee_name: string
@@ -16,7 +16,7 @@ interface User {
   [key: string]: any
 }
 
-// 🔥 부서 권한 타입 정의
+// 부서 권한 타입 정의
 interface DepartmentPermission {
   name: string
   modules: string[]
@@ -57,7 +57,7 @@ export const useAuthStore = defineStore('auth', () => {
   })
 
   // ================================
-  // 🔥 부서별 권한 관리 시스템
+  // 부서별 권한 관리 시스템
   // ================================
   
   // 부서별 권한 매핑 (department 테이블의 department_code 기준)
@@ -88,14 +88,19 @@ export const useAuthStore = defineStore('auth', () => {
       description: '물류 관리 권한'
     },
     '06': {
-      name: '총무',
-      modules: ['admin', 'user_manage'], // 관리자 권한만
+      name: '관리자',
+      modules: ['admin'], // 관리자 권한만
       description: '총무 관리 권한'
     },
     '07': {
       name: '영업',
       modules: ['sales', 'order'], // 영업 관리만
       description: '영업 관리 권한'
+    },
+    '08': {
+      name: '설비',
+      modules: ['equipment'], // 설비 관리만
+      description: '설비 관리 권한'
     }
   }
   
@@ -109,7 +114,7 @@ export const useAuthStore = defineStore('auth', () => {
   const hasModulePermission = (module: string): boolean => {
     if (!isLoggedIn.value) return false
     
-    // 🔥 관리자는 모든 권한 허용
+    // 관리자는 모든 권한 허용
     if (user.value?.position === '관리자') return true
     
     if (!userDepartment.value) return false
@@ -118,7 +123,7 @@ export const useAuthStore = defineStore('auth', () => {
   
   // 부서별 권한 확인 (Computed Properties)
   const isPackagingEmployee = computed(() => hasModulePermission('packaging'))
-  // 🔥 포장 라인은 포장 부서 전용이므로 관리/조회 권한이 동일
+  // 포장 라인은 포장 부서 전용이므로 관리/조회 권한이 동일
   const canManageLines = computed(() => 
     user.value?.position === '관리자' || user.value?.department_code === '03'
   )
@@ -131,6 +136,7 @@ export const useAuthStore = defineStore('auth', () => {
   const canManageLogistics = computed(() => hasModulePermission('logistics'))
   const canManageAdmin = computed(() => hasModulePermission('admin'))
   const canManageSales = computed(() => hasModulePermission('sales'))
+  const canManageEquipment = computed(() => hasModulePermission('equipment'))
   
   // 권한 메시지 생성 (모듈별)
   const getPermissionMessage = (module: string = 'line_manage'): string => {
@@ -138,12 +144,12 @@ export const useAuthStore = defineStore('auth', () => {
       return '이 기능을 사용하려면 로그인이 필요합니다.'
     }
     
-    // 🔥 관리자는 모든 권한이 있으므로 메시지 없음
+    // 관리자는 모든 권한이 있으므로 메시지 없음
     if (user.value?.position === '관리자') {
       return ''
     }
     
-    // 🔥 라인 관련 기능은 포장 부서 전용
+    // 라인 관련 기능은 포장 부서 전용
     if (module === 'line_manage' || module === 'line_view') {
       if (user.value?.department_code !== '03') {
         return '라인 관리는 포장부서 전용 기능입니다.'
@@ -163,7 +169,8 @@ export const useAuthStore = defineStore('auth', () => {
         'logistics': '물류 관리',
         'admin': '관리자',
         'sales': '영업 관리',
-        'packaging': '포장 관리'
+        'packaging': '포장 관리',
+        'equipment': '설비 관리'
       }
       
       const moduleName = moduleNames[module] || module
@@ -177,13 +184,13 @@ export const useAuthStore = defineStore('auth', () => {
   const userPermissionSummary = computed(() => {
     if (!user.value) return null
     
-    // 🔥 관리자인 경우 모든 권한 허용
+    // 관리자인 경우 모든 권한 허용
     if (user.value.position === '관리자') {
       return {
         departmentName: '관리자',
         departmentCode: user.value.department_code,
         description: '전체 시스템 관리 권한',
-        modules: ['admin', 'packaging', 'production', 'material', 'quality', 'logistics', 'sales'],
+        modules: ['admin', 'packaging', 'production', 'material', 'quality', 'logistics', 'sales', 'equipment'],
         permissions: {
           canViewLines: true,
           canManageLines: true,
@@ -192,7 +199,8 @@ export const useAuthStore = defineStore('auth', () => {
           canManageQuality: true,
           canManageLogistics: true,
           canManageAdmin: true,
-          canManageSales: true
+          canManageSales: true,
+          canManageEquipment: true
         }
       }
     }
@@ -212,7 +220,8 @@ export const useAuthStore = defineStore('auth', () => {
         canManageQuality: canManageQuality.value,
         canManageLogistics: canManageLogistics.value,
         canManageAdmin: canManageAdmin.value,
-        canManageSales: canManageSales.value
+        canManageSales: canManageSales.value,
+        canManageEquipment: canManageEquipment.value
       }
     }
   })
@@ -372,7 +381,7 @@ export const useAuthStore = defineStore('auth', () => {
         // 인증 데이터 저장
         saveAuthData(userData, userToken)
         
-        // 🔥 관리자/부서별 권한 메시지 표시
+        // 관리자/부서별 권한 메시지 표시
         let welcomeMessage = `${userData.employee_name || userData.employee_id}님 환영합니다!`
         
         if (userData.position === '관리자') {
@@ -599,20 +608,20 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
   
-  // 🔥 권한 체크 함수 (모듈별)
+  // 권한 체크 함수 (모듈별)
   const checkPermission = (module: string = 'line_manage', action: string = '이 작업'): boolean => {
     if (!isLoggedIn.value) {
       console.log(`권한 체크 실패: 로그인 필요 - ${action}`)
       return false
     }
     
-    // 🔥 관리자는 모든 권한 허용
+    // 관리자는 모든 권한 허용
     if (user.value?.position === '관리자') {
       console.log(`권한 체크 성공: 관리자 권한 - ${action}`)
       return true
     }
     
-    // 🔥 라인 관련 기능은 포장 부서 전용
+    // 라인 관련 기능은 포장 부서 전용
     if (module === 'line_manage' || module === 'line_view') {
       if (user.value?.department_code === '03') {
         console.log(`권한 체크 성공: 포장부서 라인 권한 - ${action}`)
@@ -647,7 +656,7 @@ export const useAuthStore = defineStore('auth', () => {
     displayName,
     userRole,
     
-    // 🔥 권한 관련 추가
+    // 권한 관련 추가
     isPackagingEmployee,
     canManageLines,
     canViewLines,
@@ -657,6 +666,7 @@ export const useAuthStore = defineStore('auth', () => {
     canManageLogistics,
     canManageAdmin,
     canManageSales,
+    canManageEquipment,
     userDepartment,
     userPermissionSummary,
     hasModulePermission,
@@ -674,7 +684,7 @@ export const useAuthStore = defineStore('auth', () => {
     checkAuth,
     forceLogout,
     
-    // 🔥 권한 체크 함수 추가
+    // 권한 체크 함수 추가
     checkPermission,
     
     // 기타 유틸리티
