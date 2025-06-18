@@ -20,7 +20,10 @@ router.get('/equipments', async (req, res) => {
 // 설비 유형별 점검 항목 조회
 router.get('/parts/:eq_type_code', async (req, res) => {
   try {
-    const parts = await service.getInspectionPartsByType(req.params.eq_type_code)
+    const eq_type_code = req.params.eq_type_code
+    const eq_name = req.query.eq_name || '' // 추가된 부분
+
+    const parts = await service.getInspectionPartsByType(eq_type_code, eq_name)
     res.json(parts)
   } catch (err) {
     console.error('점검 항목 조회 실패:', err)
@@ -59,21 +62,65 @@ router.post('/start', async (req, res) => {
 })
 
 // [POST] /equipment-inspection/end
-// 점검 종료
+// 점검 종료 - 강화된 디버깅 버전
 router.post('/end', async (req, res) => {
+  console.log('🏁 ===== 점검 종료 요청 시작 =====')
+  
   try {
     const { eq_id, parts } = req.body
     
+    console.log('📝 요청 데이터:')
+    console.log('  - 설비 ID:', eq_id)
+    console.log('  - 점검 항목 수:', Array.isArray(parts) ? parts.length : 'parts가 배열이 아님')
+    console.log('  - 점검 항목 상세:')
+    
+    if (Array.isArray(parts)) {
+      parts.forEach((part, index) => {
+        console.log(`    [${index}] ${part.name}: checked=${part.checked}, result=${part.result}, remark="${part.remark}", checker_id=${part.checker_id}`)
+      })
+    } else {
+      console.log('    ❌ parts가 배열이 아닙니다:', typeof parts)
+    }
+    
+    // 유효성 검사
     if (!eq_id || !Array.isArray(parts)) {
+      console.log('❌ 필수 항목 누락 또는 잘못된 데이터 형식')
       return res.status(400).json({ isSuccessed: false, message: '필수 항목이 누락되었습니다.' })
     }
 
-    await service.endInspection({ eq_id, parts })
+    console.log('🔄 서비스 함수 호출 중...')
+    const result = await service.endInspection({ eq_id, parts })
+    
+    console.log('✅ 점검 종료 성공:', result)
     res.json({ isSuccessed: true, message: '점검이 완료되었습니다.' })
+    
   } catch (err) {
-    console.error('점검 종료 실패:', err)
-    res.status(500).json({ isSuccessed: false, message: '점검 종료에 실패했습니다.' })
+    console.error('❌ 점검 종료 실패 상세:')
+    console.error('  - 에러 타입:', err.constructor.name)
+    console.error('  - 에러 메시지:', err.message)
+    console.error('  - 스택 트레이스:', err.stack)
+    
+    // SQL 에러인 경우 추가 정보
+    if (err.code) {
+      console.error('  - SQL 에러 코드:', err.code)
+      console.error('  - SQL 상태:', err.sqlState)
+      console.error('  - SQL 메시지:', err.sqlMessage)
+    }
+    
+    res.status(500).json({ 
+      isSuccessed: false, 
+      message: '점검 종료에 실패했습니다.',
+      error: err.message,
+      details: {
+        type: err.constructor.name,
+        code: err.code,
+        sqlState: err.sqlState,
+        sqlMessage: err.sqlMessage
+      }
+    })
   }
+  
+  console.log('🏁 ===== 점검 종료 요청 종료 =====')
 })
 
 // [GET] /equipment-inspection/employee

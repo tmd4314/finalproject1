@@ -165,7 +165,6 @@ const deleteEquipmentWithRelatedData = async (equipmentId) => {
   await mariadb.query('deleteEquipmentInspectionLog', [equipmentId]);
   await mariadb.query('deleteEquipmentCleaningLog', [equipmentId]);
   await mariadb.query('deleteEquipmentStopLog', [equipmentId]);
-  await mariadb.query('deleteEquipmentMaintenanceStatus', [equipmentId]);
   const result = await mariadb.query('deleteEquipment', [equipmentId]);
 
   if (equipment.eq_image) {
@@ -190,7 +189,6 @@ const deleteMultipleEquipments = async (equipmentIds) => {
   await mariadb.query('deleteEquipmentInspectionLogByEqIds', [equipmentIds]);
   await mariadb.query('deleteEquipmentCleaningLogByEqIds', [equipmentIds]);
   await mariadb.query('deleteEquipmentStopLogByEqIds', [equipmentIds]);
-  await mariadb.query('deleteEquipmentMaintenanceStatusByEqIds', [equipmentIds]);
   const result = await mariadb.query('deleteMultipleEquipments', [equipmentIds]);
 
   return convertData({ deletedCount: result.affectedRows, totalCount: equipmentIds.length });

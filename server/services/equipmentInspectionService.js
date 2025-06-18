@@ -48,9 +48,9 @@ async function getInspectableEquipments() {
 }
 
 // 설비 유형별 점검 항목 조회
-async function getInspectionPartsByType(eq_type_code) {
+async function getInspectionPartsByType(eq_type_code, eq_name = '') {
   try {
-    const parts = await db.query('selectInspectionPartsByType', [eq_type_code])
+    const parts = await db.query('selectInspectionPartsByTypeFiltered', [eq_type_code, `%${eq_name}%`])
     return convertData(parts)
   } catch (error) {
     console.error('점검 항목 조회 중 오류:', error)
@@ -83,83 +83,152 @@ async function checkInspectionAvailability(eq_id) {
 // 점검 시작
 async function startInspection({ eq_id, operator_id, inspection_type_code }) {
   try {
-    // 트랜잭션 시작
-    await db.query('START TRANSACTION')
+    console.log('점검 시작 진행')
 
-    // 1. 점검 로그 추가
-    await db.query('insertInspectionLog', [eq_id, operator_id, inspection_type_code])
+    // 1. 점검 로그 추가 (inspection_log_id, eq_id, operator_id, inspection_type_code, start_time)
+    const result = await db.query('insertInspectionLog', [eq_id, operator_id, inspection_type_code])
+    console.log('점검 로그 생성 완료:', result)
 
-    // 2. 설비 상태 업데이트 (점검 진행중으로 변경)
+    // 2. 설비 상태 업데이트 (work_code = 'w3', work_status_code = 'p2')
     await db.query('updateEquipmentStatusToInspection', [eq_id])
+    console.log('설비 상태 업데이트 완료')
 
-    // 트랜잭션 커밋
-    await db.query('COMMIT')
-    
     return { success: true, message: '점검이 시작되었습니다.' }
   } catch (error) {
-    // 트랜잭션 롤백
-    await db.query('ROLLBACK')
     console.error('점검 시작 중 오류:', error)
     throw new Error('점검 시작에 실패했습니다.')
   }
 }
 
-// 점검 종료
+// 점검 종료 - 요구사항에 맞게 수정
 async function endInspection({ eq_id, parts }) {
   try {
-    // 트랜잭션 시작
-    await db.query('START TRANSACTION')
+    console.log('=== 점검 종료 시작 ===')
+    console.log('설비 ID:', eq_id)
+    console.log('점검 항목 수:', parts.length)
 
-    // 1. 진행 중인 점검 로그 ID 조회
-    const [logResult] = await db.query('selectLastInspectionLogId', [eq_id])
-    const inspection_log_id = logResult?.id
+    // 1. 데이터 유효성 검증
+    if (!eq_id || !Array.isArray(parts) || parts.length === 0) {
+      throw new Error('유효하지 않은 입력 데이터입니다.')
+    }
 
-    if (!inspection_log_id) {
+    // 2. 진행 중인 점검 로그 ID 조회
+    console.log('📋 점검 로그 ID 조회 중...')
+    const logResults = await db.query('selectLastInspectionLogId', [eq_id])
+    console.log('로그 조회 결과:', logResults)
+    
+    if (!logResults || logResults.length === 0) {
       throw new Error('진행 중인 점검 이력이 없습니다.')
     }
+    
+    const inspection_log_id = logResults[0].id
+    console.log('점검 로그 ID:', inspection_log_id)
 
-    // 2. 체크된 점검 항목들의 결과 저장
-    for (const part of parts) {
-      if (!part.checked) continue // 체크되지 않은 항목은 저장하지 않음
-      
-      await db.query('insertInspectPartResult', [
-        inspection_log_id, 
-        part.part_id, 
-        part.result || 'j1' // 결과가 없으면 기본값 '적합'
-      ])
+    if (!inspection_log_id) {
+      throw new Error('유효하지 않은 점검 로그 ID입니다.')
     }
 
-    // 3. 점검 로그 완료 처리
-    const remark = parts
-      .filter(p => p.checked && p.remark)
+    // 3. 점검 항목 결과 저장 (inspect_part_result 테이블)
+    console.log('📝 점검 항목 결과 저장 시작...')
+    let successCount = 0
+    let errorCount = 0
+    let hasFailure = false // 부적합 항목이 있는지 확인
+
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i]
+      
+      try {
+        console.log(`점검 항목 처리 중 [${i}]: ${part.name}`)
+        
+        // 데이터 검증
+        if (!part.part_id) {
+          console.error(`❌ 유효하지 않은 part_id: ${part.part_id}`)
+          errorCount++
+          continue
+        }
+        
+        // 체크된 항목만 결과 저장
+        if (part.checked) {
+          const resultCode = part.result || 'j1'
+          const remark = part.remark || null
+          
+          // 부적합 항목 체크
+          if (resultCode === 'j2') {
+            hasFailure = true
+          }
+          
+          console.log(`저장할 데이터:`, {
+            inspection_log_id,
+            part_id: part.part_id,
+            result_code: resultCode,
+            remark: remark
+          })
+
+          // inspect_part_result 테이블에 데이터 삽입
+          await db.query('insertInspectPartResult', [
+            inspection_log_id, 
+            part.part_id, 
+            resultCode,
+            remark
+          ])
+          
+          console.log(`✅ 저장 완료 [${i}]: part_id=${part.part_id}, result=${resultCode}`)
+          successCount++
+        } else {
+          console.log(`⏭️ 건너뜀 [${i}]: 체크되지 않은 항목`)
+        }
+        
+      } catch (partError) {
+        console.error(`❌ 항목 저장 실패 [${i}]:`, partError)
+        errorCount++
+        continue
+      }
+    }
+
+    console.log(`📊 저장 결과: 성공 ${successCount}개, 실패 ${errorCount}개, 부적합 여부: ${hasFailure}`)
+
+    // 4. 전체 점검 결과 결정
+    const overallResult = hasFailure ? 'j2' : 'j1' // 하나라도 부적합이면 전체 부적합
+    console.log(`🎯 전체 점검 결과: ${overallResult}`)
+
+    // 5. 점검 로그 완료 처리 (end_time, result_code, confirmer_id, is_completed)
+    console.log('📊 점검 로그 완료 처리 중...')
+    const checkedParts = parts.filter(p => p.checked)
+    const remark = checkedParts
+      .filter(p => p.remark)
       .map(p => `${p.name}: ${p.remark}`)
       .join('; ')
 
-    const firstChecker = parts.find(p => p.checked && p.checker_id)?.checker_id || 0
-
-    // 전체 결과 판정 (부적합이 하나라도 있으면 부적합)
-    const hasFailure = parts.some(p => p.checked && p.result === 'j2')
-    const overallResult = hasFailure ? 'j2' : 'j1'
+    const firstChecker = checkedParts.find(p => p.checker_id)?.checker_id || 0
 
     await db.query('completeInspectionLog', [
-      overallResult,
+      overallResult, // result_code: 부적합이 하나라도 있으면 'j2', 없으면 'j1'
       remark,
       firstChecker,
       inspection_log_id
     ])
+    console.log('✅ 점검 로그 업데이트 완료')
 
-    // 4. 설비 상태 업데이트 (점검 완료 후 가동대기중으로 변경)
+    // 6. 설비 상태 업데이트 (work_status_code = 'p1', eq_run_code = 's2')
+    console.log('🔧 설비 상태 업데이트 중...')
     await db.query('updateEquipmentStatusToIdle', [eq_id])
+    console.log('✅ 설비 상태 업데이트 완료')
 
-    // 트랜잭션 커밋
-    await db.query('COMMIT')
+    console.log('=== 점검 종료 완료 ===')
+    return { 
+      success: true, 
+      message: '점검이 완료되었습니다.',
+      details: {
+        totalParts: parts.length,
+        checkedParts: successCount,
+        overallResult: overallResult,
+        hasFailure: hasFailure
+      }
+    }
     
-    return { success: true, message: '점검이 완료되었습니다.' }
   } catch (error) {
-    // 트랜잭션 롤백
-    await db.query('ROLLBACK')
     console.error('점검 종료 중 오류:', error)
-    throw new Error('점검 종료에 실패했습니다.')
+    throw error
   }
 }
 
