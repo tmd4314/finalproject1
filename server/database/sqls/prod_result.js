@@ -1,5 +1,12 @@
 const deleteResult = `DELETE FROM work_result WHERE work_order_no = ?;`;
 
+const getProcessCodesByGroupQuery = `
+  SELECT process_code,
+         code_value
+  FROM   process
+  WHERE  process_group_code = ?
+`;
+
 const insertResult =
 ` INSERT INTO work_result (
                            work_order_no,
@@ -12,53 +19,56 @@ const insertResult =
 
 const selectResultList = 
 `
-  SELECT DISTINCT
-        wr.result_id,
-        wr.final_qty,
-        wrd.result_detail,
-        wrd.product_qual_qty,
-        p.product_name,
-        p.product_stand,
-        pc.process_code,
-        pc.process_name,
-        pc.process_time,
-        eq.eq_id,
-        eq.eq_name,
-        eq.last_inspection_time,
-        eq.last_cleaning_time,
-        wr.work_start_date,
-        wrd.work_start_time,
-        wrd.work_end_time,
-        wd.work_order_qty,
-        wrd.pass_qty,
-        cm.code_label AS result_code_label,
-        cd.code_label AS detail_code_label,
-        cq.code_label,
-        wrd.manager_id
-  FROM   work_result wr
-  JOIN   work_result_detail wrd
-    ON   wr.result_id = wrd.result_id
-  JOIN   work_order_master wm
-    ON   wr.work_order_no = wm.work_order_no
-  JOIN   work_order_detail wd
-    ON   wm.work_order_no = wd.work_order_no
-  JOIN   process_group pg
-    ON   wr.process_group_code = pg.process_group_code
-  JOIN   process pc
-    ON   pc.process_code = wrd.process_code 
-  JOIN   product p
-    ON   pg.product_code = p.product_code
-  JOIN   common_code cm
-    ON   wr.code_value = cm.code_value
-  JOIN   common_code cd
-    ON   wrd.code_value = cd.code_value
-  JOIN   equipment eq
-    ON   wrd.eq_id = eq.eq_id
-  JOIN   common_code cq
-    ON   eq.eq_run_code = cq.code_value
-  WHERE  wm.work_order_no = ?
-    AND  p.product_stand = ?
-  ORDER BY pc.process_code ASC;
+    SELECT DISTINCT
+      wr.result_id,
+      wrd.result_remark,
+      wrd.result_detail,
+      wrd.product_qual_qty,
+      wrd.process_defective_qty,
+      p.product_name,
+      p.product_stand,
+      pc.process_code,
+      pc.process_name,
+      pc.process_time,
+      eq.eq_type_code,
+      eq.eq_id,
+      eq.eq_name,
+      eq.eq_run_code,
+      wr.work_start_date,
+      wrd.work_start_time,
+      wrd.work_end_time,
+      wd.work_order_qty,
+      wrd.pass_qty,
+      cm.code_label AS result_code_label,
+      cd.code_label AS detail_code_label,
+      cq.code_label,
+      wrd.manager_id
+
+    FROM work_result wr
+    JOIN work_result_detail wrd ON wr.result_id = wrd.result_id
+    JOIN work_order_master wm ON wr.work_order_no = wm.work_order_no
+    JOIN work_order_detail wd ON wm.work_order_no = wd.work_order_no
+    JOIN process_group pg ON wr.process_group_code = pg.process_group_code
+    JOIN process pc ON pc.process_code = wrd.process_code
+    JOIN product p ON pg.product_code = p.product_code
+    JOIN common_code cm ON wr.code_value = cm.code_value
+    JOIN common_code cd ON wrd.code_value = cd.code_value
+
+    JOIN (
+      SELECT e1.*
+      FROM equipment e1
+      WHERE NOT EXISTS (
+        SELECT 1 FROM equipment e2
+        WHERE e1.eq_type_code = e2.eq_type_code
+          AND e1.eq_id > e2.eq_id
+      )
+    ) eq ON wrd.eq_type_code = eq.eq_type_code
+
+    JOIN common_code cq ON eq.eq_run_code = cq.code_value
+    WHERE wm.work_order_no = ?
+      AND p.product_stand = ?
+
+    ORDER BY process_code
 `
 ;
 
@@ -102,6 +112,7 @@ const selectEqList =
   FROM   equipment eq
   JOIN   common_code cm
     ON   eq.eq_run_code = cm.code_value 
+  WHERE  eq.eq_type_code = ?
 `
 ;
 
@@ -109,11 +120,9 @@ const insertResultDetail =
 `
   INSERT INTO work_result_detail(
                             result_id,
-                            pass_qty,
-                            manager_id,
                             process_code,
-                            eq_id)
-  VALUES(?, ?, ?, ?, ?)
+                            eq_type_code)
+  VALUES(?, ?, ?)
 `
 ;
 
@@ -125,21 +134,13 @@ const updateResultStatus =
 `
 ;
 
-const updateResultDetail =
-`
-  UPDATE work_result_detail
-  SET    manager_id = ?,
-         process_code = ?,
-         eq_id = ?
-  WHERE  result_detail = ?
-`
-;
-
 const updateStart =
 `
   UPDATE work_result_detail  
   SET    work_start_time = ?,
          pass_qty = ?,
+         manager_id = ?,
+         eq_id = ?,
          code_value = "p3"
   WHERE  result_detail = ?
 `
@@ -181,10 +182,11 @@ const startResultWork =
 const endResultWork =
 `
   UPDATE work_result
-  SET    final_qty = ?,
-         code_value = "p4"
+  SET    work_end_date =  NOW(),
+         code_value = "p5"
   WHERE  result_id = ?
 `
+;
 
 module.exports = {
   selectResultList,
@@ -201,5 +203,5 @@ module.exports = {
   startResultWork,
   endResultWork,
   updateResultStatus,
-  updateResultDetail
+  getProcessCodesByGroupQuery
 }

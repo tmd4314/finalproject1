@@ -47,7 +47,18 @@
             <td><input type="checkbox" v-model="process.selected" /></td>
             <td>{{ index + 1 }}</td>
             <td><input class="time-input" v-model="process.process_time" placeholder="예: 60분" /></td>
-            <td><input class="name-input" v-model="process.process_name" placeholder="혼합" /></td>
+            <td>
+              <select class="name-input" v-model="process.process_int">
+                <option disabled value="">공정 명</option>
+                <option 
+                  v-for="item in processIntList" 
+                  :key="item.process_int" 
+                  :value="item.process_int"
+                >
+                  {{ item.process_name }}
+                </option>
+              </select>
+            </td>
             <td>
               <select v-if="equipmentCodes.length" class="equipment-select" v-model="process.code_value">
                 <option disabled value="">선택</option>
@@ -101,6 +112,7 @@ interface Process {
   process_time: string
   process_name: string
   code_value: string
+  process_int: string
   selected?: boolean
 }
 
@@ -112,6 +124,7 @@ interface ProcessPayload {
   product_code: string
   code_value: string
   process_group_code: string
+  process_int: string
 }
 
 interface EquipmentCode {
@@ -205,6 +218,17 @@ const resetSearch = () => {
   processes.value = []
 }
 
+const processIntList = ref<{ process_int: string; process_name: string }[]>([])
+
+const fetchProcessInt = async () => {
+  try {
+    const res = await axios.get('/processInit')  // 공정명 리스트 API
+    processIntList.value = res.data  // 👈 객체 배열 유지
+  } catch (err) {
+    console.error('❌ 공정 기본 목록 불러오기 실패:', err)
+  }
+}
+
 const fetchProducts = async () => {
   try {
     const res = await axios.get('/product')
@@ -236,10 +260,22 @@ const fetchMaterials = async () => {
 }
 
 const fetchProcess = async () => {
-
   try {
     const res = await axios.get(`/process/${selectedProductCode.value}`)
-    processes.value = res.data
+    const fetched = res.data
+
+    // process_int 역추적
+    processes.value = fetched.map((item: any) => {
+      const match = processIntList.value.find(pi => pi.process_name === item.process_name)
+      return {
+        process_code: item.process_code,
+        process_time: item.process_time,
+        process_name: item.process_name,
+        code_value: item.code_value,
+        process_int: match?.process_int || '',  // 없으면 빈값 처리
+        selected: false
+      }
+    })
   } catch (err) {
     console.log('❌ 공정정보 조회 실패:', err)
   }
@@ -291,10 +327,6 @@ const onMaterialCodeChange = (row: MaterialRow) => {
   }
 }
 
-const selectedProduct = computed(() => {
-  return products.value.find(p => p.product_code === selectedProductCode.value) || null
-})
-
 const totalProcessTime = computed(() => {
   return processes.value.reduce((sum, p) => {
     const time = parseInt(p.process_time.replace(/[^\d]/g, ''))
@@ -308,6 +340,7 @@ const addProcess = () => {
     process_time: '',
     process_name: '',
     code_value: '',
+    process_int: '', 
     selected: false
   })
 }
@@ -401,14 +434,20 @@ const saveProcesses = async (): Promise<void> => {
 
   processes.value.forEach((p, idx) => {
     const code = `${selectedProductCode.value}Process${idx + 1}`;
+
+    // 🧠 process_int로부터 process_name 동기화
+    const matched = processIntList.value.find(item => item.process_int === p.process_int);
+    const name = matched?.process_name || '';
+
     const payload: ProcessPayload = {
       process_code: code,
-      process_name: p.process_name,
+      process_name: name,
       process_time: p.process_time,
       process_seq: idx + 1,
       code_value: p.code_value,
       product_code: selectedProductCode.value,
-      process_group_code: group_code
+      process_group_code: group_code,
+      process_int: p.process_int
     };
 
     if (!p.process_code) {
@@ -419,13 +458,9 @@ const saveProcesses = async (): Promise<void> => {
   });
 
   try {
-
-    const groupCheckRes = await axios.get(`/processG/${group_code}`); // 예: GET /processG/:group_code
+    const groupCheckRes = await axios.get(`/processG/${group_code}`);
     const groupExists = Array.isArray(groupCheckRes.data) && groupCheckRes.data.length > 0;
-    console.log(`${group_code}`);
-    console.log(groupCheckRes);
-    console.log(groupExists);
-    // 신규 등록 처리
+
     if (insertList.length > 0) {
       if (!groupExists) {
         const groupRes = await axios.post('/processG', groupItem);
@@ -436,7 +471,6 @@ const saveProcesses = async (): Promise<void> => {
       if (!processRes.data.isSuccessed) throw new Error('공정 등록 실패');
     }
 
-    // 수정 처리
     for (const payload of updateList) {
       try {
         const res = await axios.put(`/process/${payload.process_code}`, [payload]);
@@ -456,6 +490,7 @@ const saveProcesses = async (): Promise<void> => {
     alert('저장 중 오류 발생!');
   }
 };
+
 
 const openPopup = (processCode: string,  productCode: string): void => {
   popupProcessCode.value = processCode
@@ -479,6 +514,7 @@ onMounted(() => {
   fetchEquipmentCodes()
   fetchMaterials()
   fetchProcess()
+  fetchProcessInt()
 })
 </script>
 

@@ -45,7 +45,7 @@ const delList =
             GROUP BY material_code
         ) ml2 ON ml1.material_code = ml2.material_code AND ml1.received_date = ml2.oldest_date
     ) ml ON m.material_code = ml.material_code
-    WHERE wd.work_order_no = "WO20250614002";
+    WHERE wd.work_order_no = ?
 `
 ;
 

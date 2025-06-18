@@ -12,6 +12,13 @@ const processService =require('../services/processService.js');
   res.send(processList);
  });
 
+  router.get('/processInit', async(req, res)=>{
+  let processList = await processService.findProcessInit()
+                                        .catch(err => console.log(err));
+  res.send(processList);
+ });
+
+
   router.get('/processDetail/:process_code', async(req, res)=>{
   const processCode = req.params.process_code;
   let processDetailList = await processService.findProcessDetail(processCode)

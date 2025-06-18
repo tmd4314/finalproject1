@@ -7,7 +7,6 @@
       <va-input v-model="filters.productSpec" label="제품규격" placeholder="제품 규격 입력" readonly />
       <va-input v-model="filters.resultId" label="작업실적 ID" placeholder="작업 실적 ID 입력" readonly />
       <va-date-input v-model="filters.workDate" label="작업일자" :manual-input="false" :clearable="true" />
-      <va-input v-model.number="selectedItem.final_qty" label="최종 수량" />
 
       <div class="button-group">
         <va-button color="info" @click="openProductPopup">작업지시 검색</va-button>
@@ -50,31 +49,52 @@
     <div v-if="activeTab === 'input'" class="input-layout">
       <div class="input-grid">
         <va-input v-model="selectedItem.process_code" label="공정코드" readonly />
-        <va-input v-model="selectedItem.process_name" label="공정명" readonly />
+        <va-input v-model="selectedItem.manager_id" label="작업자명" />
         <va-input v-model="selectedItem.product_name" label="제품명" readonly />
         <va-input v-model="selectedItem.product_stand" label="제품규격" readonly />
-        <va-input v-model="selectedItem.eq_name" label="설비명" readonly />
-        <va-input v-model="selectedItem.code_label" label="가동상태" readonly />
-        <va-input v-model="selectedItem.manager_id" label="작업자명" />
+        <div class="flex items-center gap-1">
+          <va-input
+            v-model="selectedItem.eq_name"
+            label="설비명"
+            readonly
+            class="flex-1"
+          />
+          <va-button
+            icon="search"
+            color="primary"
+            @click="openEquipmentPopup(selectedItem.eq_type_code)"
+            class="h-[38px] mt-[20px]"  
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"/>
+              <path d="m21 21-4.35-4.35"/>
+            </svg>
+          </va-button>
+        </div>
+                <va-input v-model="selectedItem.code_label" label="가동상태" readonly />
         <va-input :model-value="formatTime(selectedItem.work_start_time)" label="시작시간" readonly />
         <va-input :model-value="formatTime(selectedItem.work_end_time)" label="종료시간" readonly />
         <va-input v-model.number="selectedItem.pass_qty" label="생산수량" />
-        <va-input v-model="selectedItem.product_qual_qty" label="합격 수량" readonly/>
         <va-input v-model="selectedItem.result_remark" label="비고" />
+        <va-input v-model="selectedItem.product_qual_qty" label="합격 수량" readonly/>
+        <va-input v-model="selectedItem.process_defective_qty" label="불량품 수량" readonly/>
       </div>
       <div class="side-buttons">
-        <va-button color="primary" @click="startWork">작업시작</va-button>
-        <va-button color="danger" @click="endWork">작업종료</va-button>
-        <va-button color="secondary" @click="clearForm">초기화</va-button>
-        <va-button color="primary" @click="saveResult">저장</va-button>
-        <va-button color="info" @click="openProcessPopup">공정 검색</va-button>
-        <va-button color="info" @click="openEquipmentPopup">설비 검색</va-button>
+        <!-- 작업시작 -->
         <va-button
-          color="success"
-          :disabled="!canRegisterFinalQty"
-          @click="registerFinalQty"
+          color="primary"
+          @click="isPackagingProcess ? notifyPackagingAlert() : startWork()"
         >
-          최종 수량 등록
+          작업시작
+        </va-button>
+
+        <!-- 작업종료 -->
+        <va-button
+          color="danger"
+          @click="isPackagingProcess ? notifyPackagingAlert() : endWork()"
+        >
+          작업종료
         </va-button>
       </div>
     </div>
@@ -86,12 +106,7 @@
 
     <!-- 🔍 제품 검색 팝업 -->
     <ProductSearchModal v-model:visible="isProductPopupOpen" @apply="applyProduct" />
-    <!-- 🔍 공정 검색 팝업 -->
-    <ProcessSearchModal
-      v-model:visible="isProcessPopupOpen"
-      :processList="processList"
-      @apply="applyProcess"
-    />
+
     <!-- 🔍 설비 검색 팝업 -->
     <EquipmentSearchModal
       v-model="isEquipmentPopupOpen"
@@ -102,10 +117,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed  } from 'vue'
+import { ref, computed  } from 'vue'
 import axios from 'axios'
 import ProductSearchModal from '../modals/ProductSearchModal.vue'
-import ProcessSearchModal from '../modals/ProcessSearchModal.vue'
 import EquipmentSearchModal from '../modals/EquipmentSearchModal.vue'
 
 interface WorkItem {
@@ -129,7 +143,8 @@ interface WorkItem {
   code_label: string
   selected?: boolean
   result_remark?: string
-  final_qty: number
+  eq_type_code: string  // ✅ 추가
+  process_defective_qty: string
 }
 
 const emptyItem = (): WorkItem => ({
@@ -151,9 +166,10 @@ const emptyItem = (): WorkItem => ({
   result_code_label: '',
   detail_code_label: '',
   manager_id: '',
+  eq_type_code: '',
   selected: false,
   result_remark: '',
-  final_qty: 0
+  process_defective_qty: ''
 })
 
 const allResultList = ref<WorkItem[]>([])
@@ -187,13 +203,13 @@ const filters = ref({
   worker: ''
 })
 
-const canRegisterFinalQty = computed(() => {
-  return (
-    selectedItem.value.process_name === '포장' &&
-    selectedItem.value.work_end_time !== null &&
-    !!selectedItem.value.product_qual_qty
-  )
+const isPackagingProcess = computed(() => {
+  return selectedItem.value.process_name === '포장'
 })
+
+const notifyPackagingAlert = () => {
+  alert('📦 포장 공정은 포장 팀에서 처리합니다.\n작업을 시작/종료할 수 없습니다.')
+}
 
 const startWork = async () => {
   const status = selectedItem.value.code_label
@@ -206,7 +222,10 @@ const startWork = async () => {
     return (
       item.result_id === selectedItem.value.result_id &&
       currentSeq < selectedSeq &&
-      (item.product_qual_qty === null || item.product_qual_qty === '')
+      (
+        item.product_qual_qty === null || item.product_qual_qty === '' ||
+        item.process_defective_qty === null || item.process_defective_qty === ''
+      )
     )
   })
 
@@ -215,12 +234,6 @@ const startWork = async () => {
     return
   }
 
-
-  // ✅ 필수값 검사
-  if (!selectedItem.value.result_id || !selectedItem.value.process_code) {
-    alert('⚠️ 실적 ID와 공정코드를 먼저 검색하거나 선택해주세요.')
-    return
-  }
 
   // ✅ 설비 상태 검사
   if (status === '가동 중') {
@@ -240,14 +253,20 @@ const startWork = async () => {
 
   try {
     // ✅ 서버에 설비 상태 업데이트 요청
-    
-    await axios.put(`prodResult/${selectedItem.value.result_detail}`, selectedItem.value.pass_qty)
+    if (selectedSeq === 1) {
+      await axios.put(`/workResultStatus/${selectedItem.value.result_id}`)
+    } 
+    console.log(selectedItem.value.manager_id);
+    await axios.put(`/prodResult/${selectedItem.value.result_detail}`, {
+      pass_qty: selectedItem.value.pass_qty ?? 0,
+      manager_id: selectedItem.value.manager_id ?? '',
+      eq_id: selectedItem.value.eq_id ?? ''
+    })
     
     await axios.put(`/eqStatus/${selectedItem.value.eq_id}`)
 
     alert('✅ 작업이 시작되었습니다.')
     fetchResultList()
-    console.log('✅ 작업이 시작되었습니다.', selectedItem.value.work_start_date, selectedItem.value.work_start_time)
   } catch (err) {
     alert('❌ 설비 상태 업데이트에 실패했습니다.')
     console.error(err)
@@ -267,8 +286,6 @@ const endWork = async () => {
 
   const now = new Date()
   const endTime = now.toISOString()
-
-  // 종료시간 업데이트
   selectedItem.value.work_end_time = endTime
 
   try {
@@ -280,35 +297,12 @@ const endWork = async () => {
 
     // ✅ 설비 상태 업데이트
     await axios.put(`/eqStop/${selectedItem.value.eq_id}`)
-
     alert('✅ 작업이 종료되었습니다.')
     selectedItem.value = emptyItem()
     fetchResultList()
   } catch (err) {
     console.error(err)
     alert('❌ 작업 종료 처리 중 오류가 발생했습니다.')
-  }
-}
-
-const registerFinalQty = async () => {
-  try {
-    if (!selectedItem.value.result_id || !selectedItem.value.product_qual_qty) {
-      alert('❌ 실적 ID 또는 합격 수량이 누락되었습니다.')
-      return
-    }
-
-    await axios.put(`/prodEnd/${selectedItem.value.result_id}`, {
-      final_qty: selectedItem.value.product_qual_qty
-    })
-
-    // ✅ 등록된 값을 즉시 반영
-    selectedItem.value.final_qty = Number(selectedItem.value.product_qual_qty)
-
-    alert('✅ 최종 수량이 등록되었습니다.')
-    fetchResultList()
-  } catch (err) {
-    alert('❌ 최종 수량 등록 실패')
-    console.error(err)
   }
 }
 
@@ -345,7 +339,7 @@ const fetchResultList = async () => {
     const mapped: WorkItem[] = res.data.map((item: WorkItem) => ({ ...item, selected: false }))
 
     if (mapped.length === 0) {
-      alert('조회된 실적이 없습니다. 공정을 등록하여 실적을 입력하세요.')
+      alert('자재를 출고하세요.!')
       selectedItem.value = Object.assign(emptyItem(), {
         product_name: filters.value.productName,
         product_stand: filters.value.productSpec,
@@ -362,46 +356,6 @@ const fetchResultList = async () => {
   } catch (err) {
     alert('조회 실패: 존재하지 않는 작업지시서일 수 있습니다.')
   }
-}
-
-const saveResult = async () => {
-  try {
-    if (selectedItem.value.result_detail) {
-      // ✅ result_detail이 있으면 업데이트
-      await axios.put(`/prodResultDetail/${selectedItem.value.result_detail}`, selectedItem.value)
-    } else {
-      // ✅ 신규 저장
-      const res = await axios.post('/prodResultDetail', selectedItem.value)
-
-      const { result_id, result_detail } = res.data
-
-      if (result_id) {
-        selectedItem.value.result_id = result_id
-      }
-      if (result_detail) {
-        selectedItem.value.result_detail = result_detail
-      }
-
-      // ✅ work_result 상태를 '진행중'으로 업데이트
-      if (selectedItem.value.result_id) {
-        await axios.put(`/workResultStatus/${selectedItem.value.result_id}`, {
-          status_code: '진행중' // ← 서버에서 인식 가능한 코드 값 사용
-        })
-      }
-    }
-
-    alert('✅ 저장 완료')
-    selectedItem.value = emptyItem()
-    fetchResultList()
-  } catch (err) {
-    console.error(err)
-    alert('❌ 저장 실패')
-  }
-}
-
-const clearForm = () => {
-  selectedItem.value = emptyItem()
-  workList.value.forEach(item => (item.selected = false))
 }
 
 const searchItems = async () => {
@@ -435,37 +389,17 @@ const applyProduct = (product: any) => {
   isProductPopupOpen.value = false
 }
 
-// 🔍 공정 검색 팝업
-const isProcessPopupOpen = ref(false)
-const processList = ref<any[]>([]) // 자식에게 줄 데이터
-const openProcessPopup = async () => {
-  try {
-    const res = await axios.get('/processCheck')
-    processList.value = res.data // 받아온 데이터 저장
-    isProcessPopupOpen.value = true
-  } catch (err) {
-    alert('공정 데이터를 불러오지 못했습니다.')
-  }
-}
-
-const applyProcess = (process: any) => {
-  selectedItem.value.process_code = process.process_code
-  selectedItem.value.process_name = process.process_name
-  selectedItem.value.product_name = process.product_name
-  selectedItem.value.product_stand = process.product_stand
-  isProcessPopupOpen.value = false
-}
-
-// 🔍 공정 검색 팝업
 const isEquipmentPopupOpen = ref(false)
 const equipmentList = ref<any[]>([]) // 자식에게 줄 데이터
-const openEquipmentPopup = async () => {
+const openEquipmentPopup = async (eqTypeCode: string) => {
   try {
-    const res = await axios.get('/equipment')
+    console.log(eqTypeCode);
+    const res = await axios.get(`/equipment/${eqTypeCode}`)
     equipmentList.value = res.data // 받아온 데이터 저장
+    console.log(res.data);
     isEquipmentPopupOpen.value = true
   } catch (err) {
-    alert('공정 데이터를 불러오지 못했습니다.')
+    alert('설비 데이터를 불러오지 못했습니다.')
   }
 }
 
@@ -476,9 +410,6 @@ const applyEquipment = (equipment: any) => {
   isEquipmentPopupOpen.value = false
 }
 
-onMounted(() => {
-  // 필요한 경우 여기에 초기 로딩 추가 가능
-})
 </script>
 
 <style scoped>
