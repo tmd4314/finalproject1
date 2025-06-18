@@ -6,8 +6,6 @@ const prodResultService = require('../services/prodResultService.js');
 router.get('/prodResult/:result_id/:product_stand', async (req, res) => {
     const resultId = req.params.result_id;
     const productStand = req.params.product_stand;
-    console.log(resultId);
-    console.log(productStand);
     let resultList = await prodResultService.searchResult(resultId, productStand)
                                            .catch(err => console.log(err));
      res.send(resultList);
@@ -20,16 +18,11 @@ router.get('/prodResult', async (req, res) => {
      res.send(resultList);
 });
 
-// [GET]  공정흐름도 검색 
-router.get('/processCheck', async (req, res) => {
-    let resultList = await prodResultService.searchProcessCheck()
-                                           .catch(err => console.log(err));
-     res.send(resultList);
-});
 
 // [GET]  설비 검색 
-router.get('/equipment', async (req, res) => {
-    let resultList = await prodResultService.searcheQuipmentCheck()
+router.get('/equipment/:eq_type_code', async (req, res) => {
+    const eqTypeCode = req.params.eq_type_code;
+    let resultList = await prodResultService.searcheQuipmentCheck(eqTypeCode)
                                            .catch(err => console.log(err));
      res.send(resultList);
 });
@@ -46,17 +39,6 @@ router.post('/prodResultDetail', async (req, res) => {
   }
 });
 
-router.put('/prodResultDetail/:result_detail', async (req, res) => {
-  try {
-    const resultDetail = req.params.result_detail;
-    const Item = req.body
-    const result = await prodResultService.updateDetail(resultDetail, Item);
-    res.send(result)
-  } catch(err) {
-    console.error('작업시작 실패: ', err);
-    res.status(500).send({ isSuccessed: false, message: '서버 오류'});
-  }
-})
 
 router.put('/workResultStatus/:result_id', async (req, res) => {
   try {

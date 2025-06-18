@@ -26,8 +26,8 @@ const searchProcessCheck = async () => {
 
 
 // 설비 검색 (모달용)
-const searcheQuipmentCheck = async () => {
-  let list = await mariadb.query("selectEqList")
+const searcheQuipmentCheck = async (eqTypeCode) => {
+  let list = await mariadb.query("selectEqList", eqTypeCode)
                             .catch(err => console.log(err));
   return list;
 };
@@ -85,32 +85,6 @@ const updateStatus = async(resultId) => {
   return result;
 }
 
-const updateDetail = async(resultDetail, Item) => {
-  const updateColumns = [
-   'manager_id', 'process_code', 'eq_id'
-  ];
-
-  const values = convertObjToAry(Item, updateColumns);
-  const data = [...values, resultDetail]; // WHERE 조건 맨 뒤에
-  let resInfo = await mariadb.query("updateResultDetail", data)
-  .catch(err => {
-    console.error(err);
-    return null; // 또는 throw err;
-  });
-
-  let result = null;
-  if (resInfo?.affectedRows > 0) {
-    result = {
-      isSuccessed: true,
-    };
-  } else {
-    result = {
-      isSuccessed: false,
-    };
-  }
-  return result;
-}
-
 function formatToMySQLDateTime(date) {
   const pad = (n) => n.toString().padStart(2, '0');
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ` +
@@ -120,12 +94,12 @@ function formatToMySQLDateTime(date) {
 
 const workStart = async(resultDetail, passQty) => {
   const updateColumns = [
-   'work_start_time', 'pass_qty'
+   'work_start_time', 'pass_qty', 'manager_id', 'eq_id'
   ];
 
   
   const now = formatToMySQLDateTime(new Date());
-  const updateData = { work_start_time: now, pass_qty: passQty.pass_qty };
+  const updateData = { work_start_time: now, pass_qty: passQty.pass_qty, manager_id: passQty.manager_id, eq_id: passQty.eq_id };
   const values = convertObjToAry(updateData, updateColumns);
   const data = [...values, resultDetail]; // WHERE 조건 맨 뒤에
   let resInfo = await mariadb.query("updateStart", data)
@@ -250,6 +224,5 @@ module.exports = {
   workStop,
   workStopEq,
   resultEnd,
-  updateStatus,
-  updateDetail
+  updateStatus
 };

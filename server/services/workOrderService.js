@@ -161,6 +161,11 @@ const saveWorkOrderComplete = async (workOrderData) => {
     if (products && products.length > 0) {
       await saveWorkOrderProducts(master.work_order_no, products);
       await saveWorkResult(master.work_order_no, products);
+      const processCodes = await getProcessCodesByGroup(products[0]?.process_group_code);
+      const resultId = products[0]?.result_id;
+      if (resultId) {
+        await saveWorkResultDetails(resultId, processCodes);
+      }
     }
     
     return { 
@@ -172,6 +177,32 @@ const saveWorkOrderComplete = async (workOrderData) => {
     console.error('작업지시서 완전 저장 오류:', err);
     throw err;
   }
+};
+
+const saveWorkResultDetails = async (resultId, processCodes) => {
+  try {
+    
+    // 2. 새로운 제품 정보 입력
+    for (const process of processCodes) {
+      const insertData = [
+        resultId,
+        process.process_code,
+        process.code_value
+      ];
+      await mariadb.query('insertResultDetail', insertData);
+    }
+    
+    return { success: true };
+  } catch (err) {
+    console.error('작업지시서 제품 저장 오류:', err);
+    throw err;
+  }
+};
+
+// 공정흐름도 조회 
+const getProcessCodesByGroup = async (processGroupCode) => {
+  return await mariadb.query('getProcessCodesByGroupQuery', processGroupCode)
+    .catch(err => console.error(err));
 };
 
 // 작업지시서 조회 페이지 

@@ -5,6 +5,13 @@ INSERT INTO process_group (
 ) VALUES (?, ?)
 `;
 
+const selectProcessIt =
+`
+  SELECT process_int,
+         process_name
+  FROM   process_it
+`
+;
 
 const processInsert = 
 `INSERT INTO process(
@@ -15,8 +22,9 @@ const processInsert =
                     code_value,
                     process_remark,
                     process_dt,
-                    process_group_code)
-VALUES(?, ?, ?, ?, ?, ?, NOW(), ?)`
+                    process_group_code,
+                    process_int)
+VALUES(?, ?, ?, ?, ?, ?, NOW(), ?, ?)`
 ;
 
 const processSelect =
@@ -36,7 +44,8 @@ const processUpdate =
    SET    process_name = ?,
           process_seq = ?,
           process_time = ?,
-          code_value = ?
+          code_value = ?,
+          process_int = ?
    WHERE  process_code = ?`
 ;
 
@@ -104,5 +113,6 @@ module.exports ={
   processDetailDELETE,
   processUpdate,
   processUpdateDetail,
-  processGroupSelect
+  processGroupSelect,
+  selectProcessIt
 }

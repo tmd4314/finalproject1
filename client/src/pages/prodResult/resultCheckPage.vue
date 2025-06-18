@@ -18,9 +18,6 @@
 
     <!-- 📋 실적 테이블 -->
     <va-data-table :items="workList" :columns="columns" track-by="result_id">
-      <template #cell(select)="{ row }">
-        <va-checkbox :model-value="row.rowData.selected" @update:modelValue="val => handleCheck(row.rowData, val)" />
-      </template>
       <template #cell(work_start_time)="{ row }">
         {{ formatTime(row.rowData.work_start_time) }}
       </template>
@@ -68,7 +65,6 @@ const workList = ref<any[]>([])
 
 // ✅ 테이블 컬럼
 const columns = [
-  { key: 'select', label: '' },
   { key: 'result_id', label: '실적ID' },
   { key: 'process_code', label: '공정코드' },
   { key: 'process_name', label: '공정명' },
@@ -91,17 +87,12 @@ const calculateDuration = (start: string, end: string | null): string => {
   const diffMin = Math.floor(diffMs / 60000)
   return `${diffMin}분`
 }
-// ✅ 체크박스 핸들러
-const handleCheck = (row: any, val: boolean) => {
-  row.selected = val
-}
 
-// ✅ 작업지시 검색 팝업에서 데이터 적용
 const applyProduct = (selected: any) => {
-  filters.value.workOrder = selected.workOrderNo
-  filters.value.productName = selected.productName
-  filters.value.productSpec = selected.productSpec
-  filters.value.resultId = selected.resultId || ''
+  filters.value.workOrder = selected.work_order_no || selected.workOrderNo || ''
+  filters.value.productName = selected.product_name || selected.productName || ''
+  filters.value.productSpec = selected.product_stand || selected.productSpec || ''
+  filters.value.resultId = selected.result_id || selected.resultId || ''
   isProductPopupOpen.value = false
 }
 

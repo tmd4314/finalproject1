@@ -7,6 +7,12 @@ const findProcess = async(productCode) => {
   return list;
 }
 
+const findProcessInit = async() => {
+  let list = await mariadb.query("selectProcessIt")
+                          .catch(err => console.log(err));
+  return list;
+}
+
 const findProcessDetail = async(processCode) => {
   let list = await mariadb.query("processDetailSelect", processCode)
                           .catch(err => console.log(err));
@@ -48,7 +54,8 @@ const addProcess = async (processList) => {
     'process_time',
     'code_value',
     'process_remark',
-    'process_group_code'
+    'process_group_code',
+    'process_int'
   ];
 
   let successCount = 0;
@@ -83,7 +90,8 @@ const modifyProcess = async (processCode, detailList) => {
     'process_name',
     'process_seq',
     'process_time',
-    'code_value'
+    'code_value',
+    'process_int'
   ];
 
   for (const detail of detailList) {
@@ -188,5 +196,6 @@ module.exports = {
   removeProcessDetailInfo,
   modifyProcess,
   updateProcessDetailInfo,
-  checkProcessGroup
+  checkProcessGroup,
+  findProcessInit
 };
