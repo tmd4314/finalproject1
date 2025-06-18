@@ -78,19 +78,19 @@ export const useAuthStore = defineStore('auth', () => {
       description: '포장 라인 관리 권한'
     },
     '04': {
+      name: '설비',
+      modules: ['equipment'], // 설비 관리만
+      description: '설비 관리 권한'
+    },
+    '05': {
       name: '품질',
       modules: ['quality', 'inspection'], // 품질 관리만
       description: '품질 관리 권한'
     },
-    '05': {
+    '06': {
       name: '물류',
       modules: ['logistics', 'shipping'], // 물류 관리만
       description: '물류 관리 권한'
-    },
-    '06': {
-      name: '관리자',
-      modules: ['admin'], // 관리자 권한만
-      description: '총무 관리 권한'
     },
     '07': {
       name: '영업',
@@ -98,10 +98,10 @@ export const useAuthStore = defineStore('auth', () => {
       description: '영업 관리 권한'
     },
     '08': {
-      name: '설비',
-      modules: ['equipment'], // 설비 관리만
-      description: '설비 관리 권한'
-    }
+      name: '관리자',
+      modules: ['admin'], // 관리자 권한만
+      description: '총무 관리 권한'
+    },
   }
   
   // 사용자 부서 정보
@@ -383,17 +383,7 @@ export const useAuthStore = defineStore('auth', () => {
         
         // 관리자/부서별 권한 메시지 표시
         let welcomeMessage = `${userData.employee_name || userData.employee_id}님 환영합니다!`
-        
-        if (userData.position === '관리자') {
-          welcomeMessage += ` (관리자 - 전체 시스템 관리 권한)`
-        } else {
-          const departmentInfo = DEPARTMENT_PERMISSIONS[userData.department_code]
-          if (departmentInfo) {
-            welcomeMessage += ` (${departmentInfo.name}부서 - ${departmentInfo.description})`
-          } else {
-            welcomeMessage += ` (${userData.department_name || userData.department_code} - 조회 전용)`
-          }
-        }
+
         
         showToast({
           message: welcomeMessage,
