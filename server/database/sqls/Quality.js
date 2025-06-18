@@ -22,21 +22,25 @@ SELECT DISTINCT
     i.insp_quantita_min,
     i.insp_quantita_max,
     i.insp_remark,
-    wd.work_order_qty
+    wrd.pass_qty
 FROM work_order_master wm
 JOIN work_order_detail wd ON wm.work_order_no = wd.work_order_no
 JOIN product p ON wd.product_code = p.product_code
 JOIN inspection_item i ON wd.product_code = i.product_code
 JOIN work_result wr ON wm.work_order_no = wr.work_order_no
 JOIN work_result_detail wrd ON wr.result_id = wrd.result_id
-WHERE wm.work_order_no = ?;
+JOIN process pr ON wrd.process_code = pr.process_code  
+WHERE
+    wm.work_order_no = 'WO20250618001'
+    AND wrd.result_remark = '완료 '
+    AND pr.process_name = i.insp_name
 `
 ;
 
 const selectProductLists = `
   SELECT DISTINCT product_name
   FROM product
-  ORDER BY product_name
+  ORDER BY product_name;
 `
 
 const selectWorkOrdersByProductName = `

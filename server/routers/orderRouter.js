@@ -17,6 +17,7 @@ router.get("/with-items", async (req, res) => {
 // [주문 상세 조회] GET /api/orders/:order_id/details
 router.get("/:order_id/details", async (req, res) => {
     const orderId = req.params.order_id;
+
     let detail = await orderService.findOrderDetail(orderId).catch((err) => {
         console.log(err);
         return null;
@@ -24,7 +25,26 @@ router.get("/:order_id/details", async (req, res) => {
 
     console.log("주문 상세 결과:", detail);
 
-    res.send(detail);
+    if(!detail || detail.length === 0) {
+      return res.send({ order: null, items:[] })
+    }
+
+    const order = {
+      account_id: detail[0].account_id,
+      order_date: detail[0].order_date,
+      delivery_date: detail[0].delivery_date,
+      created_by: detail[0].created_by
+    }
+
+    const items = detail.map(row => ({
+      product_code: row.product_code,
+      product_name: row.product_name,
+      product_stand: row.product_stand,
+      order_qty: row.order_qty,
+      unit_price: row.unit_price
+    }))
+
+    res.send({ order, items });
 });
 
 

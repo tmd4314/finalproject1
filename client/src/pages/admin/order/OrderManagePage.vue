@@ -12,6 +12,13 @@
       <va-button @click="handleSearch">검색</va-button>
     </div>
 
+    <!-- 권한 없는 사용자를 위한 메시지 -->
+    <div v-if="!canManageSales" class="permission-notice">
+      <va-alert color="info" icon="info">
+        조회 전용 모드입니다. 주문 관리는 영업부서 권한이 필요합니다.
+      </va-alert>
+    </div>
+
     <!-- 주문 목록 테이블 -->
     <div class="table-section">
       <table class="order-table">
@@ -22,13 +29,19 @@
             <th>주문일</th>
             <th>납기일</th>
             <th>상태</th>
+            <!-- 삭제 버튼은 영업 권한이 있을 때만 -->
+            <th v-if="canManageSales" style="width: 80px; text-align: center;">삭제</th>
           </tr>
         </thead>
         <tbody>
           <template v-for="order in groupedOrders" :key="order.orderId">
             <!-- 주문 헤더 행 -->
-            <tr @click="toggleOrder(order.orderId)"
-                class="order-header-row">
+            <tr @click="handleOrderClick(order)"
+                class="order-header-row"
+                :class="{ 
+                  'selected': selectedOrderId === order.orderId && canManageSales,
+                  'read-only': !canManageSales
+                }">
               <td>{{ order.orderId }}</td>
               <td>{{ order.customerName }}</td>
               <td>{{ formatDateToYMD(order.orderDate) }}</td>
@@ -38,56 +51,66 @@
                   {{ order.status }}
                 </va-chip>
               </td>
+              <!-- 삭제 버튼은 영업 권한이 있을 때만 -->
+              <td v-if="canManageSales" style="text-align: center;">
+                <va-button 
+                  icon="delete" 
+                  preset="plain" 
+                  size="small"
+                  color="danger"
+                  @click.stop="deleteOrder(order)"
+                  title="주문 삭제"
+                />
+              </td>
             </tr>
             
             <!-- 제품 목록 행 (펼쳐질 때만 표시) -->
-          <Transition name="accordion">
-            <tr v-if="expandedOrders.includes(order.orderId)" class="product-details-row">
-              <td colspan="5">
-                <table class="product-table">
-                  <thead>
-                    <tr>
-                      <th>제품명</th>
-                      <th>규격</th>
-                      <th>수량</th>
-                      <th>제품코드</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-for="item in order.items" :key="item.productCode">
-                      <td>{{ item.productName }}</td>
-                      <td>{{ item.productStand }}</td>
-                      <td>{{ item.quantity }}</td>
-                      <td>{{ item.productCode }}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </td>
-            </tr>
+            <Transition name="accordion">
+              <tr v-if="expandedOrders.includes(order.orderId)" class="product-details-row">
+                <td :colspan="canManageSales ? 6 : 5">
+                  <table class="product-table">
+                    <thead>
+                      <tr>
+                        <th>제품명</th>
+                        <th>규격</th>
+                        <th>수량</th>
+                        <th>제품코드</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="item in order.items" :key="item.productCode">
+                        <td>{{ item.productName }}</td>
+                        <td>{{ item.productStand }}</td>
+                        <td>{{ item.quantity }}</td>
+                        <td>{{ item.productCode }}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </td>
+              </tr>
             </Transition>
           </template>
         </tbody>
       </table>
     </div>
 
-
-
-    <!-- 주문 등록/수정 폼 -->
-    <div class="form-section">
+    <!-- 주문 등록/수정 폼 (영업 권한만) -->
+    <div class="form-section" v-if="canManageSales">
       <h2>{{ editMode ? '주문 수정' : '주문 등록' }}</h2>
       
       <!-- 기본 정보 -->
       <div class="form-row">
-
-      <div class="form-group" style="width: 240px;">
-        <label>거래처 <span class="required">*</span></label>
-        <va-select
-          v-model="form.customerId"
-          :options="customerOptions"
-          placeholder="거래처를 선택하세요"
-          style="width: 240px"
-        />
-      </div>
+        <div class="form-group" style="width: 240px;">
+          <label>거래처 <span class="required">*</span></label>
+          <va-select
+            v-model="form.customerId"
+            :options="customerOptions"
+            placeholder="거래처를 선택하세요"
+            style="width: 240px"
+            text-by="label"
+            value-by="value"
+          />
+        </div>
 
         <div class="form-group">
           <label>주문일 <span class="required">*</span></label>
@@ -97,13 +120,13 @@
           <label>납기일 <span class="required">*</span></label>
           <va-date-input v-model="form.deliveryDate" />
         </div>
-      
 
         <div class="form-group">
           <label>작성자</label> 
           <va-input v-model="form.createdBy" placeholder="작성자명" style="width: 250px;"/>
         </div>
       </div>
+      
       <!-- 제품 정보 -->
       <div class="products-section">
         <div class="section-header">
@@ -155,15 +178,13 @@
                   @input="onQuantityInput(index)"
                 />
               </td>
-
-              
               <!-- 단가 -->
               <td>
-                  {{ item.unitPrice }}
+                {{ item.unitPrice.toLocaleString() }}
               </td>
               <!-- 주문가격 -->
               <td>
-                {{ computedOrderPrices[index] }}
+                {{ computedOrderPrices[index].toLocaleString() }}
               </td>
               <td style="text-align: center;">
                 <va-button 
@@ -174,7 +195,6 @@
                   @click="removeProduct(index)"
                 />
               </td>
-              
             </tr>
           </tbody>
         </table>
@@ -182,8 +202,30 @@
 
       <!-- 버튼 -->
       <div class="form-actions">
+        <va-button preset="secondary" @click="resetForm">
+          <va-icon name="refresh" class="mr-1" />
+          초기화
+        </va-button>
         <va-button preset="secondary" @click="cancelForm">취소</va-button>
         <va-button @click="saveOrder">{{ editMode ? '수정' : '저장' }}</va-button>
+      </div>
+    </div>
+
+    <!-- 권한 없는 사용자를 위한 안내 섹션 -->
+    <div class="permission-info-section" v-else>
+      <div class="permission-content">
+        <va-icon name="shopping_cart" size="large" color="primary" />
+        <h3>주문 관리 권한 필요</h3>
+        <p>주문 등록 및 수정은 영업부서 권한이 필요합니다.</p>
+        <div class="current-permission">
+          <va-chip color="info" size="small">
+            현재 권한: {{ userRole || '조회 전용' }}
+          </va-chip>
+        </div>
+        <p class="permission-desc">
+          주문 목록은 조회할 수 있지만,<br>
+          등록, 수정, 삭제는 영업부서만 가능합니다.
+        </p>
       </div>
     </div>
   </div>
@@ -192,6 +234,11 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import axios from 'axios'
+import { useAuthStore } from '@/stores/authStore'
+
+// 인증 스토어 사용
+const authStore = useAuthStore()
+const { canManageSales, userRole } = authStore
 
 // 데이터
 const orders = ref<any[]>([])
@@ -200,9 +247,8 @@ const products = ref<any[]>([])
 
 // 상태
 const searchText = ref('')
-const showForm = ref(false)
 const editMode = ref(false)
-const selectedOrderId = ref<string | null>(null)
+const selectedOrderId = ref<number | null>(null)
 
 // 날짜 포맷팅
 const formatDateToYMD = (date: string | Date): string => {
@@ -212,8 +258,6 @@ const formatDateToYMD = (date: string | Date): string => {
   const day = ('0' + d.getDate()).slice(-2);
   return `${year}-${month}-${day}`;
 }
-
-
 
 // 펼쳐진 주문 목록 관리
 const expandedOrders = ref<number[]>([])
@@ -229,49 +273,49 @@ const toggleOrder = (orderId: number) => {
 }
 
 // 같은 주문번호 그룹(아코디언)
-    interface OrderItem {
-      productName: string;
-      productStand: string;
-      quantity: number;
-      productCode: string;
+interface OrderItem {
+  productName: string;
+  productStand: string;
+  quantity: number;
+  productCode: string;
+}
+
+interface GroupedOrder {
+  orderId: number;
+  customerName: string;
+  orderDate: string;
+  deliveryDate: string;
+  status: string;
+  items: OrderItem[];
+}
+
+const groupedOrders = computed<GroupedOrder[]>(() => {
+  const grouped: Record<string, GroupedOrder> = {};
+
+  filteredOrders.value.forEach(order => {
+    const orderId = order.order_id;
+
+    if (!grouped[orderId]) {
+      grouped[orderId] = {
+        orderId: orderId,
+        customerName: order.account_name,
+        orderDate: order.order_date,
+        deliveryDate: order.delivery_date,
+        status: order.status,
+        items: []
+      };
     }
 
-    interface GroupedOrder {
-      orderId: number;
-      customerName: string;
-      orderDate: string;
-      deliveryDate: string;
-      status: string;
-      items: OrderItem[];
-    }
-
-    const groupedOrders = computed<GroupedOrder[]>(() => {
-      const grouped: Record<string, GroupedOrder> = {};
-
-      filteredOrders.value.forEach(order => {
-        const orderId = order.order_id;
-
-        if (!grouped[orderId]) {
-          grouped[orderId] = {
-            orderId: orderId,
-            customerName: order.account_name,
-            orderDate: order.order_date,
-            deliveryDate: order.delivery_date,
-            status: order.status,
-            items: []
-          };
-        }
-
-        grouped[orderId].items.push({
-          productName: order.product_name,
-          productStand: order.product_stand,
-          quantity: order.order_qty,
-          productCode: order.product_code
-        });
-      });
-
-      return Object.values(grouped);
+    grouped[orderId].items.push({
+      productName: order.product_name,
+      productStand: order.product_stand,
+      quantity: order.order_qty,
+      productCode: order.product_code
     });
+  });
+
+  return Object.values(grouped);
+});
 
 // 폼 데이터
 const form = ref({
@@ -279,7 +323,6 @@ const form = ref({
   orderDate: new Date(),
   deliveryDate: new Date(),
   createdBy: '',
-
   products: [
     { 
       productCode: '', 
@@ -308,30 +351,19 @@ const customerOptions = computed(() =>
   .filter(c=> c.account_type == 'customer')
   .map(c => ({
     value: c.account_id,
-    text: c.account_name
+    label: c.account_name
   }))
 )
 
-// const productOptions = computed(() =>
-//   products.value.map(p => ({
-//     value: p.product_id,
-//     text: p.product_name
-//   }))
-// )
-
 const uniqueProductName = computed(() => {
-// 제품명 중복제거
+  // 제품명 중복제거
   const uniqueNames = [...new Set(products.value.map(p => p.product_name))]
   return uniqueNames
 })
 
 // 제품 규격 선택
 function getProductStandOptions(productName: string) {
-  console.log('getProductStandOptions 실행!')
-  console.log('입력된 productName: ', productName)
-  console.log('productName 타입: ', typeof productName)
   if (!productName) {
-    console.log('제품명이 비어있음') 
     return []
   }
   
@@ -348,13 +380,10 @@ function onQuantityInput(index: number) {
   }
 }
 
-
-
-// 주문 가격 computed!!!!
+// 주문 가격 computed
 const computedOrderPrices = computed(() => {
   return form.value.products.map(item => item.unitPrice * item.quantity)
 })
-
 
 // 초기 데이터 로드
 onMounted(() => {
@@ -375,21 +404,25 @@ async function fetchOrders() {
     // Mock 데이터
     orders.value = [
       {
-        order_id: 'ORD001',
+        order_id: 1,
         account_name: '셀트리온',
         order_date: '2024-01-15',
         delivery_date: '2024-01-20',
         product_name: '타이레놀 500mg',
+        product_stand: '10정',
         order_qty: 100,
+        product_code: 'TYL500',
         status: '진행중'
       },
       {
-        order_id: 'ORD002',
+        order_id: 2,
         account_name: '한미약품',
         order_date: '2024-01-16',
         delivery_date: '2024-01-22',
         product_name: '아스피린 100mg',
+        product_stand: '30정',
         order_qty: 200,
+        product_code: 'ASP100',
         status: '완료'
       }
     ]
@@ -403,6 +436,11 @@ async function fetchCustomers() {
     customers.value = response.data || []
   } catch (error) {
     console.error('거래처 조회 실패:', error)
+    // Mock 데이터 추가
+    customers.value = [
+      { account_id: 1, account_name: '셀트리온', account_type: 'customer' },
+      { account_id: 2, account_name: '한미약품', account_type: 'customer' }
+    ]
   }
 }
 
@@ -413,10 +451,13 @@ async function fetchProducts() {
     products.value = response.data || []
   } catch (error) {
     console.error('제품 조회 실패:', error)
+    // Mock 데이터 추가
+    products.value = [
+      { product_id: 1, product_name: '타이레놀 500mg', product_stand: '10정', product_code: 'TYL500', product_pay: 5000 },
+      { product_id: 2, product_name: '아스피린 100mg', product_stand: '30정', product_code: 'ASP100', product_pay: 3000 }
+    ]
   }
 }
-
-
 
 // 검색
 function handleSearch() {
@@ -424,18 +465,23 @@ function handleSearch() {
 }
 
 // 주문 수정
-async function editOrder(order: any) {
+async function editOrder(order: GroupedOrder) {
+  if (!canManageSales) {
+    console.log('주문 수정 권한이 없습니다.')
+    return
+  }
+
   console.log('주문 수정:', order)
-  showForm.value = true
   editMode.value = true
-  selectedOrderId.value = order.order_id
+  selectedOrderId.value = order.orderId
   
   try {
-    const response = await axios.get(`http://localhost:3000/api/orders/${order.order_id}/details`)
+    const response = await axios.get(`http://localhost:3000/api/orders/${order.orderId}/details`)
+    console.log('서버 응답 데이터: ', response.data)
     const { order: orderInfo, items } = response.data
     
     // 거래처 ID 찾기
-    const customer = customers.value.find(c => c.account_name === order.account_name)
+    const customer = customers.value.find(c => c.account_name === order.customerName)
     
     form.value = {
       customerId: customer?.account_id || '',
@@ -444,23 +490,71 @@ async function editOrder(order: any) {
       createdBy: orderInfo.created_by || '',
       products: items.map((item: any) => ({
         productName: item.product_name,
-        productStand: item.productStand,
+        productStand: item.product_stand,
+        productCode: item.product_code,
         quantity: item.order_qty,
-        productCode: item.product_code
+        unitPrice: item.unit_price || 0
       }))
     }
+
+    console.log('폼 데이터 설정 완료: ', form.value)
+
   } catch (error) {
     console.error('주문 상세 조회 실패:', error)
+    // API 실패시 목업 데이터로 폼 채우기
+    const customer = customers.value.find(c => c.account_name === order.customerName)
+    
+    form.value = {
+      customerId: customer?.account_id || '',
+      orderDate: new Date(order.orderDate),
+      deliveryDate: new Date(order.deliveryDate),
+      createdBy: '관리자',
+      products: order.items.map(item => {
+        const product = products.value.find(p => 
+          p.product_name === item.productName && 
+          p.product_stand === item.productStand
+        )
+        return {
+          productName: item.productName,
+          productStand: item.productStand,
+          productCode: item.productCode,
+          quantity: item.quantity,
+          unitPrice: product?.product_pay || 0
+        }
+      })
+    }
+  }
+}
+
+// 주문 선택시 토글&수정폼
+function handleOrderClick(order: GroupedOrder){
+  console.log('클릭된 order 데이터: ',order)
+  toggleOrder(order.orderId)
+  
+  // 영업 권한이 있을 때만 수정 폼 로드
+  if (canManageSales) {
+    editOrder(order)
   }
 }
 
 // 주문 삭제
-async function deleteOrder(order: any) {
-  if (!confirm('정말 삭제하시겠습니까?')) return
+async function deleteOrder(order: GroupedOrder) {
+  if (!canManageSales) {
+    alert('주문 관리 권한이 없습니다.')
+    return
+  }
+
+  if (!confirm(`주문번호 ${order.orderId}를 정말 삭제하시겠습니까?`)) return
   
   try {
-    await axios.delete(`http://localhost:3000/api/orders/${order.order_id}`)
+    await axios.delete(`http://localhost:3000/api/orders/${order.orderId}`)
     alert('삭제되었습니다.')
+    
+    // 삭제한 주문이 선택된 상태였다면 폼 초기화
+    if (selectedOrderId.value === order.orderId) {
+      resetForm()
+    }
+    
     fetchOrders()
   } catch (error) {
     console.error('삭제 실패:', error)
@@ -468,7 +562,6 @@ async function deleteOrder(order: any) {
   }
 }
 
-// 제품 추가/삭제
 function addProduct() {
   form.value.products.push({
     productName: '',
@@ -489,37 +582,34 @@ function removeProduct(index: number) {
 function updateProduct(productName: string, index: number) {
   const product = products.value.find(p => p.product_name == productName)
   if (product) {
-    
-
     form.value.products[index] = {
       productCode: '',
       productName: product.product_name,
       productStand: '',
-      quantity: 1,
+      quantity: form.value.products[index].quantity || 1,
       unitPrice: 0
     }
   }
 }
+
 // 제품명, 규격 선택 시 나머지 데이터 자동입력
 function updateProductByProductStand(productName: string, productStand: string, index: number){
-  console.log('규격 업데이트 됨!!!!!!!!!!!!')
+  console.log('규격 업데이트 됨!')
   const product = products.value.find(
     p => p.product_name === productName && p.product_stand === productStand
   )
   if (product){
     const quantity = form.value.products[index].quantity
     const unitPrice = product.product_pay
-    const orderPrice = unitPrice * quantity
 
     form.value.products[index] = {
-    productCode: product.product_code,
-    productName: product.product_name,
-    productStand: product.product_stand,
-    quantity: form.value.products[index].quantity || 1,
-    unitPrice: unitPrice
-   }
+      productCode: product.product_code,
+      productName: product.product_name,
+      productStand: product.product_stand,
+      quantity: quantity,
+      unitPrice: unitPrice
+    }
   }
-  console.log(productStand)
 }
 
 // 폼 초기화
@@ -530,17 +620,26 @@ function resetForm() {
     deliveryDate: new Date(),
     createdBy: '',
     products: [
-      { productName: '', 
-      productStand: '', 
-      quantity: 1, 
-      productCode: '',
-      unitPrice:0 }
+      { 
+        productName: '', 
+        productStand: '', 
+        quantity: 1, 
+        productCode: '',
+        unitPrice: 0 
+      }
     ]
   }
+  editMode.value = false
+  selectedOrderId.value = null
 }
 
 // 저장
 async function saveOrder() {
+  if (!canManageSales) {
+    alert('주문 관리 권한이 없습니다.')
+    return
+  }
+
   // 유효성 검사
   if (!form.value.customerId) {
     alert('거래처를 선택하세요.')
@@ -552,9 +651,45 @@ async function saveOrder() {
     return
   }
   
-  
+  if (editMode.value) {
+    // 수정모드
+    // 날짜를 YYYY-MM-DD 형식으로 변환
+    const formatDateForAPI = (date: Date) => {
+      const d = new Date(date);
+      const year = d.getFullYear();
+      const month = ('0' + (d.getMonth() + 1)).slice(-2);
+      const day = ('0' + d.getDate()).slice(-2);
+      return `${year}-${month}-${day}`;
+    }
+    
     const orderData = {
-      customerId: form.value.customerId,
+      account_id: form.value.customerId,
+      order_date: formatDateForAPI(form.value.orderDate),
+      delivery_date: formatDateForAPI(form.value.deliveryDate),
+      created_by: form.value.createdBy || '관리자',
+      status: '진행중',
+      products: form.value.products.map((p, index) => ({
+        product_code: p.productCode,
+        order_qty: p.quantity,
+        order_price: computedOrderPrices.value[index]
+      }))
+    }
+
+    try {
+      await axios.put(`http://localhost:3000/api/orders/${selectedOrderId.value}`, orderData)
+      alert('수정되었습니다.')
+      resetForm()
+      fetchOrders()
+    } catch (error: any) {
+      console.error('수정 실패:', error)
+      alert(`수정에 실패했습니다.\n${error.response?.data?.message || error.message || '알 수 없는 오류'}`)
+    }
+  } else {
+    // 등록모드 - addOrderTransaction이 기대하는 형식으로
+    const orderData = {
+      customerId: {
+        value: form.value.customerId
+      },
       orderDate: form.value.orderDate,
       deliveryDate: form.value.deliveryDate,
       createdBy: form.value.createdBy || '관리자',
@@ -565,30 +700,23 @@ async function saveOrder() {
       }))
     }
 
-
     console.log('저장할 데이터:', orderData)
+    
     try {
-    if (editMode.value) {
-      // 수정모드
-      await axios.put(`http://localhost:3000/api/orders/${selectedOrderId.value}`, orderData)
-      alert('수정되었습니다.')
-      // 등록모드
-    } else {
       await axios.post('http://localhost:3000/api/orders', orderData)
       alert('등록되었습니다.')
+      resetForm()
+      fetchOrders()
+    } catch (error: any) {
+      console.error('저장 실패:', error)
+      console.error('에러 상세:', error.response?.data)
+      alert(`저장에 실패했습니다.\n${error.response?.data?.message || error.message || '알 수 없는 오류'}`)
     }
-    
-    showForm.value = false
-    fetchOrders()
-  } catch (error) {
-    console.error('저장 실패:', error)
-    alert('저장에 실패했습니다.')
   }
 }
 
 // 취소
 function cancelForm() {
-  showForm.value = false
   resetForm()
 }
 
@@ -667,6 +795,10 @@ h1 {
 
 .order-table tr:hover {
   background: #f8f8f8;
+}
+
+.order-header-row.selected {
+  background-color: #e3f2fd;
 }
 
 .no-data {
@@ -752,6 +884,11 @@ h1 {
   gap: 10px;
   justify-content: flex-end;
   margin-top: 20px;
+}
+
+.new-order-button {
+  margin-top: 20px;
+  text-align: center;
 }
 
 /* 반응형 */
@@ -855,6 +992,4 @@ h1 {
   text-align: left;
   border-bottom: 1px solid #ddd;
 }
-
-
 </style>

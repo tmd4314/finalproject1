@@ -550,7 +550,7 @@
       <div class="modal-content" @click.stop>
         <div class="modal-header">
           <h3>{{ getCompleteModalTitle() }}</h3>
-          <button @click="closeCompleteModal" class="modal-close">×</button>
+          <button @click="closeCompleteModal" class="modal-close">닫기</button>
         </div>
         <div class="modal-body">
           <div class="complete-summary">
@@ -716,7 +716,7 @@ import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import axios from 'axios'
 
-// axios 기본 설정
+// axios 기본 설정 - 프록시 활용
 axios.defaults.timeout = 15000
 axios.defaults.headers.common['Content-Type'] = 'application/json'
 
@@ -740,10 +740,6 @@ const workflowInfo = ref({
   innerOutputQty: parseInt(route.query.inner_output_qty) || 0,
   autoStartGuide: route.query.auto_start_guide === 'true'
 })
-
-// API 설정
-const API_BASE_URL = 'http://localhost:3000'
-const PACKAGES_API_URL = `${API_BASE_URL}/packages`
 
 // 로딩 및 에러 상태
 const loading = ref(false)
@@ -959,7 +955,6 @@ function getCompletionRate() {
 }
 
 // 작업 상태별 진행률 초기화 함수
-// 작업 상태별 진행률 초기화 함수
 function initializeWorkProgress() {
   const workStatus = (currentWork.value.step_status || '').toLowerCase()
   
@@ -1123,7 +1118,7 @@ async function loadAvailableWorkOrdersImproved() {
     const baseLineName = workInfo.value.lineName.replace(/\s*(내포장|외포장).*$/, '')
     console.log('기본 라인명:', baseLineName)
     
-    const response = await axios.get(`${PACKAGES_API_URL}/works`)
+    const response = await axios.get('/packages/works')
     
     if (response.data.success) {
       const allWorks = response.data.data || []
@@ -1392,7 +1387,7 @@ async function resetLineStatus() {
     
     let serverSuccess = false
     try {
-      await axios.post(`${PACKAGES_API_URL}/line/reset`, resetData)
+      await axios.post('/packages/line/reset', resetData)
       addLog('서버에서 라인 상태가 초기화되었습니다.', 'success')
       serverSuccess = true
     } catch (apiError) {
@@ -1520,7 +1515,7 @@ async function loadLinkedWorkflowData() {
       
       try {
         console.log('API로 내포장 완료 정보 조회 시도...')
-        const response = await axios.get(`${PACKAGES_API_URL}/workflow/inner-completed`, {
+        const response = await axios.get('/packages/workflow/inner-completed', {
           params: {
             base_line_name: baseLineName,
             line_type: 'INNER'
@@ -1659,7 +1654,7 @@ async function onWorkOrderChange() {
       
       // API 최신 정보 업데이트 시도
       try {
-        const response = await axios.get(`${PACKAGES_API_URL}/${selectedWorkOrder.value}`)
+        const response = await axios.get(`/packages/${selectedWorkOrder.value}`)
         
         if (response.data.success && response.data.data) {
           const workData = response.data.data
@@ -1686,7 +1681,7 @@ async function onWorkOrderChange() {
       console.log(`로컬 목록에서 찾을 수 없음: ${selectedWorkOrder.value}`)
       
       // API 직접 호출
-      const response = await axios.get(`${PACKAGES_API_URL}/${selectedWorkOrder.value}`)
+      const response = await axios.get(`/packages/${selectedWorkOrder.value}`)
       
       if (!response.data.success) {
         throw new Error(response.data.message || '작업 정보 조회 실패')
@@ -1859,7 +1854,7 @@ async function startWork() {
         defect_qty: currentWork.value.defect_qty || 0
       }
       
-      const response = await axios.put(`${PACKAGES_API_URL}/${selectedWorkOrder.value}`, updateData)
+      const response = await axios.put(`/packages/${selectedWorkOrder.value}`, updateData)
       
       if (response.data && response.data.success) {
         addLog('작업을 시작했습니다.', 'success')
@@ -2070,7 +2065,7 @@ async function confirmPartialComplete() {
     }
     
     try {
-      await axios.put(`${PACKAGES_API_URL}/${currentWork.value.work_no}/partial-complete`, completeData)
+      await axios.put(`/packages/${currentWork.value.work_no}/partial-complete`, completeData)
       addLog(`부분 완료 처리되었습니다. (달성률: ${completionRate}%)`, 'warning')
     } catch (apiError) {
       console.error('API 호출 실패:', apiError)
@@ -2114,7 +2109,7 @@ async function confirmPartialComplete() {
         // 외포장 작업들의 상태를 진행중으로 업데이트
         try {
           const baseLineName = workInfo.value.lineName.replace(/\s*(내포장|외포장).*$/, '')
-          await axios.post(`${PACKAGES_API_URL}/workflow/activate-outer-works`, {
+          await axios.post('/packages/workflow/activate-outer-works', {
             base_line_name: baseLineName,
             inner_output_qty: currentWork.value.output_qty,
             target_status: 'IN_PROGRESS'
@@ -2160,7 +2155,7 @@ async function confirmContinueLater() {
     }
     
     try {
-      await axios.put(`${PACKAGES_API_URL}/${currentWork.value.work_no}/pause`, pauseData)
+      await axios.put(`/packages/${currentWork.value.work_no}/pause`, pauseData)
       addLog('일시정지되었습니다. 나중에 계속할 수 있습니다.', 'info')
     } catch (apiError) {
       console.error('API 호출 실패:', apiError)
@@ -2215,7 +2210,7 @@ async function confirmCompleteWork() {
     }
     
     try {
-      await axios.put(`${PACKAGES_API_URL}/${currentWork.value.work_no}/complete`, completeData)
+      await axios.put(`/packages/${currentWork.value.work_no}/complete`, completeData)
       addLog('작업을 완료했습니다.', 'success')
     } catch (apiError) {
       console.error('API 호출 실패:', apiError)
@@ -2281,11 +2276,11 @@ async function processInnerToOuterWorkflow() {
     }
     
     try {
-      await axios.post(`${PACKAGES_API_URL}/workflow/update-outer-linkage`, linkageData)
+      await axios.post('/packages/workflow/update-outer-linkage', linkageData)
       addLog(`${baseLineName} 외포장에 완료수량(${formatNumber(currentWork.value.output_qty)}개) 연계 완료`, 'success')
       
       // 외포장 작업들을 진행중 상태로 업데이트
-      await axios.post(`${PACKAGES_API_URL}/workflow/activate-outer-works`, {
+      await axios.post('/packages/workflow/activate-outer-works', {
         base_line_name: baseLineName,
         inner_output_qty: currentWork.value.output_qty,
         target_status: 'IN_PROGRESS'

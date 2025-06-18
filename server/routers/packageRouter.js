@@ -12,7 +12,7 @@ router.get('/health', (req, res) => {
   });
 });
 
-// 🔥 작업번호 목록 조회
+// 🔥 작업번호 목록 조회 => 라인이 가지고 있는 제품코드를 기반으로 
 router.get('/works', async (req, res) => {
   try {
     const { package_type } = req.query;

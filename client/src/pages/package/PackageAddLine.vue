@@ -5,24 +5,16 @@
       <div v-if="authStore.isLoggedIn" class="user-info">
         <span>{{ authStore.user?.employee_name || '사용자' }}님</span>
         <span class="department-info">({{ authStore.userRole }})</span>
-        <button @click="handleLogout" class="logout-btn">로그아웃</button>
       </div>
       <div v-else class="guest-info">
         <span class="guest-text">조회 모드 (로그인이 필요합니다)</span>
-        <button @click="goToLogin" class="login-btn">로그인</button>
       </div>
     </div>
 
     <!-- 페이지 헤더 -->
     <div class="page-header">
       <div class="breadcrumb">
-        <span>Home</span>
-        <span>/</span>
-        <span>포장</span>
-        <span>/</span>
-        <span class="active">라인 관리</span>
       </div>
-      
       <div class="header-content">
         <div class="header-info">
           <h1>포장 라인 관리</h1>
@@ -160,7 +152,7 @@
               <th>상태</th>
               <th>생산능력</th>
               <th>담당자</th>
-              <th>작업번호</th>
+              <th>제품코드</th>
               <!-- 포장 부서 권한이 있는 경우만 작업 열 표시 -->
               <th v-if="authStore.canManageLines">작업</th>
             </tr>
@@ -198,8 +190,8 @@
               </td>
               <td>{{ line.employee_name || '-' }}</td>
               <td>
-                <div class="work-info">
-                  <div class="work-no">{{ line.curr_work_no || '-' }}</div>
+                <div class="product-info">
+                  <div class="product-code">{{ line.product_code || '-' }}</div>
                 </div>
               </td>
               <!-- 포장 부서 권한이 있는 경우만 수정 버튼 표시 -->
@@ -219,7 +211,7 @@
       <div class="modal-content" @click.stop>
         <div class="modal-header">
           <h3>라인 수정</h3>
-          <button @click="closeEditModal" class="modal-close">×</button>
+          <button @click="closeEditModal" class="modal-close">닫기</button>
         </div>
         
         <div class="modal-body">
@@ -230,8 +222,13 @@
                 <input :value="editingLine?.line_id" type="text" disabled />
               </div>
               <div class="form-group">
-                <label>작업번호</label>
-                <input :value="editingLine?.curr_work_no" type="text" disabled />
+                <label>제품코드</label>
+                <select v-model="editFormData.product_code">
+                  <option value="">제품코드 선택</option>
+                  <option v-for="product in availableProducts" :key="product.product_code" :value="product.product_code">
+                    {{ product.product_code }} - {{ product.product_name }}
+                  </option>
+                </select>
               </div>
             </div>
 
@@ -295,19 +292,6 @@
               </div>
             </div>
 
-            <!-- 작업 번호 선택 추가 -->
-            <div class="form-row">
-              <div class="form-group">
-                <label>작업번호</label>
-                <select v-model="editFormData.curr_work_no">
-                  <option value="">작업번호 선택</option>
-                  <option v-for="work in availableWorkResults" :key="work.work_order_no" :value="work.work_order_no">
-                    {{ work.work_order_no }}
-                  </option>
-                </select>
-              </div>
-            </div>
-
             <div class="form-group full-width">
               <label>설명</label>
               <textarea
@@ -333,7 +317,7 @@
       <div class="modal-content" @click.stop>
         <div class="modal-header">
           <h3>라인 등록</h3>
-          <button @click="closeDualModal" class="modal-close">×</button>
+          <button @click="closeDualModal" class="modal-close">닫기</button>
         </div>
         
         <div class="modal-body">
@@ -341,7 +325,7 @@
             <h4>내포장/외포장 동시 등록</h4>
             <p>선택한 라인 ID로 <strong>내포장</strong>과 <strong>외포장</strong> 라인이 동시에 등록됩니다.</p>
             <p><strong>담당자:</strong> 각 포장 유형별로 담당자를 선택할 수 있습니다.</p>
-            <p><strong>작업번호:</strong> 미할당 상태인 작업번호만 선택 가능합니다.</p>
+            <p><strong>제품코드:</strong> 공정흐름도에 따라 자동으로 처리됩니다.</p>
           </div>
 
           <form @submit.prevent="dualRegisterLine" class="line-form">
@@ -355,11 +339,11 @@
                 <div v-if="dualErrors.line_id" class="error-message">{{ dualErrors.line_id }}</div>
               </div>
               <div class="form-group">
-                <label>작업번호</label>
-                <select v-model="dualFormData.curr_work_no">
-                  <option value="">작업번호 선택</option>
-                  <option v-for="work in unassignedWorkOrders" :key="work.work_order_no" :value="work.work_order_no">
-                    {{ work.work_order_no }}
+                <label>제품코드</label>
+                <select v-model="dualFormData.product_code">
+                  <option value="">제품코드 선택</option>
+                  <option v-for="product in availableProducts" :key="product.product_code" :value="product.product_code">
+                    {{ product.product_code }} - {{ product.product_name }}
                   </option>
                 </select>
               </div>
@@ -486,7 +470,7 @@
       <div class="modal-content" @click.stop>
         <div class="modal-header">
           <h3>접근 권한 없음</h3>
-          <button @click="closePermissionModal" class="modal-close">×</button>
+          <button @click="closePermissionModal" class="modal-close">닫기</button>
         </div>
         <div class="modal-body">
           <div class="permission-notice-modal">
@@ -499,13 +483,13 @@
             <div class="available-actions">
               <h5>사용 가능한 기능:</h5>
               <ul>
-                <li v-if="authStore.canViewLines">✓ 라인 목록 조회</li>
-                <li v-if="authStore.canManageProduction">✓ 생산 관리</li>
-                <li v-if="authStore.canManageMaterial">✓ 자재 관리</li>
-                <li v-if="authStore.canManageQuality">✓ 품질 관리</li>
-                <li v-if="authStore.canManageLogistics">✓ 물류 관리</li>
-                <li v-if="authStore.canManageAdmin">✓ 관리자 기능</li>
-                <li v-if="authStore.canManageSales">✓ 영업 관리</li>
+                <li v-if="authStore.canViewLines">포장 라인 목록 조회</li>
+                <li v-if="authStore.canManageProduction">생산 관리</li>
+                <li v-if="authStore.canManageMaterial">자재 관리</li>
+                <li v-if="authStore.canManageQuality">품질 관리</li>
+                <li v-if="authStore.canManageLogistics">물류 관리</li>
+                <li v-if="authStore.canManageAdmin">관리자 기능</li>
+                <li v-if="authStore.canManageSales">영업 관리</li>
               </ul>
             </div>
           </div>
@@ -527,11 +511,8 @@ import axios from 'axios'
 const router = useRouter()
 const authStore = useAuthStore()
 
-// API 설정
-const API_BASE_URL = 'http://localhost:3000/lines'
-const API_TIMEOUT = 10000
-
-axios.defaults.timeout = API_TIMEOUT
+// API 설정 - 프록시 활용 (vite.config.ts의 proxy 설정 사용)
+axios.defaults.timeout = 10000
 axios.defaults.headers.common['Content-Type'] = 'application/json'
 
 // 상태 관리
@@ -567,8 +548,8 @@ const showPermissionModal = ref(false)
 const editingLine = ref(null)
 const permissionMessage = ref('')
 
-// 작업결과 목록 추가
-const availableWorkResults = ref([])
+// 제품코드 목록 추가 (작업결과 대신)
+const availableProducts = ref([])
 
 // 담당자 목록 추가
 const availableEmployees = ref([])
@@ -578,37 +559,22 @@ const availableEquipments = ref([])
 const innerEquipments = ref([])
 const outerEquipments = ref([])
 
-// 미할당 작업번호 목록을 위한 computed 속성 추가
-const unassignedWorkOrders = computed(() => {
-  if (!availableWorkResults.value) return []
-  
-  // 현재 할당된 작업번호들 수집
-  const assignedWorkNos = lines.value
-    .filter(line => line.curr_work_no)
-    .map(line => line.curr_work_no)
-  
-  // 미할당 작업번호만 필터링
-  return availableWorkResults.value.filter(work => 
-    !assignedWorkNos.includes(work.work_order_no)
-  )
-})
-
-// 폼 데이터
+// 폼 데이터 - 작업번호를 제품코드로 변경
 const editFormData = ref({
   eq_name: '',
   line_status: 'AVAILABLE',
   max_capacity: 1000,
   current_speed: 30,
-  curr_work_no: '',
+  product_code: '',
   target_qty: 0,
   employee_id: '',
   description: ''
 })
 
-// 수정된 dualFormData 초기화
+// 수정된 dualFormData 초기화 - 제품코드로 변경
 const dualFormData = ref({
   line_id: '',
-  curr_work_no: '',
+  product_code: '',
   inner_eq_name: '',
   outer_eq_name: '',
   inner_capacity: 1000,
@@ -673,7 +639,7 @@ onMounted(async () => {
   await loadCurrentEmployee()
   await loadLines()
   await loadAvailableLineIds()
-  await loadAvailableWorkResults()
+  await loadAvailableProducts()  // 제품코드 로드
   await loadAvailableEmployees()
   await loadAvailableEquipments()
 })
@@ -702,7 +668,7 @@ function goToLogin() {
   router.push({ name: 'login' })
 }
 
-// 🔥 권한 체크 함수 업데이트
+// 권한 체크 함수 업데이트
 function checkPackagingPermission(action = '이 작업') {
   if (!authStore.isLoggedIn) {
     permissionMessage.value = '로그인이 필요합니다.'
@@ -735,7 +701,7 @@ async function loadCurrentEmployee() {
       return
     }
     
-    const response = await axios.get(`${API_BASE_URL}/current-employee`)
+    const response = await axios.get('/lines/current-employee')
     
     if (response.data && response.data.success) {
       currentEmployee.value = response.data.data
@@ -754,27 +720,33 @@ async function loadCurrentEmployee() {
   }
 }
 
-// 작업결과 목록 로드 함수 추가
-async function loadAvailableWorkResults() {
+// 제품코드 목록 로드 함수 추가 (작업결과 대신)
+async function loadAvailableProducts() {
   try {
-    const response = await axios.get(`${API_BASE_URL}/available-work-results`)
+    const response = await axios.get('/lines/available-products')
     
     if (response.data && response.data.success) {
-      availableWorkResults.value = response.data.data
-      console.log('작업결과 목록 로드 성공:', availableWorkResults.value.length, '건')
+      availableProducts.value = response.data.data
+      console.log('제품코드 목록 로드 성공:', availableProducts.value.length, '건')
     } else {
-      availableWorkResults.value = []
+      availableProducts.value = []
     }
   } catch (error) {
-    console.error('작업결과 목록 로드 실패:', error)
-    availableWorkResults.value = []
+    console.error('제품코드 목록 로드 실패:', error)
+    // 기본 제품코드 목록 설정
+    availableProducts.value = [
+      { product_code: 'BJA-DR-10', product_name: '10정 블리스터 포장' },
+      { product_code: 'BJA-DR-30', product_name: '30정 블리스터 포장' },
+      { product_code: 'BJA-DR-60', product_name: '60정 블리스터 포장' },
+      { product_code: 'BJA-BT-100', product_name: '100정 병 포장' }
+    ]
   }
 }
 
 // 담당자 목록 로드 함수 추가
 async function loadAvailableEmployees() {
   try {
-    const response = await axios.get(`${API_BASE_URL}/available-employees`)
+    const response = await axios.get('/lines/available-employees')
     
     if (response.data && response.data.success) {
       availableEmployees.value = response.data.data
@@ -797,7 +769,7 @@ async function loadAvailableEmployees() {
 // 설비명 목록 로드 함수 추가
 async function loadAvailableEquipments() {
   try {
-    const response = await axios.get(`${API_BASE_URL}/available-equipments`)
+    const response = await axios.get('/lines/available-equipments')
     
     if (response.data && response.data.success) {
       availableEquipments.value = response.data.data
@@ -825,7 +797,8 @@ function setDefaultEquipments() {
   innerEquipments.value = [
     { eq_name: '10정용 블리스터 포장기', line_type: 'INNER' },
     { eq_name: '30정용 블리스터 포장기', line_type: 'INNER' },
-    { eq_name: '50정용 블리스터 포장기', line_type: 'INNER' }
+    { eq_name: '60정용 블리스터 포장기', line_type: 'INNER' },
+    { eq_name: '병 모노블럭', line_type: 'INNER'},
   ]
   outerEquipments.value = [
     { eq_name: '소형 카톤 포장기', line_type: 'OUTER' },
@@ -850,7 +823,7 @@ async function loadLines() {
   error.value = ''
   
   try {
-    const response = await axios.get(`${API_BASE_URL}/list`)
+    const response = await axios.get('/lines/list')
     
     if (response.data && response.data.success && Array.isArray(response.data.data)) {
       lines.value = response.data.data
@@ -908,20 +881,20 @@ async function saveLine() {
       line_status: editFormData.value.line_status,
       max_capacity: editFormData.value.max_capacity,
       current_speed: editFormData.value.current_speed,
-      curr_work_no: editFormData.value.curr_work_no,
+      product_code: editFormData.value.product_code,  // 작업번호 대신 제품코드
       target_qty: editFormData.value.target_qty,
       description: editFormData.value.description,
       employee_id: editFormData.value.employee_id,
       employee_name: availableEmployees.value.find(emp => emp.employee_id == editFormData.value.employee_id)?.employee_name || ''
     }
     
-    const response = await axios.put(`${API_BASE_URL}/${editingLine.value.line_id}`, updateData)
+    const response = await axios.put(`/lines/${editingLine.value.line_id}`, updateData)
     
     if (response.data.success) {
       setApiStatus('success', response.data.message || '라인이 성공적으로 수정되었습니다')
       closeEditModal()
       await loadLines()
-      await loadAvailableWorkResults()
+      await loadAvailableProducts()
     } else {
       throw new Error(response.data.message || '수정에 실패했습니다')
     }
@@ -933,7 +906,7 @@ async function saveLine() {
   }
 }
 
-// 수정된 라인 등록 함수
+// 수정된 라인 등록 함수 - 작업번호를 제품코드로 변경
 async function dualRegisterLine() {
   if (!checkPackagingPermission('라인 등록')) return
   if (!validateDualForm()) return
@@ -944,7 +917,7 @@ async function dualRegisterLine() {
   try {
     const requestData = {
       line_id: dualFormData.value.line_id,
-      curr_work_no: dualFormData.value.curr_work_no,
+      product_code: dualFormData.value.product_code,  // 작업번호 대신 제품코드
       inner_eq_name: dualFormData.value.inner_eq_name,
       outer_eq_name: dualFormData.value.outer_eq_name,
       inner_capacity: dualFormData.value.inner_capacity,
@@ -958,14 +931,14 @@ async function dualRegisterLine() {
       employee_id: authStore.user?.employee_id || currentEmployee.value?.employee_id
     }
     
-    const response = await axios.post(`${API_BASE_URL}/dual`, requestData)
+    const response = await axios.post('/lines/dual', requestData)
     
     if (response.data.success) {
       setApiStatus('success', response.data.message || '내포장/외포장 라인이 성공적으로 등록되었습니다')
       closeDualModal()
       await loadLines()
       await loadAvailableLineIds()
-      await loadAvailableWorkResults()
+      await loadAvailableProducts()
       await loadAvailableEmployees()
       await loadAvailableEquipments()
     } else {
@@ -1009,7 +982,7 @@ async function deleteSelectedLines() {
       
       // 각 라인을 개별적으로 삭제
       const deletePromises = selectedLines.value.map(lineId => 
-        axios.delete(`${API_BASE_URL}/${lineId}`)
+        axios.delete(`/lines/${lineId}`)
       )
       
       const results = await Promise.allSettled(deletePromises)
@@ -1037,7 +1010,7 @@ async function deleteSelectedLines() {
       
       await loadLines()
       await loadAvailableLineIds()
-      await loadAvailableWorkResults()
+      await loadAvailableProducts()
       
     } catch (error) {
       console.error('일괄 삭제 실패:', error)
@@ -1133,7 +1106,7 @@ function openEditModal(line) {
     line_status: line.line_status,
     max_capacity: line.max_capacity || 1000,
     current_speed: line.current_speed || 30,
-    curr_work_no: line.curr_work_no || '',
+    product_code: line.product_code || '',  // 작업번호 대신 제품코드
     target_qty: line.target_qty || 0,
     employee_id: line.employee_id || '',
     description: line.description || ''
@@ -1145,13 +1118,13 @@ function openEditModal(line) {
   showEditModal.value = true
 }
 
-// 수정된 모달 열기 함수
+// 수정된 모달 열기 함수 - 작업번호를 제품코드로 변경
 async function openDualModal() {
   if (!checkPackagingPermission('라인 등록')) return
   
   dualFormData.value = {
     line_id: '',
-    curr_work_no: '',
+    product_code: '',  // 작업번호 대신 제품코드
     inner_eq_name: '',
     outer_eq_name: '',
     inner_capacity: 1000,
@@ -1167,7 +1140,7 @@ async function openDualModal() {
   
   await loadAvailableLineIds()
   await loadAvailableEmployees()
-  await loadAvailableWorkResults()
+  await loadAvailableProducts()  // 작업결과 대신 제품코드 로드
   await loadAvailableEquipments()
   showDualModal.value = true
 }
@@ -1181,20 +1154,20 @@ function closeEditModal() {
     line_status: 'AVAILABLE',
     max_capacity: 1000,
     current_speed: 30,
-    curr_work_no: '',
+    product_code: '',  // 작업번호 대신 제품코드
     target_qty: 0,
     employee_id: '',
     description: ''
   }
 }
 
-// 수정된 모달 닫기 함수
+// 수정된 모달 닫기 함수 - 작업번호를 제품코드로 변경
 function closeDualModal() {
   showDualModal.value = false
   dualErrors.value = {}
   dualFormData.value = {
     line_id: '',
-    curr_work_no: '',
+    product_code: '',  // 작업번호 대신 제품코드
     inner_eq_name: '',
     outer_eq_name: '',
     inner_capacity: 1000,
@@ -1216,7 +1189,7 @@ function clearFilters() {
 async function refreshData() {
   await loadLines()
   await loadAvailableLineIds()
-  await loadAvailableWorkResults()
+  await loadAvailableProducts()  // 작업결과 대신 제품코드 새로고침
   await loadAvailableEmployees()
   await loadAvailableEquipments()
 }
@@ -1252,7 +1225,7 @@ defineOptions({
 </script>
 
 <style scoped>
-/* 기존 스타일 유지 */
+/* 기존 스타일 유지 - 아이콘 관련 스타일 제거 */
 .package-line-management {
   min-height: 100vh;
   background-color: #f8f9fa;
@@ -1696,20 +1669,15 @@ defineOptions({
   color: #6c757d;
 }
 
-.work-info {
+.product-info {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 
-.work-no {
+.product-code {
   font-weight: 500;
   color: #495057;
-}
-
-.work-details {
-  font-size: 11px;
-  color: #6c757d;
 }
 
 .loading-state, .error-state, .empty-state {
@@ -1773,14 +1741,16 @@ defineOptions({
 .modal-close {
   background: none;
   border: none;
-  font-size: 20px;
+  font-size: 14px;
   cursor: pointer;
-  padding: 4px;
+  padding: 4px 8px;
   color: #6c757d;
+  border-radius: 4px;
 }
 
 .modal-close:hover {
   color: #495057;
+  background: #f8f9fa;
 }
 
 .modal-body {

@@ -117,13 +117,6 @@ export default {
       },
       },
       {
-      name: 'equipment-stop',
-      displayName: 'menu.설비 정지',
-      meta: {
-        icon: 'pause-circle',
-      },
-      },
-      {
       name: 'equipment-history',
       displayName: 'menu.설비 이력',
       meta: {
