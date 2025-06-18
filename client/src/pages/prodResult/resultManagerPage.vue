@@ -171,6 +171,7 @@ const columns = [
   { key: 'process_name', label: '공정명' },
   { key: 'work_start_time', label: '시작시간' },
   { key: 'work_end_time', label: '종료시간' },
+  { key: 'process_time', label: '예상시간(분)' },
   { key: 'duration', label: '소요시간(분)' },
   { key: 'pass_qty', label: '재작수량' },
   { key: 'detail_code_label', label: '진행상태' },

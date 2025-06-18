@@ -14,12 +14,14 @@ const selectResultList =
 `
   SELECT DISTINCT
         wr.result_id,
+        wr.final_qty,
         wrd.result_detail,
         wrd.product_qual_qty,
         p.product_name,
         p.product_stand,
         pc.process_code,
         pc.process_name,
+        pc.process_time,
         eq.eq_id,
         eq.eq_name,
         eq.last_inspection_time,
