@@ -73,8 +73,8 @@
         </div>
       </div>
 
-      <!-- 액션 버튼 -->
-      <div class="action-buttons">
+      <!-- 액션 버튼 (관리자 권한만) -->
+      <div class="action-buttons" v-if="canManageAdmin">
         <va-button 
           preset="secondary" 
           icon="delete_outline"
@@ -92,12 +92,20 @@
         </va-button>
       </div>
 
+      <!-- 권한 없는 사용자를 위한 메시지 -->
+      <div v-else class="permission-notice">
+        <va-alert color="info" icon="info">
+          조회 전용 모드입니다. 사원 관리는 관리자 권한이 필요합니다.
+        </va-alert>
+      </div>
+
       <!-- 사원 목록 테이블 -->
       <div class="table-container">
         <table class="employee-table">
           <thead>
             <tr>
-              <th width="40">
+              <!-- 체크박스는 관리자 권한이 있을 때만 -->
+              <th width="40" v-if="canManageAdmin">
                 <va-checkbox v-model="selectAll" @update:model-value="handleSelectAll" />
               </th>
               <th>사번</th>
@@ -112,10 +120,14 @@
             <tr 
               v-for="(employee, index) in paginatedEmployees" 
               :key="employee.employee_id"
-              @click="selectEmployee(employee)"
-              :class="{ 'selected': selectedEmployee?.employee_id === employee.employee_id }"
+              @click="canManageAdmin ? selectEmployee(employee) : null"
+              :class="{ 
+                'selected': selectedEmployee?.employee_id === employee.employee_id && canManageAdmin,
+                'read-only': !canManageAdmin
+              }"
             >
-              <td @click.stop>
+              <!-- 체크박스는 관리자 권한이 있을 때만 -->
+              <td @click.stop v-if="canManageAdmin">
                 <va-checkbox
                   v-model="selectedIds"
                   :array-value="employee.employee_id"
@@ -163,8 +175,8 @@
       </div>
     </div>
 
-    <!-- 우측: 사원 등록/수정 -->
-    <div class="employee-detail-panel">
+    <!-- 우측: 사원 등록/수정 (관리자 권한만) -->
+    <div class="employee-detail-panel" v-if="canManageAdmin">
       <div class="detail-header">
         <h2>사원 등록/수정</h2>
         <div class="action-buttons">
@@ -176,8 +188,6 @@
       </div>
 
       <div class="detail-form">
-        
-
         <!-- 이름 -->
         <div class="form-row">
           <div class="form-group">
@@ -293,12 +303,35 @@
         </div>
       </div>
     </div>
+
+    <!-- 권한 없는 사용자를 위한 안내 패널 -->
+    <div class="permission-info-panel" v-else>
+      <div class="permission-content">
+        <va-icon name="admin_panel_settings" size="large" color="primary" />
+        <h3>사원 관리 권한 필요</h3>
+        <p>사원 등록 및 수정은 관리자 권한이 필요합니다.</p>
+        <div class="current-permission">
+          <va-chip color="info" size="small">
+            현재 권한: {{ userRole || '조회 전용' }}
+          </va-chip>
+        </div>
+        <p class="permission-desc">
+          사원 목록은 조회할 수 있지만,<br>
+          등록, 수정, 삭제는 관리자만 가능합니다.
+        </p>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import axios from 'axios'
+import { useAuthStore } from '@/stores/authStore'
+
+// 인증 스토어 사용
+const authStore = useAuthStore()
+const { canManageAdmin, userRole } = authStore
 
 // 타입 정의
 interface Employee {
@@ -364,7 +397,6 @@ const errors = ref({
   position: false,
   hireDate: false
 })
-
 
 // 부서 매핑
 const departmentMap = {
@@ -494,6 +526,11 @@ function handleSelectAll(value: boolean) {
 }
 
 function selectEmployee(employee: Employee) {
+  if (!canManageAdmin) {
+    console.log('사원 수정 권한이 없습니다.')
+    return
+  }
+
   selectedEmployee.value = employee
   // 폼에 데이터 채우기
   form.value = {
@@ -566,6 +603,11 @@ function validateForm() {
 
 // 저장
 async function saveEmployee() {
+  if (!canManageAdmin) {
+    alert('사원 관리 권한이 없습니다.')
+    return
+  }
+
   if (!validateForm()) {
     return
   }
@@ -581,7 +623,7 @@ async function saveEmployee() {
       employment_status: form.value.employmentStatus,
       remarks: form.value.remarks
     }
-  console.log('전송할 데이터: ', employeeData);
+    console.log('전송할 데이터: ', employeeData);
     
     if (selectedEmployee.value) {
       // 수정
@@ -604,6 +646,11 @@ async function saveEmployee() {
 
 // 선택 삭제
 async function deleteSelected() {
+  if (!canManageAdmin) {
+    alert('사원 관리 권한이 없습니다.')
+    return
+  }
+
   console.log('삭제할 사원들: ', selectedIds.value);
 
   if (selectedIds.value.length === 0) return
