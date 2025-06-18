@@ -67,13 +67,47 @@
     <!-- 설비 목록 -->
     <VaCard>
       <VaCardContent>
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="va-h5">설비 목록</h2>
+        </div>
+        
         <VaDataTable
           :items="filteredEquipments"
           :columns="columns"
           hoverable
           clickable
+          sticky-header
           @row:click="openModal"
-        />
+        >
+          <template #cell(eq_id)="{ rowData }">
+            <span class="font-semibold text-primary cursor-pointer">{{ rowData.eq_id }}</span>
+          </template>
+          <template #cell(eq_name)="{ rowData }">
+            <span class="font-medium">{{ rowData.eq_name }}</span>
+          </template>
+          <template #cell(eq_group_name)="{ rowData }">
+            <VaChip 
+              :color="getCategoryColor(rowData.eq_group_code)" 
+              size="small"
+              flat
+            >
+              {{ rowData.eq_group_name || rowData.eq_group_code }}
+            </VaChip>
+          </template>
+          <template #cell(eq_run_name)="{ rowData }">
+            <VaChip 
+              :color="getStatusColor(rowData.eq_run_code)" 
+              size="small"
+              flat
+            >
+              {{ rowData.eq_run_name || rowData.eq_run_code }}
+            </VaChip>
+          </template>
+        </VaDataTable>
+        
+        <div v-if="filteredEquipments.length === 0" class="text-center py-8 text-secondary">
+          조회된 설비가 없습니다.
+        </div>
       </VaCardContent>
     </VaCard>
 
@@ -85,7 +119,7 @@
       hide-default-actions
     >
       <template #header>
-        <h2 class="va-h5">설비 점검 - {{ selectedEquipment?.eq_name || '설비명 없음' }}</h2>
+        <h2 class="va-h5">설비 점검 - <span class="text-primary">{{ selectedEquipment?.eq_name || '설비명 없음' }}</span></h2>
       </template>
 
       <div class="grid grid-cols-2 gap-4 mb-4">
@@ -122,21 +156,29 @@
           class="mr-2"
           :disabled="inspectionStarted"
         >
-          점검 시작
+          <div class="flex items-center">
+            <VaIcon name="play_arrow" size="16px" class="mr-1" />
+            <span>점검 시작</span>
+          </div>
         </VaButton>
         <VaButton 
           @click="endInspection" 
           color="success"
           :disabled="!inspectionStarted"
         >
-          점검 종료
+          <div class="flex items-center">
+            <VaIcon name="stop" size="16px" class="mr-1" />
+            <span>점검 종료</span>
+          </div>
         </VaButton>
       </div>
 
       <div v-if="inspectionParts.length > 0">
-        <h3 class="va-h6 mb-4">점검 항목</h3>
+        <h3 class="va-h6 mb-4 text-primary">점검 항목</h3>
         <div class="space-y-3">
-          <div v-for="(part, index) in inspectionParts" :key="index" class="border rounded p-3">
+          <div v-for="(part, index) in inspectionParts" :key="index" 
+               class="border rounded p-3"
+               :class="{ 'bg-gray-50': part.checked }">
             <div class="grid grid-cols-5 gap-4 items-center">
               <!-- 체크박스 -->
               <div class="flex items-center">
@@ -144,11 +186,13 @@
                   v-model="part.checked" 
                   :label="'선택'"
                   :disabled="!inspectionStarted"
+                  color="primary"
+                  @update:model-value="updateInspectionStorage"
                 />
               </div>
               
               <!-- 점검 항목명 -->
-              <div class="font-medium">
+              <div class="font-medium" :class="{ 'text-primary': part.checked }">
                 {{ part.name }}
               </div>
               
@@ -160,12 +204,16 @@
                   label="적합"
                   class="mr-2"
                   :disabled="!inspectionStarted || !part.checked"
+                  color="success"
+                  @update:model-value="updateInspectionStorage"
                 />
                 <VaRadio 
                   v-model="part.result" 
                   option="j2" 
                   label="부적합"
                   :disabled="!inspectionStarted || !part.checked"
+                  color="danger"
+                  @update:model-value="updateInspectionStorage"
                 />
               </div>
               
@@ -175,6 +223,8 @@
                   v-model="part.remark" 
                   placeholder="비고" 
                   :disabled="!inspectionStarted || !part.checked"
+                  :color="part.remark ? 'info' : undefined"
+                  @update:model-value="updateInspectionStorage"
                 />
               </div>
               
@@ -187,6 +237,8 @@
                   value-by="value"
                   placeholder="확인자"
                   :disabled="!inspectionStarted || !part.checked"
+                  :color="part.checker_id ? 'success' : undefined"
+                  @update:model-value="updateInspectionStorage"
                 />
               </div>
             </div>
@@ -251,11 +303,41 @@ const inspectionStatusLabel = computed(() => {
 })
 
 const columns = [
-  { key: 'eq_id', label: '설비번호' },
-  { key: 'eq_name', label: '설비명' },
-  { key: 'eq_group_name', label: '설비분류' },
-  { key: 'eq_run_name', label: '상태' }
+  { key: 'eq_id', label: '설비번호', sortable: true },
+  { key: 'eq_name', label: '설비명', sortable: true },
+  { key: 'eq_group_name', label: '설비분류', sortable: true },
+  { key: 'eq_run_name', label: '상태', sortable: true }
 ]
+
+// 카테고리 색상
+const getCategoryColor = (code: string): string => {
+  const colors: Record<string, string> = {
+    'e1': 'primary',
+    'e2': 'success',
+    'e3': 'warning'
+  }
+  return colors[code] || 'secondary'
+}
+
+// 상태 색상
+const getStatusColor = (code: string): string => {
+  const colors: Record<string, string> = {
+    's1': 'success',
+    's2': 'info',
+    's3': 'danger'
+  }
+  return colors[code] || 'secondary'
+}
+
+// 점검 데이터 자동 저장
+const updateInspectionStorage = () => {
+  if (selectedEquipment.value?.eq_id && inspectionStarted.value) {
+    saveInspectionStorage(selectedEquipment.value.eq_id, {
+      parts: inspectionParts.value,
+      inspectionData: inspectionData.value
+    })
+  }
+}
 
 const filterEquipments = () => {
   filteredEquipments.value = equipments.value.filter(e => {
@@ -319,12 +401,12 @@ const fetchCommonCodes = async () => {
   }
 }
 
-const fetchInspectionParts = async (eq_type_code: string) => {
+const fetchInspectionParts = async (eq_type_code: string, eq_name: string) => {
   try {
-    console.log('점검 항목 조회 요청:', eq_type_code)
-    const res = await axios.get(`/equipment-inspection/parts/${eq_type_code}`)
-    console.log('점검 항목 응답:', res.data)
-    
+    const res = await axios.get(`/equipment-inspection/parts/${eq_type_code}`, {
+      params: { eq_name }
+    })
+
     inspectionParts.value = res.data.map((row: any) => ({
       part_id: row.inspect_part_id,
       name: row.inspect_part_name,
@@ -333,11 +415,8 @@ const fetchInspectionParts = async (eq_type_code: string) => {
       remark: '',
       checker_id: ''
     }))
-    
-    console.log('변환된 점검 항목들:', inspectionParts.value)
-  } catch (error: any) { 
-    console.error('점검 항목 조회 실패:', error)  
-    console.error('에러 응답:', error.response?.data)  
+  } catch (error: any) {
+    console.error('점검 항목 조회 실패:', error)
   }
 }
 
@@ -366,7 +445,7 @@ const openModal = async ({ item }: any) => {
   }
   
   console.log('점검 항목 조회 시작 - eq_type_code:', item.eq_type_code)
-  await fetchInspectionParts(item.eq_type_code)
+  await fetchInspectionParts(item.eq_type_code, item.eq_name)
   
   // 저장된 점검 데이터 확인
   const storageKey = `equipment_inspection_${item.eq_id}`
@@ -452,18 +531,66 @@ const startInspection = async () => {
 
 const endInspection = async () => {
   try {
-    await axios.post('/equipment-inspection/end', {
-      eq_id: selectedEquipment.value.eq_id,
-      parts: inspectionParts.value
-    })
+    console.log('=== 점검 종료 요청 시작 ===')
+    console.log('설비 ID:', selectedEquipment.value?.eq_id)
+    console.log('점검 항목 수:', inspectionParts.value.length)
     
-    clearInspectionStorage(selectedEquipment.value.eq_id)
-    inspectionStarted.value = false
-    showModal.value = false
-    fetchEquipments()
-    alert('점검이 완료되었습니다.')
-  } catch (err) {
-    console.error('점검 종료 실패:', err)
+    // 입력 데이터 검증
+    if (!selectedEquipment.value?.eq_id) {
+      alert('설비 정보가 없습니다.')
+      return
+    }
+
+    if (!Array.isArray(inspectionParts.value) || inspectionParts.value.length === 0) {
+      alert('점검 항목이 없습니다.')
+      return
+    }
+
+    // 점검 항목 데이터 정리 (undefined 값들 제거)
+    const cleanedParts = inspectionParts.value.map(part => ({
+      part_id: part.part_id || null,
+      name: part.name || '',
+      checked: Boolean(part.checked),
+      result: part.result || '',
+      remark: part.remark || '',
+      checker_id: part.checker_id || ''
+    })).filter(part => part.part_id !== null) // part_id가 null인 항목 제거
+
+    console.log('정리된 점검 항목들:', cleanedParts)
+
+    const requestData = {
+      eq_id: selectedEquipment.value.eq_id,
+      parts: cleanedParts
+    }
+
+    console.log('점검 종료 요청 데이터:', requestData)
+
+    const response = await axios.post('/equipment-inspection/end', requestData)
+    console.log('점검 종료 응답:', response.data)
+    
+    if (response.data.isSuccessed) {
+      // 성공 처리
+      clearInspectionStorage(selectedEquipment.value.eq_id)
+      inspectionStarted.value = false
+      showModal.value = false
+      await fetchEquipments()
+      alert('점검이 완료되었습니다.')
+    } else {
+      throw new Error(response.data.message || '점검 종료 실패')
+    }
+  } catch (error: any) {
+    console.error('점검 종료 실패:', error)
+    console.error('에러 응답 데이터:', error.response?.data)
+    console.error('에러 상태 코드:', error.response?.status)
+    
+    let errorMessage = '점검 종료에 실패했습니다.'
+    if (error.response?.data?.message) {
+      errorMessage = error.response.data.message
+    } else if (error.message) {
+      errorMessage = error.message
+    }
+    
+    alert(errorMessage)
   }
 }
 
@@ -477,5 +604,25 @@ onMounted(() => {
 <style scoped>
 .equipment-inspection-page {
   padding: 1.5rem;
+}
+
+:deep(.va-data-table__table-tr--clickable) {
+  cursor: pointer;
+}
+
+:deep(.va-data-table__table-tr--clickable:hover) {
+  background-color: var(--va-background-secondary);
+}
+
+.bg-gray-50 {
+  background-color: #f9fafb;
+}
+
+:deep(.text-primary) {
+  color: var(--va-primary);
+}
+
+:deep(.text-secondary) {
+  color: var(--va-secondary);
 }
 </style>

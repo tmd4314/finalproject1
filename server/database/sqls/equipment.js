@@ -6,9 +6,10 @@ module.exports = {
       eq_floor_code, eq_room_code, eq_manufacture_date, eq_registration_date,
       eq_manufacturer, eq_model, eq_serial_number, eq_power_spec,
       eq_max_operation_time, eq_inspection_cycle, eq_remark, eq_image, line_id,
-      eq_run_code
+      eq_run_code, stop_reason, last_inspection_time, last_cleaning_time, 
+      work_code, work_status_code
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL, NULL, NULL)
   `,
 
  // 설비 조회
@@ -133,9 +134,6 @@ selectEquipmentDetail: `
   `,
   deleteEquipmentStopLogByEqIds: `
     DELETE FROM equipment_stop_log WHERE eq_id IN (?)
-  `,
-  deleteEquipmentMaintenanceStatusByEqIds: `
-    DELETE FROM eq_maintenance_status WHERE eq_id IN (?)
   `,
   deleteMultipleEquipments: `
     DELETE FROM equipment WHERE eq_id IN (?)
