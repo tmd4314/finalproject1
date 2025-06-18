@@ -49,7 +49,9 @@ const proxyPaths = [
   'prodEnd',
   'productOutbound',
   'workResultStatus',
-  'processInit'
+  'processInit',
+  'materialOutbound',
+  'endEq'
 ]
 
 // ✅ 공통 proxy 설정 생성 함수

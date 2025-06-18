@@ -17,6 +17,31 @@ const insertResult =
 `
 ;
 
+const endEq =
+`
+  SELECT code_value,
+        code_label
+  FROM   common_code
+  WHERE  code_group = '0D';
+`
+;
+
+const materialOutList =
+` 
+  SELECT DISTINCT
+         mo.material_code,
+         m.material_name,
+         mo.outbound_qty,
+         m.material_unit
+  FROM   material_outbound mo
+  JOIN   material m
+    ON   mo.material_code = m.material_code
+  JOIN   process_detail pd
+    ON   mo.material_code = pd.material_code
+  WHERE  pd.process_code = ?
+
+`
+
 const selectResultList = 
 `
     SELECT DISTINCT
@@ -34,6 +59,7 @@ const selectResultList =
       eq.eq_id,
       eq.eq_name,
       eq.eq_run_code,
+      eq.stop_reason AS end_reason_code,
       wr.work_start_date,
       wrd.work_start_time,
       wrd.work_end_time,
@@ -169,6 +195,7 @@ const updateStopEq =
 `
   UPDATE equipment 
   SET    eq_run_code = "s3"
+         stop_reason = ?
   WHERE  eq_id = ?
 `
 
@@ -203,5 +230,7 @@ module.exports = {
   startResultWork,
   endResultWork,
   updateResultStatus,
-  getProcessCodesByGroupQuery
+  getProcessCodesByGroupQuery,
+  materialOutList,
+  endEq
 }
