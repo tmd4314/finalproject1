@@ -161,6 +161,9 @@
 import { ref, onMounted, watch, nextTick, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
+import { useAuthStore } from '@/stores/authStore'
+
+const authStore = useAuthStore()
 
 interface CodeOption {
   label: string
@@ -270,34 +273,50 @@ const onImageSelected = (files: any) => {
 }
 
 const loadCommonCodes = async () => {
-  const { data: codes }: { data: CommonCodesResponse } = await axios.get('/common-codes?groups=0F,0L,0M,0E,0T,0I,0A,line')
-  codeOptions.value = {
-    factory: codes['0F'] || [], floor: codes['0L'] || [], room: codes['0M'] || [],
-    eq_group: codes['0E'] || [], eq_type: codes['0T'] || [], eq_import: codes['0I'] || [],
-    eq_base_name: codes['0A'] || [], line: codes.line || []
+  try {
+    const { data: codes }: { data: CommonCodesResponse } = await axios.get('/common-codes?groups=0F,0L,0M,0E,0T,0I,0A,line')
+    console.log('Loaded common codes:', codes)
+    codeOptions.value = {
+      factory: codes['0F'] || [], 
+      floor: codes['0L'] || [], 
+      room: codes['0M'] || [],
+      eq_group: codes['0E'] || [], 
+      eq_type: codes['0T'] || [], 
+      eq_import: codes['0I'] || [],
+      eq_base_name: codes['0A'] || [], 
+      line: codes.line || []
+    }
+  } catch (error) {
+    console.error('공통코드 로드 실패:', error)
+    alert('공통코드를 불러오는데 실패했습니다.')
   }
 }
 
 const loadEquipmentData = async (equipmentId: string) => {
-  const res = await axios.get(`/equipments/${equipmentId}`)
-  if (res.data.isSuccessed && res.data.data) {
-    const equipment = res.data.data
-    const baseName = equipment.eq_name?.replace(/\d+$/, '') || ''
-    const baseNameOption = codeOptions.value.eq_base_name.find(o => o.label === baseName)
-    formData.value = {
-      image: [], id: equipment.eq_id || '', baseName: baseNameOption?.value || '', name: equipment.eq_name || '',
-      category: equipment.eq_group_code || '', line: equipment.line_id || '', type: equipment.eq_type_code || '',
-      factory: equipment.eq_factory_code || '', floor: equipment.eq_floor_code || '', room: equipment.eq_room_code || '',
-      installType: equipment.eq_import_code || '', manufactureDate: equipment.eq_manufacture_date || null,
-      registerDate: equipment.eq_registration_date || new Date().toISOString().slice(0, 10),
-      maker: equipment.eq_manufacturer || '', model: equipment.eq_model || '', serial: equipment.eq_serial_number || '',
-      power: equipment.eq_power_spec || '', maxRuntime: equipment.eq_max_operation_time?.toString() || '',
-      maintenanceCycle: equipment.eq_inspection_cycle?.toString() || '', note: equipment.eq_remark || ''
+  try {
+    const res = await axios.get(`/equipments/${equipmentId}`)
+    if (res.data.isSuccessed && res.data.data) {
+      const equipment = res.data.data
+      const baseName = equipment.eq_name?.replace(/\d+$/, '') || ''
+      const baseNameOption = codeOptions.value.eq_base_name.find(o => o.label === baseName)
+      formData.value = {
+        image: [], id: equipment.eq_id || '', baseName: baseNameOption?.value || '', name: equipment.eq_name || '',
+        category: equipment.eq_group_code || '', line: equipment.line_id || '', type: equipment.eq_type_code || '',
+        factory: equipment.eq_factory_code || '', floor: equipment.eq_floor_code || '', room: equipment.eq_room_code || '',
+        installType: equipment.eq_import_code || '', manufactureDate: equipment.eq_manufacture_date || null,
+        registerDate: equipment.eq_registration_date || new Date().toISOString().slice(0, 10),
+        maker: equipment.eq_manufacturer || '', model: equipment.eq_model || '', serial: equipment.eq_serial_number || '',
+        power: equipment.eq_power_spec || '', maxRuntime: equipment.eq_max_operation_time?.toString() || '',
+        maintenanceCycle: equipment.eq_inspection_cycle?.toString() || '', note: equipment.eq_remark || ''
+      }
+      if (equipment.eq_image) {
+        existingImage.value = equipment.eq_image
+        previewUrl.value = `/uploads/equipment/${equipment.eq_image}`
+      }
     }
-    if (equipment.eq_image) {
-      existingImage.value = equipment.eq_image
-      previewUrl.value = `/uploads/equipment/${equipment.eq_image}`
-    }
+  } catch (error) {
+    console.error('설비 데이터 로드 실패:', error)
+    alert('설비 데이터를 불러오는데 실패했습니다.')
   }
 }
 
@@ -313,6 +332,14 @@ const resetForm = async () => {
 }
 
 onMounted(async () => {
+   const isEquipmentDept = authStore.user?.department_code === '04'
+
+  if (!isEquipmentDept) {
+    alert('설비팀만 접근할 수 있습니다.')
+    router.replace({ name: 'dashboard' }) // 다른 화면으로 이동
+    return
+  }
+
   await loadCommonCodes()
   if (mode.value === 'edit' && equipmentId.value) await loadEquipmentData(equipmentId.value)
 })
@@ -336,38 +363,43 @@ const handleSubmit = async () => {
   if (!confirm(`${mode.value === 'edit' ? '수정' : '등록'}하시겠습니까?`)) return
   if (!formRef.value?.validate()) return
 
-  const url = mode.value === 'edit' ? `/equipments/${formData.value.id}` : '/equipments'
-  const method = mode.value === 'edit' ? 'put' : 'post'
-  const submitFormData = new FormData()
+  try {
+    const url = mode.value === 'edit' ? `/equipments/${formData.value.id}` : '/equipments'
+    const method = mode.value === 'edit' ? 'put' : 'post'
+    const submitFormData = new FormData()
 
-  const selectedBaseNameOption = codeOptions.value.eq_base_name.find(o => o.value === formData.value.baseName)
-  const submitData = {
-    ...formData.value,
-    name: selectedBaseNameOption?.label || formData.value.baseName
-  }
-
-  Object.entries(submitData).forEach(([key, val]) => {
-    if (key !== 'image' && key !== 'baseName' && val !== null && val !== '') {
-      submitFormData.append(key, String(val))
+    const selectedBaseNameOption = codeOptions.value.eq_base_name.find(o => o.value === formData.value.baseName)
+    const submitData = {
+      ...formData.value,
+      name: selectedBaseNameOption?.label || formData.value.baseName
     }
-  })
 
-  if (formData.value.image.length > 0 && formData.value.image[0] instanceof File) {
-    submitFormData.append('image', formData.value.image[0])
-  } else if (mode.value === 'edit' && existingImage.value) {
-    submitFormData.append('existingImage', existingImage.value)
-  }
+    Object.entries(submitData).forEach(([key, val]) => {
+      if (key !== 'image' && key !== 'baseName' && val !== null && val !== '') {
+        submitFormData.append(key, String(val))
+      }
+    })
 
-  const res: { data: ApiResponse } = await axios[method](url, submitFormData, {
-    headers: { 'Content-Type': 'multipart/form-data' }
-  })
+    if (formData.value.image.length > 0 && formData.value.image[0] instanceof File) {
+      submitFormData.append('image', formData.value.image[0])
+    } else if (mode.value === 'edit' && existingImage.value) {
+      submitFormData.append('existingImage', existingImage.value)
+    }
 
-  if (res.data.isSuccessed) {
-    alert(`설비 ${mode.value === 'edit' ? '수정' : '등록'}에 성공했습니다!`)
-    if (mode.value === 'register') await resetForm()
-    else router.push('/facility/management')
-  } else {
-    alert(`실패: ${res.data.message}`)
+    const res: { data: ApiResponse } = await axios[method](url, submitFormData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+
+    if (res.data.isSuccessed) {
+      alert(`설비 ${mode.value === 'edit' ? '수정' : '등록'}에 성공했습니다!`)
+      if (mode.value === 'register') await resetForm()
+      else router.push('/faq/equipment-management')
+    } else {
+      alert(`실패: ${res.data.message}`)
+    }
+  } catch (error) {
+    console.error(`설비 ${mode.value === 'edit' ? '수정' : '등록'} 실패:`, error)
+    alert(`설비 ${mode.value === 'edit' ? '수정' : '등록'}에 실패했습니다.`)
   }
 }
 

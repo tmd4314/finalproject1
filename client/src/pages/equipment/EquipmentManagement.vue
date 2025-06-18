@@ -88,6 +88,11 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
+import { useAuthStore } from '@/stores/authStore'
+
+const authStore = useAuthStore()
+
+console.log('✅ auth_type 값은:', authStore.user?.auth_type)
 
 interface Equipment {
   eq_id: string
@@ -151,6 +156,11 @@ const resetSearch = async () => {
 
 // 설비 관리 페이지의 handleEdit 함수
 const handleEdit = async () => {
+    if (authStore.user?.department_code !== '04') {
+    alert('설비팀만 수정할 수 있습니다.')
+    return
+  }
+
   if (selectedRows.value.length !== 1) {
     alert('수정할 설비 1개를 선택해주세요.')
     return
@@ -169,6 +179,11 @@ const handleEdit = async () => {
 }
 
 const handleDelete = async () => {
+   if (authStore.user?.department_code !== '04') {
+    alert('설비팀만 삭제할 수 있습니다.')
+    return
+  }
+
   if (selectedRows.value.length === 0) {
     alert('삭제할 설비를 선택해주세요.')
     return

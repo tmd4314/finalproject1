@@ -267,6 +267,13 @@
 import { ref, computed, onMounted } from 'vue'
 import axios from 'axios'
 import { loadInspectionStorage, saveInspectionStorage, clearInspectionStorage } from '../../utils/inspectionStorage'
+import { useAuthStore } from '@/stores/authStore'
+const authStore = useAuthStore()
+
+const statusProgressOptions = ref([
+  { value: 'p1', label: '대기 중' },
+  { value: 'p2', label: '진행 중' }
+])
 
 const searchParams = ref({
   equipmentCode: '',
@@ -297,9 +304,11 @@ const inspectionTypeOptions = ref([
 ])
 
 const inspectionStatusLabel = computed(() => {
-  if (!selectedEquipment.value) return '-'
-  if (selectedEquipment.value.work_code === 'w3' && selectedEquipment.value.work_status_code === 'p2') return '점검 진행중'
-  return '점검 대기중'
+  const code = selectedEquipment.value?.work_status_code
+
+  // 상태 코드가 없거나 알 수 없는 경우도 "점검 대기 중"으로 통일
+  const match = statusProgressOptions.value.find(opt => opt.value === code)
+  return `점검 ${match?.label || '대기 중'}`
 })
 
 const columns = [
@@ -421,6 +430,13 @@ const fetchInspectionParts = async (eq_type_code: string, eq_name: string) => {
 }
 
 const openModal = async ({ item }: any) => {
+
+   // 설비팀만 점검 가능하도록 제한
+  if (authStore.user?.department_code !== '04') {
+    alert('설비팀만 점검을 시작할 수 있습니다.')
+    return
+  }
+
   console.log('=== 모달 열기 시작 ===')
   console.log('선택된 설비 전체 정보:', item)
   console.log('설비 ID:', item.eq_id)
@@ -519,6 +535,8 @@ const startInspection = async () => {
     // 서버에 점검 시작 요청
     const response = await axios.post('/equipment-inspection/start', requestData)
     console.log('점검 시작 응답:', response.data)
+    
+    selectedEquipment.value.work_status_code = 'p2'
     
     fetchEquipments()
     } catch (error: any) { 

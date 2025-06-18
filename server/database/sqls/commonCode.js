@@ -9,8 +9,10 @@ module.exports = {
       CAST(SUBSTRING(code_value, 2) AS UNSIGNED)
   `,
   
-  selectAllLines: `
-    SELECT line_id
+  selectLinesForCommonCode: `
+    SELECT 
+      CAST(line_id AS CHAR) AS value, 
+      CONCAT('라인 ', line_id) AS label
     FROM package_line
     WHERE line_id IS NOT NULL
     ORDER BY line_id
