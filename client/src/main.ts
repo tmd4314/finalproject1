@@ -11,7 +11,7 @@ import stores from './stores'
 import router from './router'
 import vuesticGlobalConfig from './services/vuestic-ui/global-config'
 
-import piniaPersist from 'pinia-plugin-persistedstate'  // 중복 import 제거
+import piniaPersist from 'pinia-plugin-persistedstate'
 
 const pinia = createPinia()
 pinia.use(piniaPersist)

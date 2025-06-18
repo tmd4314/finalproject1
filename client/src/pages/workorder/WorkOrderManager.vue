@@ -394,11 +394,10 @@ const saveWorkOrder = async () => {
       alert('작업지시서 수정 완료')
     } else {
       response = await axios.post('/workOrder', payload)
-      res = await axios.post('/prodResult', payload)
       alert('작업지시서 등록 완료')
       
       // 신규 등록 시 서버에서 생성된 번호를 폼에 설정하고 수정 모드로 전환
-      if (response.data && response.data.work_order_no && res.data.work_order_no) {
+      if (response.data && response.data.work_order_no) {
         form.value.work_order_no = response.data.work_order_no
         isEditMode.value = true  // 수정 모드로 전환
       }

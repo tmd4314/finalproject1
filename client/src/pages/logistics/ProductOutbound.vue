@@ -37,6 +37,14 @@
         <!-- 검색 영역 -->
         <div class="grid grid-cols-4 gap-3 mb-4">
           <div>
+            <label class="block text-xs font-medium text-gray-700 mb-1">주문번호</label>
+            <input 
+              v-model="waitingSearch.order_number"
+              class="w-full px-2 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+              placeholder="주문번호 검색"
+            />
+          </div>
+          <div>
             <label class="block text-xs font-medium text-gray-700 mb-1">제품명</label>
             <input 
               v-model="waitingSearch.product_name"
@@ -45,17 +53,9 @@
             />
           </div>
           <div>
-            <label class="block text-xs font-medium text-gray-700 mb-1">제품코드</label>
+            <label class="block text-xs font-medium text-gray-700 mb-1">주문일자</label>
             <input 
-              v-model="waitingSearch.product_code"
-              class="w-full px-2 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
-              placeholder="제품코드 검색"
-            />
-          </div>
-          <div>
-            <label class="block text-xs font-medium text-gray-700 mb-1">납기일자</label>
-            <input 
-              v-model="waitingSearch.delivery_date"
+              v-model="waitingSearch.order_date"
               type="date"
               class="w-full px-2 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
@@ -168,10 +168,7 @@
                     @click="viewOrderDetails(order.order_id)"
                     class="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded hover:bg-gray-200 transition-colors"
                   >
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                      <circle cx="12" cy="12" r="3"></circle>
-                    </svg>
+                    상세
                   </button>
                 </td>
               </tr>
@@ -208,9 +205,9 @@
             />
           </div>
           <div>
-            <label class="block text-xs font-medium text-gray-700 mb-1">출고일자</label>
+            <label class="block text-xs font-medium text-gray-700 mb-1">요청일</label>
             <input 
-              v-model="processingSearch.outbound_date"
+              v-model="processingSearch.request_date"
               type="date"
               class="w-full px-2 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
@@ -251,6 +248,16 @@
               출고 진행 중: <span class="font-medium text-blue-600">{{ outboundProcessingList.length }}건</span>
             </div>
           </div>
+
+          <div class="flex gap-2">
+            <button 
+              @click="completeSelectedItems"
+              :disabled="!hasSelectedProcessingItems"
+              class="px-4 py-2 bg-green-600 text-white text-sm rounded hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              출고완료 ({{ selectedProcessingItemsCount }}건)
+            </button>
+          </div>
         </div>
 
         <!-- 출고 진행 중 목록 테이블 -->
@@ -258,11 +265,14 @@
           <table class="w-full text-xs border-collapse bg-white">
             <thead class="bg-gray-50 sticky top-0">
               <tr>
+                <th class="border border-gray-200 px-2 py-2 text-center font-medium text-gray-700 w-12">
+                  <input type="checkbox" v-model="selectAllProcessing" @change="toggleSelectAllProcessing" class="rounded" />
+                </th>
                 <th class="border border-gray-200 px-2 py-2 text-center font-medium text-gray-700 w-24">출고번호</th>
-                <th class="border border-gray-200 px-2 py-2 text-center font-medium text-gray-700 w-20">출고일자</th>
-                <th class="border border-gray-200 px-2 py-2 text-left font-medium text-gray-700 w-32">주문번호들</th>
+                <th class="border border-gray-200 px-2 py-2 text-center font-medium text-gray-700 w-20">주문번호</th>
+                <th class="border border-gray-200 px-2 py-2 text-left font-medium text-gray-700 w-32">제품정보</th>
                 <th class="border border-gray-200 px-2 py-2 text-left font-medium text-gray-700 w-24">거래처</th>
-                <th class="border border-gray-200 px-2 py-2 text-center font-medium text-gray-700 w-16">총 주문수</th>
+                <th class="border border-gray-200 px-2 py-2 text-center font-medium text-gray-700 w-20">요청일</th>
                 <th class="border border-gray-200 px-2 py-2 text-center font-medium text-gray-700 w-16">상태</th>
                 <th class="border border-gray-200 px-2 py-2 text-center font-medium text-gray-700 w-16">작업</th>
               </tr>
@@ -270,7 +280,7 @@
             <tbody>
               <!-- 로딩 상태 -->
               <tr v-if="isLoadingProcessing">
-                <td colspan="7" class="text-center text-gray-500 py-8">
+                <td colspan="8" class="text-center text-gray-500 py-8">
                   <div class="flex items-center justify-center gap-2">
                     <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
                     데이터를 불러오는 중...
@@ -280,50 +290,52 @@
               
               <!-- 데이터 없음 -->
               <tr v-else-if="outboundProcessingList.length === 0">
-                <td colspan="7" class="text-center text-gray-500 py-8">
+                <td colspan="8" class="text-center text-gray-500 py-8">
                   출고 진행 중인 항목이 없습니다.
                 </td>
               </tr>
               
               <!-- 데이터 행들 -->
-              <tr v-else v-for="(item, index) in outboundProcessingList" :key="item.outbound_id" 
+              <tr v-else v-for="(item, index) in outboundProcessingList" :key="item.outbound_code" 
                   class="hover:bg-gray-50">
+                <td class="border border-gray-200 px-2 py-2 text-center">
+                  <input type="checkbox" v-model="item.selected" class="rounded" />
+                </td>
                 <td class="border border-gray-200 px-2 py-2 text-center font-mono text-xs">
-                  {{ item.outbound_number }}
+                  {{ item.outbound_code }}
                 </td>
-                <td class="border border-gray-200 px-2 py-2 text-center">
-                  {{ item.outbound_date }}
-                </td>
-                <td class="border border-gray-200 px-2 py-2">
-                  {{ item.order_numbers }}
+                <td class="border border-gray-200 px-2 py-2 text-center font-mono text-xs">
+                  {{ item.order_number }}
                 </td>
                 <td class="border border-gray-200 px-2 py-2">
-                  {{ item.client_names }}
+                  {{ item.product_summary }}
+                </td>
+                <td class="border border-gray-200 px-2 py-2">
+                  {{ item.client_name }}
                 </td>
                 <td class="border border-gray-200 px-2 py-2 text-center">
-                  {{ item.total_orders }}건
+                  {{ item.request_date }}
                 </td>
                 <td class="border border-gray-200 px-2 py-2 text-center">
                   <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium text-blue-600 bg-blue-50">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <rect x="1" y="3" width="15" height="13"></rect>
-                      <polygon points="16,8 20,8 23,11 23,16 16,16 16,8"></polygon>
-                      <circle cx="5.5" cy="18.5" r="2.5"></circle>
-                      <circle cx="18.5" cy="18.5" r="2.5"></circle>
-                    </svg>
                     진행중
                   </span>
                 </td>
                 <td class="border border-gray-200 px-2 py-2 text-center">
-                  <button
-                    @click="completeOutbound(item.outbound_id)"
-                    class="px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition-colors"
-                  >
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                      <polyline points="22,4 12,14.01 9,11.01"></polyline>
-                    </svg>
-                  </button>
+                  <div class="flex gap-1">
+                    <button
+                      @click="viewOutboundDetails(item.outbound_code)"
+                      class="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded hover:bg-gray-200 transition-colors"
+                    >
+                      상세
+                    </button>
+                    <button
+                      @click="completeOutbound(item.outbound_code)"
+                      class="px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition-colors"
+                    >
+                      완료
+                    </button>
+                  </div>
                 </td>
               </tr>
             </tbody>
@@ -359,7 +371,7 @@
             />
           </div>
           <div>
-            <label class="block text-xs font-medium text-gray-700 mb-1">출고일자</label>
+            <label class="block text-xs font-medium text-gray-700 mb-1">출고일</label>
             <input 
               v-model="completedSearch.outbound_date"
               type="date"
@@ -410,18 +422,19 @@
             <thead class="bg-gray-50 sticky top-0">
               <tr>
                 <th class="border border-gray-200 px-2 py-2 text-center font-medium text-gray-700 w-24">출고번호</th>
-                <th class="border border-gray-200 px-2 py-2 text-center font-medium text-gray-700 w-20">출고일자</th>
-                <th class="border border-gray-200 px-2 py-2 text-center font-medium text-gray-700 w-20">완료일시</th>
-                <th class="border border-gray-200 px-2 py-2 text-left font-medium text-gray-700 w-32">주문번호들</th>
+                <th class="border border-gray-200 px-2 py-2 text-center font-medium text-gray-700 w-20">주문번호</th>
+                <th class="border border-gray-200 px-2 py-2 text-center font-medium text-gray-700 w-20">출고일</th>
+                <th class="border border-gray-200 px-2 py-2 text-left font-medium text-gray-700 w-32">제품정보</th>
                 <th class="border border-gray-200 px-2 py-2 text-left font-medium text-gray-700 w-24">거래처</th>
-                <th class="border border-gray-200 px-2 py-2 text-center font-medium text-gray-700 w-16">총 주문수</th>
+                <th class="border border-gray-200 px-2 py-2 text-center font-medium text-gray-700 w-20">요청일</th>
                 <th class="border border-gray-200 px-2 py-2 text-center font-medium text-gray-700 w-16">상태</th>
+                <th class="border border-gray-200 px-2 py-2 text-center font-medium text-gray-700 w-16">상세</th>
               </tr>
             </thead>
             <tbody>
               <!-- 로딩 상태 -->
               <tr v-if="isLoadingCompleted">
-                <td colspan="7" class="text-center text-gray-500 py-8">
+                <td colspan="8" class="text-center text-gray-500 py-8">
                   <div class="flex items-center justify-center gap-2">
                     <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
                     데이터를 불러오는 중...
@@ -431,40 +444,44 @@
               
               <!-- 데이터 없음 -->
               <tr v-else-if="outboundCompletedList.length === 0">
-                <td colspan="7" class="text-center text-gray-500 py-8">
+                <td colspan="8" class="text-center text-gray-500 py-8">
                   출고 완료된 항목이 없습니다.
                 </td>
               </tr>
               
               <!-- 데이터 행들 -->
-              <tr v-else v-for="(item, index) in outboundCompletedList" :key="item.outbound_id" 
+              <tr v-else v-for="(item, index) in outboundCompletedList" :key="item.outbound_code" 
                   class="hover:bg-gray-50">
                 <td class="border border-gray-200 px-2 py-2 text-center font-mono text-xs">
-                  {{ item.outbound_number }}
+                  {{ item.outbound_code }}
+                </td>
+                <td class="border border-gray-200 px-2 py-2 text-center font-mono text-xs">
+                  {{ item.order_number }}
                 </td>
                 <td class="border border-gray-200 px-2 py-2 text-center">
                   {{ item.outbound_date }}
                 </td>
-                <td class="border border-gray-200 px-2 py-2 text-center">
-                  {{ formatDate(item.completed_at) }}
+                <td class="border border-gray-200 px-2 py-2">
+                  {{ item.product_summary }}
                 </td>
                 <td class="border border-gray-200 px-2 py-2">
-                  {{ item.order_numbers }}
-                </td>
-                <td class="border border-gray-200 px-2 py-2">
-                  {{ item.client_names }}
+                  {{ item.client_name }}
                 </td>
                 <td class="border border-gray-200 px-2 py-2 text-center">
-                  {{ item.total_orders }}건
+                  {{ item.request_date }}
                 </td>
                 <td class="border border-gray-200 px-2 py-2 text-center">
                   <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium text-green-600 bg-green-50">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                      <polyline points="22,4 12,14.01 9,11.01"></polyline>
-                    </svg>
                     완료
                   </span>
+                </td>
+                <td class="border border-gray-200 px-2 py-2 text-center">
+                  <button
+                    @click="viewOutboundDetails(item.outbound_code)"
+                    class="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded hover:bg-gray-200 transition-colors"
+                  >
+                    상세
+                  </button>
                 </td>
               </tr>
             </tbody>
@@ -481,87 +498,21 @@
 
     </div>
 
-    <!-- 주문 상세보기 모달 -->
-    <div v-if="showModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[80vh] overflow-hidden">
-        <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-          <h3 class="text-lg font-semibold text-gray-900">
-            주문 상세 정보 - {{ modalData && modalData[0] ? modalData[0].order_number : '' }}
-          </h3>
-          <button
-            @click="closeModal"
-            class="text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18"></line>
-              <line x1="6" y1="6" x2="18" y2="18"></line>
-            </svg>
-          </button>
-        </div>
-        
-        <div class="p-6">
-          <div v-if="modalData && modalData.length > 0" class="grid grid-cols-2 gap-4 mb-6">
-            <div>
-              <label class="block text-sm font-medium text-gray-700">주문ID</label>
-              <p class="mt-1 text-sm text-gray-900">{{ modalData[0].order_id }}</p>
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700">거래처</label>
-              <p class="mt-1 text-sm text-gray-900">{{ modalData[0].client_name }}</p>
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700">주문일</label>
-              <p class="mt-1 text-sm text-gray-900">{{ modalData[0].order_date }}</p>
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700">납기일</label>
-              <p class="mt-1 text-sm text-gray-900">{{ modalData[0].delivery_date }}</p>
-            </div>
-          </div>
+    <!-- 모달 컴포넌트 -->
+    <OutboundDetailModal 
+      v-if="showModal"
+      :modalData="modalData"
+      :modalType="modalType"
+      @close="closeModal"
+    />
 
-          <div class="border-t pt-4">
-            <h4 class="text-md font-medium text-gray-900 mb-4">주문 제품 목록</h4>
-            <div class="overflow-x-auto">
-              <table class="w-full">
-                <thead class="bg-gray-50">
-                  <tr>
-                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">제품코드</th>
-                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">제품명</th>
-                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">수량</th>
-                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">규격</th>
-                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">단위</th>
-                  </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-200">
-                  <tr v-for="(detail, index) in modalData" :key="index">
-                    <td class="px-4 py-2 text-sm font-medium text-blue-600">{{ detail.product_code }}</td>
-                    <td class="px-4 py-2 text-sm text-gray-900">{{ detail.product_name }}</td>
-                    <td class="px-4 py-2 text-sm text-gray-900">{{ formatNumber(detail.quantity) }}</td>
-                    <td class="px-4 py-2 text-sm text-gray-900">{{ detail.spec }}</td>
-                    <td class="px-4 py-2 text-sm text-gray-900">{{ detail.unit }}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-        
-        <div class="px-6 py-4 border-t border-gray-200 flex justify-end">
-          <button
-            @click="closeModal"
-            class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors"
-          >
-            닫기
-          </button>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue'
 import axios from 'axios'
+import OutboundDetailModal from './OutboundDetailModal.vue'
 
 // 상태 관리
 const activeTab = ref('waiting')
@@ -576,15 +527,15 @@ const outboundCompletedList = ref([])
 
 // 검색 조건
 const waitingSearch = ref({
+  order_number: '',
   product_name: '',
-  product_code: '',
-  delivery_date: ''
+  order_date: ''
 })
 
 const processingSearch = ref({
   outbound_number: '',
   product_name: '',
-  outbound_date: ''
+  request_date: ''
 })
 
 const completedSearch = ref({
@@ -595,8 +546,10 @@ const completedSearch = ref({
 
 // 선택 관련
 const selectAll = ref(false)
+const selectAllProcessing = ref(false)
 const showModal = ref(false)
 const modalData = ref(null)
+const modalType = ref('order') // 'order' 또는 'outbound'
 
 // Computed 속성들
 const hasSelectedItems = computed(() => {
@@ -607,17 +560,13 @@ const selectedItemsCount = computed(() => {
   return outboundWaitingList.value.filter(item => item.selected).length
 })
 
-// 날짜 포맷팅 (완료일시를 날짜만 표시)
-const formatDate = (dateTimeString) => {
-  if (!dateTimeString) return '-'
-  return dateTimeString.split(' ')[0] // 'YYYY-MM-DD HH:mm:ss'에서 날짜 부분만 추출
-}
+const hasSelectedProcessingItems = computed(() => {
+  return outboundProcessingList.value.some(item => item.selected)
+})
 
-// 숫자 포맷팅
-const formatNumber = (value) => {
-  if (!value && value !== 0) return '-'
-  return new Intl.NumberFormat('ko-KR').format(value)
-}
+const selectedProcessingItemsCount = computed(() => {
+  return outboundProcessingList.value.filter(item => item.selected).length
+})
 
 // 전체 선택/해제
 const toggleSelectAll = () => {
@@ -626,12 +575,18 @@ const toggleSelectAll = () => {
   })
 }
 
+const toggleSelectAllProcessing = () => {
+  outboundProcessingList.value.forEach(item => {
+    item.selected = selectAllProcessing.value
+  })
+}
+
 // 검색 초기화
 const resetWaitingSearch = () => {
   waitingSearch.value = {
+    order_number: '',
     product_name: '',
-    product_code: '',
-    delivery_date: ''
+    order_date: ''
   }
   loadOutboundWaitingList()
 }
@@ -640,7 +595,7 @@ const resetProcessingSearch = () => {
   processingSearch.value = {
     outbound_number: '',
     product_name: '',
-    outbound_date: ''
+    request_date: ''
   }
   loadOutboundProcessingList()
 }
@@ -659,23 +614,16 @@ const loadOutboundWaitingList = async () => {
   isLoading.value = true
   
   try {
-    console.log('출고 대기 목록 조회 시작, 검색 조건:', waitingSearch.value)
-    
     const response = await axios.get('/productOutbound/waiting-list', {
       params: waitingSearch.value
     })
     
-    console.log('조회 결과:', response.data)
-    
-    // 각 항목에 선택 상태 추가
     outboundWaitingList.value = response.data.map(item => ({
       ...item,
-      selected: false,
-      isProcessing: false
+      selected: false
     }))
     
     selectAll.value = false
-    console.log(`출고 대기 목록 로드 완료: ${outboundWaitingList.value.length}건`)
     
   } catch (error) {
     console.error('출고 대기 목록 조회 오류:', error)
@@ -697,16 +645,16 @@ const loadOutboundProcessingList = async () => {
   isLoadingProcessing.value = true
   
   try {
-    console.log('출고 진행 중 목록 조회 시작, 검색 조건:', processingSearch.value)
-    
     const response = await axios.get('/productOutbound/processing-list', {
       params: processingSearch.value
     })
     
-    console.log('조회 결과:', response.data)
+    outboundProcessingList.value = response.data.map(item => ({
+      ...item,
+      selected: false
+    }))
     
-    outboundProcessingList.value = response.data
-    console.log(`출고 진행 중 목록 로드 완료: ${outboundProcessingList.value.length}건`)
+    selectAllProcessing.value = false
     
   } catch (error) {
     console.error('출고 진행 중 목록 조회 오류:', error)
@@ -728,16 +676,11 @@ const loadOutboundCompletedList = async () => {
   isLoadingCompleted.value = true
   
   try {
-    console.log('출고 완료 목록 조회 시작, 검색 조건:', completedSearch.value)
-    
     const response = await axios.get('/productOutbound/completed-list', {
       params: completedSearch.value
     })
     
-    console.log('조회 결과:', response.data)
-    
     outboundCompletedList.value = response.data
-    console.log(`출고 완료 목록 로드 완료: ${outboundCompletedList.value.length}건`)
     
   } catch (error) {
     console.error('출고 완료 목록 조회 오류:', error)
@@ -754,22 +697,40 @@ const loadOutboundCompletedList = async () => {
   }
 }
 
-// 주문 상세 정보 조회
+// 주문 상세 정보 조회 (출고 대기용)
 const viewOrderDetails = async (orderId) => {
   try {
-    console.log(`주문 상세 정보 조회 - order_id: ${orderId}`)
-    
     const response = await axios.get(`/productOutbound/order-details/${orderId}`)
     
-    console.log('주문 상세 조회 결과:', response.data)
-    
     modalData.value = response.data
+    modalType.value = 'order'
     showModal.value = true
     
   } catch (error) {
     console.error('주문 상세 정보 조회 오류:', error)
     
     let errorMessage = '주문 상세 정보 조회에 실패했습니다.'
+    if (error.response?.data?.error) {
+      errorMessage = error.response.data.error
+    }
+    
+    alert(errorMessage)
+  }
+}
+
+// 출고 상세 정보 조회 (진행중/완료용)
+const viewOutboundDetails = async (outboundCode) => {
+  try {
+    const response = await axios.get(`/productOutbound/outbound-details/${outboundCode}`)
+    
+    modalData.value = response.data
+    modalType.value = 'outbound'
+    showModal.value = true
+    
+  } catch (error) {
+    console.error('출고 상세 정보 조회 오류:', error)
+    
+    let errorMessage = '출고 상세 정보 조회에 실패했습니다.'
     if (error.response?.data?.error) {
       errorMessage = error.response.data.error
     }
@@ -791,13 +752,6 @@ const processSelectedItems = async () => {
   if (!confirmed) return
 
   try {
-    console.log('다중 주문 출고 처리 시작:', selectedItems)
-    
-    // 선택된 아이템들을 처리 중 상태로 변경
-    selectedItems.forEach(item => {
-      item.isProcessing = true
-    })
-
     const orderIds = selectedItems.map(item => item.order_id)
 
     // 재고 부족 체크
@@ -816,26 +770,30 @@ const processSelectedItems = async () => {
     // 출고 처리
     const outboundData = {
       order_ids: orderIds,
-      outbound_date: new Date().toISOString().split('T')[0],
       employee_id: 1, // 실제로는 로그인한 사용자 ID 사용
       notes: ''
     }
 
     const response = await axios.post('/productOutbound/process', outboundData)
     
-    console.log('출고 처리 완료:', response.data)
+    const successCount = response.data.success_count
+    const errorCount = response.data.error_count
     
-    alert(`출고 처리가 완료되었습니다.\n출고번호: ${response.data.outbound_number}`)
+    if (errorCount > 0) {
+      alert(`처리 완료: 성공 ${successCount}건, 실패 ${errorCount}건\n실패한 건들은 재고 부족이거나 처리 오류입니다.`)
+    } else {
+      alert(`${successCount}건의 출고 처리가 완료되었습니다.`)
+    }
     
     // 성공한 주문들을 목록에서 제거
-    orderIds.forEach(orderId => {
-      const index = outboundWaitingList.value.findIndex(item => item.order_id === orderId)
-      if (index > -1) {
-        outboundWaitingList.value.splice(index, 1)
-      }
-    })
+    const successOrderIds = response.data.results
+      .filter(result => result.success)
+      .map(result => result.order_id)
     
-    // 전체 선택 해제
+    outboundWaitingList.value = outboundWaitingList.value.filter(
+      item => !successOrderIds.includes(item.order_id)
+    )
+    
     selectAll.value = false
     
     // 진행 중 목록 새로고침
@@ -852,31 +810,65 @@ const processSelectedItems = async () => {
     }
     
     alert(errorMessage)
-    
-  } finally {
-    // 처리 중 상태 해제
-    selectedItems.forEach(item => {
-      item.isProcessing = false
-    })
   }
 }
 
-// 출고 완료 처리
-const completeOutbound = async (outboundId) => {
+// 선택된 출고들 완료 처리
+const completeSelectedItems = async () => {
+  const selectedItems = outboundProcessingList.value.filter(item => item.selected)
+  
+  if (selectedItems.length === 0) {
+    alert('완료 처리할 출고를 선택해주세요.')
+    return
+  }
+
+  const confirmed = confirm(`선택된 ${selectedItems.length}건의 출고를 완료 처리하시겠습니까?`)
+  if (!confirmed) return
+
   try {
-    console.log(`출고 완료 처리 - outbound_id: ${outboundId}`)
+    const outboundCodes = selectedItems.map(item => item.outbound_code)
+
+    const response = await axios.put('/productOutbound/complete-multiple', {
+      outbound_codes: outboundCodes
+    })
     
-    const response = await axios.put(`/productOutbound/complete/${outboundId}`)
+    alert(`${response.data.affected_rows}건의 출고가 완료되었습니다.`)
     
-    console.log('출고 완료 처리 성공:', response.data)
+    // 완료된 출고들을 목록에서 제거
+    outboundProcessingList.value = outboundProcessingList.value.filter(
+      item => !outboundCodes.includes(item.outbound_code)
+    )
+    
+    selectAllProcessing.value = false
+    
+    // 완료 목록 새로고침
+    if (activeTab.value === 'completed') {
+      loadOutboundCompletedList()
+    }
+    
+  } catch (error) {
+    console.error('다중 출고 완료 처리 오류:', error)
+    
+    let errorMessage = '출고 완료 처리 중 오류가 발생했습니다.'
+    if (error.response?.data?.error) {
+      errorMessage = error.response.data.error
+    }
+    
+    alert(errorMessage)
+  }
+}
+
+// 단일 출고 완료 처리
+const completeOutbound = async (outboundCode) => {
+  try {
+    const response = await axios.put(`/productOutbound/complete/${outboundCode}`)
     
     alert('출고 완료 처리되었습니다.')
     
     // 진행 중 목록에서 제거
-    const index = outboundProcessingList.value.findIndex(item => item.outbound_id === outboundId)
-    if (index > -1) {
-      outboundProcessingList.value.splice(index, 1)
-    }
+    outboundProcessingList.value = outboundProcessingList.value.filter(
+      item => item.outbound_code !== outboundCode
+    )
     
     // 완료 목록 새로고침
     if (activeTab.value === 'completed') {
@@ -899,6 +891,7 @@ const completeOutbound = async (outboundId) => {
 const closeModal = () => {
   showModal.value = false
   modalData.value = null
+  modalType.value = 'order'
 }
 
 // 탭 변경 시 데이터 로드
@@ -914,7 +907,6 @@ const handleTabChange = () => {
 
 // 컴포넌트 마운트 시 데이터 로드
 onMounted(() => {
-  console.log('제품 출고 관리 컴포넌트 마운트')
   loadOutboundWaitingList()
 })
 

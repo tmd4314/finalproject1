@@ -35,27 +35,6 @@ router.get('/equipment', async (req, res) => {
 });
 
 
-router.post('/prodResult', async (req, res) => {
-  try {
-    const { master, products } = req.body;
-    
-    if (!master) {
-      return res.status(400).json({ 
-        error: '마스터 정보가 필요합니다.' 
-      });
-    }
-    const result = await prodResultService.saveWorkResult({
-      master,
-      products: products || []
-    });
-    
-    res.status(201).json(result);
-  } catch (err) {
-    console.error('작업실적 저장 오류:', err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
 router.post('/prodResultDetail', async (req, res) => {
   try {
     const detailInfo = req.body;
@@ -66,6 +45,29 @@ router.post('/prodResultDetail', async (req, res) => {
     res.status(500).send({ isSuccessed: false, message: '서버 오류' });
   }
 });
+
+router.put('/prodResultDetail/:result_detail', async (req, res) => {
+  try {
+    const resultDetail = req.params.result_detail;
+    const Item = req.body
+    const result = await prodResultService.updateDetail(resultDetail, Item);
+    res.send(result)
+  } catch(err) {
+    console.error('작업시작 실패: ', err);
+    res.status(500).send({ isSuccessed: false, message: '서버 오류'});
+  }
+})
+
+router.put('/workResultStatus/:result_id', async (req, res) => {
+  try {
+    const resultId = req.params.result_id;
+    const result = await prodResultService.updateStatus(resultId);
+    res.send(result)
+  } catch(err) {
+    console.error('작업시작 실패: ', err);
+    res.status(500).send({ isSuccessed: false, message: '서버 오류'});
+  }
+})
 
 //작업 실적 끝내기 주입
 router.put('/prodEnd/:result_id', async (req, res) => {
