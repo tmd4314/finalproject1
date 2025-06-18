@@ -3,7 +3,7 @@ const express = require('express');
 const router = express.Router();
 const lineService = require('../services/lineService.js');
 
-// 🔥 로그인 사원 정보 추출 미들웨어
+// 로그인 사원 정보 추출 미들웨어
 const extractEmployeeInfo = (req, res, next) => {
   try {
     // 세션 방식
@@ -43,7 +43,7 @@ const extractEmployeeInfo = (req, res, next) => {
       console.warn('⚠️ 로그인 정보 없음 - 개발용 기본값 사용');
       req.currentEmployee = {
         employee_id: 2,
-        employee_name: '관리자'
+        employee_name: '김홍인'
       };
     }
     
@@ -60,7 +60,7 @@ const extractEmployeeInfo = (req, res, next) => {
 
 // ========== GET 라우터들 (구체적인 경로 먼저) ==========
 
-// 전체 라인 목록 조회 (통합: 마스터 + 최신 상태 + 작업결과)
+// 전체 라인 목록 조회 (통합: 마스터 + 최신 상태 + 제품정보)
 router.get('/list', async (req, res) => {
   try {
     console.log('📋 라인 목록 조회 API 호출');
@@ -107,44 +107,44 @@ router.get('/available-ids', async (req, res) => {
   }
 });
 
-// 🔥 사용 가능한 작업 결과 목록 조회 API (라인별 격리 적용)
-router.get('/available-work-results', async (req, res) => {
+// 🔥 사용 가능한 제품코드 목록 조회 API (작업결과 대신)
+router.get('/available-products', async (req, res) => {
   try {
-    console.log('📋 사용 가능한 작업 결과 조회 API 호출');
+    console.log('📋 사용 가능한 제품코드 조회 API 호출');
     
-    // 🔥 쿼리 파라미터로 라인 코드 받기
+    // 쿼리 파라미터로 라인 코드 받기
     const lineCode = req.query.lineCode;
     
     if (lineCode) {
-      console.log(`🔄 ${lineCode}라인 전용 작업 결과 조회`);
+      console.log(`🔄 ${lineCode}라인 전용 제품코드 조회`);
     } else {
-      console.log('🔄 전체 작업 결과 조회 (관리자 모드)');
+      console.log('🔄 전체 제품코드 조회 (관리자 모드)');
     }
     
-    const workResults = await lineService.getAvailableWorkResults(lineCode);
+    const products = await lineService.getAvailableProducts(lineCode);
     
     res.json({
       success: true,
-      data: workResults,
-      total: workResults.length,
+      data: products,
+      total: products.length,
       lineCode: lineCode || null,
       message: lineCode ? 
-        `${lineCode}라인 작업 결과 조회 성공` : 
-        '전체 작업 결과 조회 성공'
+        `${lineCode}라인 제품코드 조회 성공` : 
+        '전체 제품코드 조회 성공'
     });
     
   } catch (err) {
-    console.error('❌ 사용 가능한 작업 결과 조회 실패:', err);
+    console.error('❌ 사용 가능한 제품코드 조회 실패:', err);
     res.status(500).json({
       success: false,
       data: [],
-      message: '작업 결과를 조회할 수 없습니다.',
+      message: '제품코드를 조회할 수 없습니다.',
       error: err.message
     });
   }
 });
 
-// 🔥 사용 가능한 담당자 목록 조회 API
+// 사용 가능한 담당자 목록 조회 API
 router.get('/available-employees', async (req, res) => {
   try {
     console.log('👥 사용 가능한 담당자 목록 조회 API 호출');
@@ -168,12 +168,12 @@ router.get('/available-employees', async (req, res) => {
   }
 });
 
-// 🔥 사용 가능한 설비명 목록 조회 API (설비명 중복 방지)
+// 사용 가능한 설비명 목록 조회 API (설비명 중복 방지)
 router.get('/available-equipments', async (req, res) => {
   try {
     console.log('🔧 사용 가능한 설비명 목록 조회 API 호출');
     
-    // 🔥 쿼리 파라미터로 제외할 라인 ID 받기 (라인 수정 시 사용)
+    // 쿼리 파라미터로 제외할 라인 ID 받기 (라인 수정 시 사용)
     const excludeLineId = req.query.excludeLineId;
     
     if (excludeLineId) {
@@ -201,26 +201,26 @@ router.get('/available-equipments', async (req, res) => {
   }
 });
 
-// 🔥 작업번호 사용 현황 조회 API (새로 추가)
-router.get('/work-order-usage', async (req, res) => {
+// 🔥 제품코드 사용 현황 조회 API (새로 추가)
+router.get('/product-code-usage', async (req, res) => {
   try {
-    console.log('📊 작업번호 사용 현황 조회 API 호출');
+    console.log('📊 제품코드 사용 현황 조회 API 호출');
     
-    const usageStats = await lineService.getWorkOrderUsageStats();
+    const usageStats = await lineService.getProductCodeUsageStats();
     
     res.json({
       success: true,
       data: usageStats,
       total: usageStats.length,
-      message: '작업번호 사용 현황 조회 성공'
+      message: '제품코드 사용 현황 조회 성공'
     });
     
   } catch (err) {
-    console.error('❌ 작업번호 사용 현황 조회 실패:', err);
+    console.error('❌ 제품코드 사용 현황 조회 실패:', err);
     res.status(500).json({
       success: false,
       data: [],
-      message: '작업번호 사용 현황을 조회할 수 없습니다.',
+      message: '제품코드 사용 현황을 조회할 수 없습니다.',
       error: err.message
     });
   }
@@ -248,32 +248,57 @@ router.get('/stats/status', async (req, res) => {
   }
 });
 
-// 🔥 특정 작업 결과 상세 조회 API (사용현황 포함)
-router.get('/work-result/:workOrderNo', async (req, res) => {
+// 🔥 특정 제품코드 상세 조회 API (사용현황 포함)
+router.get('/product/:productCode', async (req, res) => {
   try {
-    const { workOrderNo } = req.params;
-    console.log('🔍 작업 결과 상세 조회 API 호출:', workOrderNo);
+    const { productCode } = req.params;
+    console.log('🔍 제품코드 상세 조회 API 호출:', productCode);
     
-    const workResult = await lineService.getWorkResultDetail(workOrderNo);
+    const product = await lineService.getProductDetail(productCode);
     
-    if (!workResult) {
+    if (!product) {
       return res.status(404).json({
         success: false,
-        message: '작업 결과를 찾을 수 없습니다.'
+        message: '제품코드를 찾을 수 없습니다.'
       });
     }
     
     res.json({
       success: true,
-      data: workResult,
-      message: '작업 결과 상세 조회 성공'
+      data: product,
+      message: '제품코드 상세 조회 성공'
     });
     
   } catch (err) {
-    console.error('❌ 작업 결과 상세 조회 실패:', err);
+    console.error('❌ 제품코드 상세 조회 실패:', err);
     res.status(500).json({
       success: false,
-      message: '작업 결과 상세 정보를 불러올 수 없습니다.',
+      message: '제품코드 상세 정보를 불러올 수 없습니다.',
+      error: err.message
+    });
+  }
+});
+
+// 🔥 공정흐름도 기반 작업 시작 API (새로 추가)
+router.get('/process-flow/:productCode', async (req, res) => {
+  try {
+    const { productCode } = req.params;
+    console.log('🔄 공정흐름도 조회 API 호출:', productCode);
+    
+    const processFlow = await lineService.getProcessFlowByProduct(productCode);
+    
+    res.json({
+      success: true,
+      data: processFlow,
+      message: '공정흐름도 조회 성공'
+    });
+    
+  } catch (err) {
+    console.error('❌ 공정흐름도 조회 실패:', err);
+    res.status(500).json({
+      success: false,
+      data: [],
+      message: '공정흐름도를 조회할 수 없습니다.',
       error: err.message
     });
   }
@@ -347,13 +372,13 @@ router.get('/line/:line_id', async (req, res) => {
   }
 });
 
-// 🔥 라인 상세 조회 (동적 경로는 마지막에 배치)
+// 라인 상세 조회 (동적 경로는 마지막에 배치)
 router.get('/:lineId', async (req, res) => {
   try {
     const { lineId } = req.params;
     console.log('🔍 라인 상세 조회 API 호출:', lineId);
     
-    // 🔥 A-INNER, A-OUTER 형식의 ID 처리
+    // A-INNER, A-OUTER 형식의 ID 처리
     let actualLineId = lineId;
     if (lineId.includes('-')) {
       // "A-INNER" -> "A"로 변환
@@ -388,14 +413,14 @@ router.get('/:lineId', async (req, res) => {
 
 // ========== POST 라우터들 ==========
 
-// 🔥 라인 등록 (로그인 사원 정보 추가)
+// 라인 등록 (제품코드 기반)
 router.post('/', extractEmployeeInfo, async (req, res) => {
   try {
     console.log('➕ 라인 등록 API 호출');
     console.log('요청 데이터:', req.body);
     console.log('현재 사원:', req.currentEmployee);
     
-    // 🔥 로그인 사원 정보를 요청 데이터에 추가
+    // 로그인 사원 정보를 요청 데이터에 추가
     const requestData = {
       ...req.body,
       employee_id: req.currentEmployee.employee_id,
@@ -429,14 +454,14 @@ router.post('/', extractEmployeeInfo, async (req, res) => {
   }
 });
 
-// 🔥 내포장/외포장 동시 등록 API (로그인 사원 정보 추가)
+// 🔥 내포장/외포장 동시 등록 API (제품코드 기반)
 router.post('/dual', extractEmployeeInfo, async (req, res) => {
   try {
     console.log('➕ 내포장/외포장 동시 등록 API 호출');
     console.log('요청 데이터:', req.body);
     console.log('현재 사원:', req.currentEmployee);
     
-    // 🔥 로그인 사원 정보를 요청 데이터에 추가
+    // 로그인 사원 정보를 요청 데이터에 추가
     const requestData = {
       ...req.body,
       employee_id: req.currentEmployee.employee_id,
@@ -470,20 +495,20 @@ router.post('/dual', extractEmployeeInfo, async (req, res) => {
   }
 });
 
-// 🔥 작업번호 할당 검증 API (새로 추가)
-router.post('/validate-work-order', async (req, res) => {
+// 🔥 제품코드 할당 검증 API (새로 추가)
+router.post('/validate-product-code', async (req, res) => {
   try {
-    const { workOrderNo, lineCode } = req.body;
-    console.log('🔍 작업번호 할당 검증 API 호출:', workOrderNo, '→', lineCode);
+    const { productCode, lineCode } = req.body;
+    console.log('🔍 제품코드 할당 검증 API 호출:', productCode, '→', lineCode);
     
-    if (!workOrderNo || !lineCode) {
+    if (!productCode || !lineCode) {
       return res.status(400).json({
         success: false,
-        message: '작업번호와 라인 코드를 입력해주세요.'
+        message: '제품코드와 라인 코드를 입력해주세요.'
       });
     }
     
-    const validation = await lineService.validateWorkOrderAssignment(workOrderNo, lineCode);
+    const validation = await lineService.validateProductCodeAssignment(productCode, lineCode);
     
     res.json({
       success: true,
@@ -492,10 +517,47 @@ router.post('/validate-work-order', async (req, res) => {
     });
     
   } catch (err) {
-    console.error('❌ 작업번호 할당 검증 실패:', err);
+    console.error('❌ 제품코드 할당 검증 실패:', err);
     res.status(500).json({
       success: false,
-      message: '작업번호 할당 검증에 실패했습니다.',
+      message: '제품코드 할당 검증에 실패했습니다.',
+      error: err.message
+    });
+  }
+});
+
+// 🔥 라인 작업 시작 API (공정흐름도 기반)
+router.post('/start-work', extractEmployeeInfo, async (req, res) => {
+  try {
+    const { lineId, productCode } = req.body;
+    console.log('🚀 라인 작업 시작 API 호출:', lineId, '→', productCode);
+    
+    if (!lineId || !productCode) {
+      return res.status(400).json({
+        success: false,
+        message: '라인 ID와 제품코드를 입력해주세요.'
+      });
+    }
+    
+    // 1) 제품코드의 공정흐름도 정보 가져오기
+    // 2) 내포장 공정 처리
+    // 3) 해당 제품코드의 공정흐름도 정보 가져오기
+    // 4) 작업실적테이블에서 진행중인 실적 가져오기
+    // 5) 작업실적상세테이블에서 작업번호 가져오기
+    
+    const result = await lineService.startLineWork(lineId, productCode, req.currentEmployee);
+    
+    res.json({
+      success: true,
+      data: result,
+      message: '라인 작업이 시작되었습니다.'
+    });
+    
+  } catch (err) {
+    console.error('❌ 라인 작업 시작 실패:', err);
+    res.status(500).json({
+      success: false,
+      message: '라인 작업 시작에 실패했습니다.',
       error: err.message
     });
   }
@@ -567,7 +629,7 @@ router.put('/line/:line_id', async (req, res) => {
   }
 });
 
-// 🔥 라인 수정 (동적 경로는 마지막에)
+// 라인 수정 (제품코드 기반, 동적 경로는 마지막에)
 router.put('/:lineId', extractEmployeeInfo, async (req, res) => {
   try {
     const { lineId } = req.params;
@@ -575,7 +637,7 @@ router.put('/:lineId', extractEmployeeInfo, async (req, res) => {
     console.log('수정 데이터:', req.body);
     console.log('현재 사원:', req.currentEmployee);
     
-    // 🔥 A-INNER, A-OUTER 형식의 ID 처리
+    // A-INNER, A-OUTER 형식의 ID 처리
     let actualLineId = lineId;
     if (lineId.includes('-')) {
       // "A-INNER" -> "A"로 변환
@@ -583,7 +645,7 @@ router.put('/:lineId', extractEmployeeInfo, async (req, res) => {
       console.log('🔄 라인 ID 변환:', lineId, '->', actualLineId);
     }
     
-    // 🔥 로그인 사원 정보를 요청 데이터에 추가
+    // 로그인 사원 정보를 요청 데이터에 추가
     const requestData = {
       ...req.body,
       employee_id: req.currentEmployee.employee_id,
@@ -631,7 +693,7 @@ router.delete('/bulk/delete', async (req, res) => {
       });
     }
     
-    // 🔥 A-INNER, A-OUTER 형식의 ID들을 실제 라인 코드로 변환
+    // A-INNER, A-OUTER 형식의 ID들을 실제 라인 코드로 변환
     const actualLineIds = lineIds.map(lineId => {
       if (lineId.includes('-')) {
         return lineId.split('-')[0]; // "A-INNER" -> "A"
@@ -639,7 +701,7 @@ router.delete('/bulk/delete', async (req, res) => {
       return lineId;
     });
     
-    // 🔥 중복 제거 (A-INNER, A-OUTER -> A 하나만)
+    // 중복 제거 (A-INNER, A-OUTER -> A 하나만)
     const uniqueLineIds = [...new Set(actualLineIds)];
     console.log('🔄 변환된 라인 ID들:', lineIds, '->', uniqueLineIds);
     
@@ -699,7 +761,7 @@ router.delete('/:lineId', async (req, res) => {
     const { lineId } = req.params;
     console.log('🗑️ 라인 삭제 API 호출:', lineId);
     
-    // 🔥 A-INNER, A-OUTER 형식의 ID 처리
+    // A-INNER, A-OUTER 형식의 ID 처리
     let actualLineId = lineId;
     if (lineId.includes('-')) {
       // "A-INNER" -> "A"로 변환
