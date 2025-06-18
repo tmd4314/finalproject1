@@ -21,7 +21,8 @@ SELECT DISTINCT
     i.insp_unit,
     i.insp_quantita_min,
     i.insp_quantita_max,
-    i.insp_remark
+    i.insp_remark,
+    wd.work_order_qty
 FROM work_order_master wm
 JOIN work_order_detail wd ON wm.work_order_no = wd.work_order_no
 JOIN product p ON wd.product_code = p.product_code

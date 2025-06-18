@@ -31,14 +31,31 @@
             class="quarter-width"
             readonly
           />
-        </div>
 
+        </div>
         <div class="input-row">
           <va-select
             v-model="form.inspName"
             :options="inspNameOptions"
             label="검사항목명"
             class="quarter-width"
+          />
+          <va-input
+            v-model="form.orderQty"
+            label="투입량"
+            class="quarter-width"
+            readonly
+          />
+          <va-input
+            v-model="form.orderAccepQty"
+            label="합격수량"
+            class="quarter-width"
+          />
+          <va-input
+            v-model="form.defectQty"
+            label="불량수량"
+            class="quarter-width"
+            readonly
           />
         </div>
       </div>
@@ -106,7 +123,7 @@
   </template>
 
   <script lang="ts" setup>
-  import { ref, computed, onMounted } from 'vue'
+  import { ref, computed, onMounted, watch } from 'vue'
   import axios from 'axios'
 
   // form 상태
@@ -114,7 +131,10 @@
     workNum: '',
     productName: '',
     managerId: '',
-    inspName: ''
+    inspName: '',
+    orderQty: '',
+    defectQty: '',
+    orderAccepQty: ''
   })
 
   // 옵션 리스트들
@@ -169,6 +189,7 @@
       inspNameOptions.value = []
       inspectionDetails.value = []
       form.value.inspName = ''
+      form.value.orderQty = ''
       return
     }
     try {
@@ -179,6 +200,7 @@
         const data = res.data[0]
         form.value.productName = data.product_name
         form.value.managerId = data.manager_id || ''
+        form.value.orderQty = data.work_order_qty || ''
 
         // insp_name 중복 제거
         const uniqueInspNames = Array.from(
@@ -198,6 +220,7 @@
       } else {
         form.value.productName = ''
         form.value.managerId = ''
+        form.value.orderQty = ''
         inspNameOptions.value = []
         inspectionDetails.value = []
         form.value.inspName = ''
@@ -206,6 +229,7 @@
       console.error('상세정보 조회 실패:', err)
       form.value.productName = ''
       form.value.managerId = ''
+      form.value.orderQty = ''
       inspNameOptions.value = []
       inspectionDetails.value = []
       form.value.inspName = ''
@@ -224,6 +248,23 @@
     item.judgement = ''
   }
 }
+
+
+watch(
+  () => form.value.orderAccepQty,
+  (newVal) => {
+    const orderQty = parseInt(form.value.orderQty)
+    const accepQty = parseInt(newVal)
+
+    if (!isNaN(orderQty) && !isNaN(accepQty)) {
+      const defect = orderQty - accepQty
+      form.value.defectQty = defect >= 0 ? defect.toString() : '0'
+    } else {
+      form.value.defectQty = ''
+    }
+  }
+)
+
   </script>
 
 <style scoped>
