@@ -10,7 +10,6 @@ const selectInspectionList =
           insp_unit,
           insp_quantita_min,
           insp_quantita_max,
-          insp_range,
           insp_remark
 FROM      inspection_item
 ORDER BY insp_code`
@@ -36,9 +35,8 @@ const insertInspection =
   insp_unit,
   insp_quantita_min,
   insp_quantita_max,
-  insp_range,
   insp_remark
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 `
 ;
 

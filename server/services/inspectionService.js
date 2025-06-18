@@ -25,7 +25,6 @@ const insertOne = async (data) => {
     data.insp_unit,
     data.insp_quantita_min,
     data.insp_quantita_max,
-    data.insp_range,
     data.insp_remark
   ];
   console.log("쿼리 파라미터:", params);

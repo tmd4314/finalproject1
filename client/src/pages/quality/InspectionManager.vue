@@ -69,13 +69,6 @@
           type="number"
           :disabled="!isQuantitative"
         />
-        <va-select
-          v-model="form.inspRange"
-          :options="['±', '≤']"
-          label="기준값범위"
-          class="quarter-width"
-          :disabled="!isQuantitative"
-        />
       </div>
       <div class="input-row">
         <div class="form-buttons">
@@ -127,7 +120,6 @@ interface InspectionItem {
   insp_unit: string;
   insp_quantita_min: number;
   insp_quantita_max: number;
-  insp_range: string;
   insp_judgment: string;
   insp_remark: string;
   checked?: boolean;
@@ -145,7 +137,7 @@ const processOptions = [
 ]
 
 const form = ref({
-  productCode: '',  // 문자열로 수정 (value만 바인딩)
+  productCode: '',
   prodName: '',
   inspCode: '',
   inspName: '',
@@ -156,7 +148,6 @@ const form = ref({
   inspUnit: '',
   inspQuantitaMin: 0,
   inspQuantitaMax: 0,
-  inspRange: '',
   inspJudgment: '',
   inspRemark: '',
   supplementary: ''
@@ -175,7 +166,6 @@ const resetForm = () => {
     inspUnit: '',
     inspQuantitaMin: 0,
     inspQuantitaMax: 0,
-    inspRange: '',
     inspJudgment: '',
     inspRemark: '',
     supplementary: ''
@@ -226,7 +216,6 @@ const submitForm = async () => {
       insp_unit: isQuantitative.value ? form.value.inspUnit : null,
       insp_quantita_min: isQuantitative.value ? form.value.inspQuantitaMin : null,
       insp_quantita_max: isQuantitative.value ? form.value.inspQuantitaMax : null,
-      insp_range: isQuantitative.value ? form.value.inspRange : '',
       insp_remark: form.value.supplementary
     }
 
@@ -252,6 +241,7 @@ onMounted(() => {
   })
 })
 </script>
+
 
 <style scoped>
 /* 전체 레이아웃 */
