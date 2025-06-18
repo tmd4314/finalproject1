@@ -109,7 +109,112 @@ const addOrderTransaction = async (orderData) => {
     }
 }
 
+// [주문 수정]
+const updateOrder = async (orderId, orderData) => {
+    try {
+        // 1. 주문 마스터 수정
+        let updateMasterResult = await mariadb.query("updateOrderMaster", [
+            orderData.account_id,
+            orderData.order_date,
+            orderData.delivery_date,
+            orderData.status,
+            orderData.created_by,
+            orderId
+        ]).catch(err => {
+            console.error("주문 마스터 수정 실패:", err);
+            throw err;
+        });
 
+        if (!updateMasterResult || updateMasterResult.affectedRows === 0) {
+            throw new Error('주문 마스터 수정 실패');
+        }
+
+        // 2. 기존 주문 상세 삭제
+        await mariadb.query("deleteOrderDetailsByOrderId", [orderId])
+            .catch(err => {
+                console.error("주문 상세 삭제 실패:", err);
+                throw err;
+            });
+
+        // 3. 새로운 주문 상세 등록
+        for (const product of orderData.products) {
+            let detailColumns = [
+                'order_id',
+                'product_code',
+                'order_qty',
+                'order_price',
+                'progress_status',
+                'delivery_qty',
+                'remain_qty',
+                'remarks',
+                'reg_date'
+            ];
+
+            let detailData = convertObjToAry({
+                order_id: orderId,
+                product_code: product.product_code,
+                order_qty: product.order_qty,
+                order_price: product.order_price,
+                progress_status: '대기',
+                delivery_qty: 0,
+                remain_qty: product.order_qty,
+                remarks: '',
+                reg_date: new Date()
+            }, detailColumns);
+
+            let resDetail = await mariadb.query("insertOrderDetail", detailData)
+                .catch(err => {
+                    console.error("주문 상세 등록 실패:", err);
+                    throw err;
+                });
+
+            if (!resDetail || resDetail.affectedRows === 0) {
+                throw new Error('주문 상세 등록 실패');
+            }
+        }
+
+        return {
+            success: true,
+            message: '주문이 수정되었습니다.'
+        };
+
+    } catch (error) {
+        console.error('주문 수정 트랜잭션 실패:', error);
+        throw error;
+    }
+};
+
+// [주문 삭제]
+const deleteOrder = async (orderId) => {
+    try {
+        // 1. 주문 상세 먼저 삭제 (외래키 제약)
+        await mariadb.query("deleteOrderDetailsByOrderId", [orderId])
+            .catch(err => {
+                console.error("주문 상세 삭제 실패:", err);
+                throw err;
+            });
+
+        // 2. 주문 마스터 삭제
+        const deleteResult = await mariadb.query("deleteOrderMaster", [orderId])
+            .catch(err => {
+                console.error("주문 마스터 삭제 실패:", err);
+                throw err;
+            });
+
+        if (!deleteResult || deleteResult.affectedRows === 0) {
+            throw new Error('주문 삭제 실패');
+        }
+
+        return {
+            success: true,
+            message: '주문이 삭제되었습니다.'
+        };
+
+    } catch (error) {
+        console.error('주문 삭제 실패:', error);
+        throw error;
+    }
+};
 
 
 module.exports = {
@@ -117,5 +222,6 @@ module.exports = {
     findOrderDetail,
     findAllOrdersWithItems,
     addOrderTransaction,
-
+    updateOrder,
+    deleteOrder
 };

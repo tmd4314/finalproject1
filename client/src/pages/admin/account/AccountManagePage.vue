@@ -44,8 +44,8 @@
         </div>
       </div>
 
-      <!-- 액션 버튼 -->
-      <div class="action-buttons">
+      <!-- 액션 버튼 (영업 권한만) -->
+      <div class="action-buttons" v-if="canManageSales">
         <va-button 
           preset="secondary" 
           icon="delete_outline"
@@ -63,12 +63,20 @@
         </va-button>
       </div>
 
+      <!-- 권한 없는 사용자를 위한 메시지 -->
+      <div v-else class="permission-notice">
+        <va-alert color="info" icon="info">
+          조회 전용 모드입니다. 거래처 관리는 영업부서 권한이 필요합니다.
+        </va-alert>
+      </div>
+
       <!-- 거래처 목록 테이블 -->
       <div class="table-container">
         <table class="account-table">
           <thead>
             <tr>
-              <th width="40">
+              <!-- 체크박스는 영업 권한이 있을 때만 -->
+              <th width="40" v-if="canManageSales">
                 <va-checkbox v-model="selectAll" @update:model-value="handleSelectAll" />
               </th>
               <th width="60">번호</th>
@@ -83,11 +91,14 @@
             <tr 
               v-for="(account, index) in paginatedAccounts" 
               :key="account.account_id"
-              @click="selectAccount(account)"
-              :class="{ 'selected': selectedAccount?.account_id === account.account_id }"
+              @click="canManageSales ? selectAccount(account) : null"
+              :class="{ 
+                'selected': selectedAccount?.account_id === account.account_id && canManageSales,
+                'read-only': !canManageSales
+              }"
             >
-              <td @click.stop>
-                <!-- in_use면 툴팁+비활성, 아니면 일반 체크박스 -->
+              <!-- 체크박스는 영업 권한이 있을 때만 -->
+              <td @click.stop v-if="canManageSales">
                 <va-tooltip
                   v-if="account.in_use"
                   text="주문 또는 발주에서 사용된 거래처는 삭제할 수 없습니다"
@@ -116,8 +127,7 @@
               <td>{{ account.phone }}</td>
               <td class="address-cell">{{ account.address }}</td>
             </tr>
-</tbody>
-
+          </tbody>
         </table>
         
         <!-- 데이터 없을 때 표시 -->
@@ -152,8 +162,8 @@
       </div>
     </div>
 
-    <!-- 우측: 거래처 등록/수정 -->
-    <div class="account-detail-panel">
+    <!-- 우측: 거래처 등록/수정 (영업 권한만) -->
+    <div class="account-detail-panel" v-if="canManageSales">
       <div class="detail-header">
         <h2>거래처 등록/수정</h2>
         <div class="action-buttons">
@@ -319,12 +329,35 @@
         </div>
       </div>
     </div>
+
+    <!-- 권한 없는 사용자를 위한 안내 패널 -->
+    <div class="permission-info-panel" v-else>
+      <div class="permission-content">
+        <va-icon name="lock" size="large" color="primary" />
+        <h3>거래처 관리 권한 필요</h3>
+        <p>거래처 등록 및 수정은 영업부서 권한이 필요합니다.</p>
+        <div class="current-permission">
+          <va-chip color="info" size="small">
+            현재 권한: {{ userRole || '조회 전용' }}
+          </va-chip>
+        </div>
+        <p class="permission-desc">
+          거래처 목록은 조회할 수 있지만,<br>
+          등록, 수정, 삭제는 영업부서만 가능합니다.
+        </p>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import axios from 'axios'
+import { useAuthStore } from '@/stores/authStore'
+
+// 인증 스토어 사용
+const authStore = useAuthStore()
+const { canManageSales, userRole } = authStore
 
 // 타입 정의
 interface Account {
@@ -368,9 +401,9 @@ const loading = ref(false)
 // 필터 상태
 const filters = ref({
   accountName: '',
-  businessNo: '', // 안 써용
-  manager: '', // 안 써용
-  phone: '', // 안 써용
+  businessNo: '',
+  manager: '',
+  phone: '',
   accountType: ''
 })
 
@@ -418,9 +451,6 @@ const filteredAccounts = computed(() => {
     const matchesFilters = 
       (!filters.value.accountName || account.account_name === filters.value.accountName) &&
       (!filters.value.accountType || account.account_type === filters.value.accountType)
-      // (!filters.value.businessNo || account.business_no === filters.value.businessNo) &&
-      // (!filters.value.manager || account.charger_name === filters.value.manager) &&
-      // (!filters.value.phone || account.phone === filters.value.phone)
     
     return matchesSearch && matchesFilters
   })
@@ -450,8 +480,7 @@ async function fetchAccounts() {
   } catch (error) {
     console.error('거래처 목록 로드 실패:', error)
     // Mock 데이터
-    accounts.value = [
-    ]
+    accounts.value = []
   } finally {
     loading.value = false
   }
@@ -479,6 +508,11 @@ function handleSelectAll(value: boolean) {
 }
 
 function selectAccount(account: Account) {
+  if (!canManageSales) {
+    console.log('거래처 수정 권한이 없습니다.')
+    return
+  }
+
   selectedAccount.value = account
   // 폼에 데이터 채우기
   form.value = {
@@ -565,6 +599,11 @@ function isValidPhone(phone: string) {
 
 // 저장
 async function saveAccount() {
+  if (!canManageSales) {
+    alert('거래처 관리 권한이 없습니다.')
+    return
+  }
+
   if (!validateForm()) {
     return
   }
@@ -604,6 +643,11 @@ async function saveAccount() {
 
 // 선택 삭제
 async function deleteSelected() {
+  if (!canManageSales) {
+    alert('거래처 관리 권한이 없습니다.')
+    return
+  }
+
   console.log('삭제할 selectedIds:', selectedIds.value);
   if (selectedIds.value.length === 0) return
 
@@ -637,7 +681,6 @@ async function deleteSelected() {
   }
 }
 
-
 // 엑셀 내보내기
 function exportExcel() {
   // 실제로는 서버에서 엑셀 파일 생성하여 다운로드
@@ -659,10 +702,8 @@ function handleBusinessNoInput(value: string) {
   
   // 사업자 포맷팅
   if (numbers.length >= 10) {
-  form.value.businessNo = `${numbers.slice(0, 3)}-${numbers.slice(3, 5)}-${numbers.slice(5)}`
-  } else 
-  
-  if (numbers.length == 3) {
+    form.value.businessNo = `${numbers.slice(0, 3)}-${numbers.slice(3, 5)}-${numbers.slice(5)}`
+  } else if (numbers.length == 3) {
     form.value.businessNo = `${numbers.slice(0, 3)}-`
   } else if (numbers.length == 5) {
     form.value.businessNo = `${numbers.slice(0, 3)}-${numbers.slice(3, 5)}-`
@@ -671,25 +712,18 @@ function handleBusinessNoInput(value: string) {
 
 // 전화번호 자동 포맷팅
 function handlePhoneInput(value: string) {
-  // console.log(value)
   // 숫자만 추출
   const phonenumbers = value.replace(/[^0-9]/g, '')
   
   // 포맷팅
   if (phonenumbers.length == 11) {
-    form.value.phone = `${phonenumbers.slice(0, 3)}-${phonenumbers.slice(3, 7)}-${phonenumbers.slice(7)}`// 010-0000-0000
+    form.value.phone = `${phonenumbers.slice(0, 3)}-${phonenumbers.slice(3, 7)}-${phonenumbers.slice(7)}`
   } else if (phonenumbers.length == 9) {
-    form.value.phone = `${phonenumbers.slice(0,2)}-${phonenumbers.slice(2, 5)}-${phonenumbers.slice(5)}`// 02-000-0000
+    form.value.phone = `${phonenumbers.slice(0,2)}-${phonenumbers.slice(2, 5)}-${phonenumbers.slice(5)}`
   } else if (phonenumbers.length == 10) {
-    form.value.phone = `${phonenumbers.slice(0,3)}-${phonenumbers.slice(3, 6)}-${phonenumbers.slice(6)}`// 053-000-0000
+    form.value.phone = `${phonenumbers.slice(0,3)}-${phonenumbers.slice(3, 6)}-${phonenumbers.slice(6)}`
   }
 }
-
-// 사업자번호 포맷팅 (표시용)
-// function formatBusinessNo(businessNo: string) {
-//   if (!businessNo) return '-'
-//   return businessNo
-// }
 
 // 감시자
 watch(filters, () => {

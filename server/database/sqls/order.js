@@ -40,6 +40,7 @@ module.exports = {
     // 주문+품목 목록(주문관리화면 상단)
     getOrderListWithItems: `
     SELECT om.order_id, 
+           ac.account_id,
            ac.account_name, 
            om.order_date, 
            om.delivery_date,
@@ -55,33 +56,53 @@ module.exports = {
     ORDER BY om.order_id DESC, od.order_detail_id
   `,
 
+    // 주문 마스터 등록
+    insertOrderMaster: `
+    INSERT INTO order_master (
+      account_id,
+      order_date,
+      delivery_date,
+      status,
+      remarks,
+      reg_date,
+      created_by
+    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+  `,
 
-// 주문 마스터 등록
-insertOrderMaster: `
-  INSERT INTO order_master (
-    account_id,
-    order_date,
-    delivery_date,
-    status,
-    remarks,
-    reg_date,
-    created_by
-  ) VALUES (?, ?, ?, ?, ?, ?, ?)
-`,
+    // 주문 상세 등록
+    insertOrderDetail: `
+    INSERT INTO order_detail (
+      order_id,
+      product_code,
+      order_qty,
+      order_price,
+      progress_status,
+      delivery_qty,
+      remain_qty,
+      remarks
+    ) VALUES(?, ?, ?, ?, ?, ?, ?, ?)
+  `,
 
-// 주문 상세 등록
-insertOrderDetail: `
-  INSERT INTO order_detail (
-    order_id,
-    product_code,
-    order_qty,
-    order_price,
-    progress_status,
-    delivery_qty,
-    remain_qty,
-    remarks
-  ) VALUES(?, ?, ?, ?, ?, ?, ?, ?)
-`
+    // 주문 마스터 수정
+    updateOrderMaster: `
+    UPDATE order_master 
+    SET account_id = ?, 
+        order_date = ?, 
+        delivery_date = ?, 
+        status = ?,
+        created_by = ?
+    WHERE order_id = ?
+  `,
 
-                     
+    // 주문 상세 삭제 (주문 ID로)
+    deleteOrderDetailsByOrderId: `
+    DELETE FROM order_detail 
+    WHERE order_id = ?
+  `,
+
+    // 주문 마스터 삭제
+    deleteOrderMaster: `
+    DELETE FROM order_master 
+    WHERE order_id = ?
+  `
 };
