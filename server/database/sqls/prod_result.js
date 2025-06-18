@@ -115,6 +115,24 @@ const insertResultDetail =
 `
 ;
 
+const updateResultStatus =
+`
+  UPDATE work_result
+  SET    code_value = "p3"
+  WHERE  result_id = ?
+`
+;
+
+const updateResultDetail =
+`
+  UPDATE work_result_detail
+  SET    manager_id = ?,
+         process_code = ?,
+         eq_id = ?
+  WHERE  result_detail = ?
+`
+;
+
 const updateStart =
 `
   UPDATE work_result_detail  
@@ -179,5 +197,7 @@ module.exports = {
   updateStop,
   updateStopEq,
   startResultWork,
-  endResultWork
+  endResultWork,
+  updateResultStatus,
+  updateResultDetail
 }

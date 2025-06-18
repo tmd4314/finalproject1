@@ -365,12 +365,36 @@ const fetchResultList = async () => {
 
 const saveResult = async () => {
   try {
-    await axios.post('/prodResultDetail', selectedItem.value)
-    alert('저장 완료')
+    if (selectedItem.value.result_detail) {
+      // ✅ result_detail이 있으면 업데이트
+      await axios.put(`/prodResultDetail/${selectedItem.value.result_detail}`, selectedItem.value)
+    } else {
+      // ✅ 신규 저장
+      const res = await axios.post('/prodResultDetail', selectedItem.value)
+
+      const { result_id, result_detail } = res.data
+
+      if (result_id) {
+        selectedItem.value.result_id = result_id
+      }
+      if (result_detail) {
+        selectedItem.value.result_detail = result_detail
+      }
+
+      // ✅ work_result 상태를 '진행중'으로 업데이트
+      if (selectedItem.value.result_id) {
+        await axios.put(`/workResultStatus/${selectedItem.value.result_id}`, {
+          status_code: '진행중' // ← 서버에서 인식 가능한 코드 값 사용
+        })
+      }
+    }
+
+    alert('✅ 저장 완료')
     selectedItem.value = emptyItem()
     fetchResultList()
   } catch (err) {
-    alert('저장 실패')
+    console.error(err)
+    alert('❌ 저장 실패')
   }
 }
 

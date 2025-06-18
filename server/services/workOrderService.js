@@ -98,6 +98,32 @@ const saveWorkOrderProducts = async (workOrderNo, products) => {
   }
 };
 
+// 작업지시서 제품 정보 저장 (기존 삭제 후 재입력)
+const saveWorkResult = async (workOrderNo, products) => {
+  try {
+    // 1. 기존 제품 정보 삭제
+    await mariadb.query('deleteResult', [workOrderNo]);
+    
+    // 2. 새로운 제품 정보 입력
+    for (const product of products) {
+      const insertData = [
+        workOrderNo,
+        product.process_group_code,
+        product.result_id,
+        product.work_order_date
+      ];
+      console.log(insertData);
+      await mariadb.query('insertResult', insertData);
+    }
+    
+    return { success: true };
+  } catch (err) {
+    console.error('작업지시서 제품 저장 오류:', err);
+    throw err;
+  }
+};
+
+
 // 작업지시서 번호 자동 생성
 const generateWorkOrderNo = async () => {
   try {
@@ -134,6 +160,7 @@ const saveWorkOrderComplete = async (workOrderData) => {
     // 2. 제품 정보 저장
     if (products && products.length > 0) {
       await saveWorkOrderProducts(master.work_order_no, products);
+      await saveWorkResult(master.work_order_no, products);
     }
     
     return { 

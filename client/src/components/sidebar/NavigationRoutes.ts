@@ -201,10 +201,10 @@ export default {
           name: 'work_result_manager',
           displayName: 'menu.작업실적 관리',
         },
-        // {
-        //   name: 'work_result_check',
-        //   displayName: 'menu.작업실적 조회',
-        // },
+        {
+          name: 'work_result_check',
+          displayName: 'menu.작업실적 조회',
+        }
       ],
     },
     {
