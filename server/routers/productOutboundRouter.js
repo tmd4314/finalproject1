@@ -1,42 +1,25 @@
-// server/routers/productOutboundRouter.js - 제품 출고 관리 라우터
+// server/routers/productOutboundRouter.js
 
 const express = require('express');
 const router = express.Router();
 const productOutboundService = require('../services/productOutboundService');
 
-// ========== 조회 API ==========
-
-// [GET] /productOutbound/waiting-list - 출고 대기 목록 조회 (특정 날짜 검색)
+// [GET] /productOutbound/waiting-list - 출고 대기 목록 조회
 router.get('/waiting-list', async (req, res) => {
   try {
-    console.log('=== 출고 대기 목록 조회 API 호출 ===');
-    
     const {
+      order_number = '',
       product_name = '',
-      product_code = '',
-      delivery_date = ''  // 특정 날짜 추가
+      order_date = ''
     } = req.query;
 
     const searchParams = {
+      order_number,
       product_name,
-      product_code,
-      delivery_date
+      order_date
     };
 
-    console.log('검색 파라미터:', searchParams);
-
     const result = await productOutboundService.getOutboundWaitingList(searchParams);
-    
-    console.log(`조회 결과: ${result.length}건`);
-    
-    // 주문별 요약 정보
-    if (result.length > 0) {
-      const clientSummary = result.reduce((acc, item) => {
-        acc[item.client_name] = (acc[item.client_name] || 0) + 1;
-        return acc;
-      }, {});
-      console.log('거래처별 요약:', clientSummary);
-    }
     
     res.json(result);
   } catch (err) {
@@ -48,18 +31,26 @@ router.get('/waiting-list', async (req, res) => {
   }
 });
 
-// [GET] /productOutbound/order-details/:orderId - 주문 상세 정보 조회 (모달용)
+// [GET] /productOutbound/order-details/:orderId - 주문 상세 정보 조회 (출고 대기용 모달)
 router.get('/order-details/:orderId', async (req, res) => {
   try {
-    console.log('=== 주문 상세 정보 조회 API 호출 ===');
-    
     const { orderId } = req.params;
-    
-    console.log(`조회 대상 - order_id: ${orderId}`);
-    
+
+    if (!orderId) {
+      return res.status(400).json({
+        error: '주문 ID가 필요합니다.',
+        received: { orderId }
+      });
+    }
+
     const result = await productOutboundService.getOrderDetails(orderId);
     
-    console.log(`주문 상세 조회 결과: ${result.length}건의 제품`);
+    if (result.length === 0) {
+      return res.status(404).json({
+        error: '주문을 찾을 수 없습니다.',
+        order_id: orderId
+      });
+    }
     
     res.json(result);
   } catch (err) {
@@ -74,25 +65,19 @@ router.get('/order-details/:orderId', async (req, res) => {
 // [GET] /productOutbound/processing-list - 출고 진행 중 목록 조회
 router.get('/processing-list', async (req, res) => {
   try {
-    console.log('=== 출고 진행 중 목록 조회 API 호출 ===');
-    
     const {
       outbound_number = '',
       product_name = '',
-      outbound_date = ''
+      request_date = ''
     } = req.query;
 
     const searchParams = {
       outbound_number,
       product_name,
-      outbound_date
+      request_date
     };
 
-    console.log('검색 파라미터:', searchParams);
-
     const result = await productOutboundService.getOutboundProcessingList(searchParams);
-    
-    console.log(`출고 진행 중 목록 조회 결과: ${result.length}건`);
     
     res.json(result);
   } catch (err) {
@@ -107,8 +92,6 @@ router.get('/processing-list', async (req, res) => {
 // [GET] /productOutbound/completed-list - 출고 완료 목록 조회
 router.get('/completed-list', async (req, res) => {
   try {
-    console.log('=== 출고 완료 목록 조회 API 호출 ===');
-    
     const {
       outbound_number = '',
       product_name = '',
@@ -121,11 +104,7 @@ router.get('/completed-list', async (req, res) => {
       outbound_date
     };
 
-    console.log('검색 파라미터:', searchParams);
-
     const result = await productOutboundService.getOutboundCompletedList(searchParams);
-    
-    console.log(`출고 완료 목록 조회 결과: ${result.length}건`);
     
     res.json(result);
   } catch (err) {
@@ -137,16 +116,26 @@ router.get('/completed-list', async (req, res) => {
   }
 });
 
-// [GET] /productOutbound/details/:outboundId - 출고 상세 정보 조회
-router.get('/details/:outboundId', async (req, res) => {
+// [GET] /productOutbound/outbound-details/:outboundCode - 출고 상세 정보 조회 (진행중/완료용 모달)
+router.get('/outbound-details/:outboundCode', async (req, res) => {
   try {
-    console.log('=== 출고 상세 정보 조회 API 호출 ===');
+    const { outboundCode } = req.params;
+
+    if (!outboundCode) {
+      return res.status(400).json({
+        error: '출고 코드가 필요합니다.',
+        received: { outboundCode }
+      });
+    }
+
+    const result = await productOutboundService.getOutboundDetails(outboundCode);
     
-    const { outboundId } = req.params;
-    
-    console.log(`조회 대상 - outbound_id: ${outboundId}`);
-    
-    const result = await productOutboundService.getOutboundDetails(outboundId);
+    if (result.length === 0) {
+      return res.status(404).json({
+        error: '출고 정보를 찾을 수 없습니다.',
+        outbound_code: outboundCode
+      });
+    }
     
     res.json(result);
   } catch (err) {
@@ -161,11 +150,7 @@ router.get('/details/:outboundId', async (req, res) => {
 // [GET] /productOutbound/status/:orderId - 출고 상태 확인
 router.get('/status/:orderId', async (req, res) => {
   try {
-    console.log('=== 출고 상태 확인 API 호출 ===');
-    
     const { orderId } = req.params;
-    
-    console.log(`확인 대상 - order_id: ${orderId}`);
     
     const status = await productOutboundService.checkOutboundStatus(orderId);
     
@@ -183,166 +168,35 @@ router.get('/status/:orderId', async (req, res) => {
   }
 });
 
-// ========== 처리 API ==========
-
-// [POST] /productOutbound/process - 출고 처리 (다중 주문 지원)
-router.post('/process', async (req, res) => {
-  try {
-    console.log('=== 출고 처리 API 호출 ===');
-    console.log('요청 데이터:', req.body);
-    
-    const {
-      order_ids,
-      outbound_date,
-      employee_id,
-      notes = ''
-    } = req.body;
-
-    // 필수 필드 검증
-    if (!order_ids || !Array.isArray(order_ids) || order_ids.length === 0) {
-      console.log('주문 ID 배열 누락');
-      return res.status(400).json({
-        error: '출고할 주문을 선택해주세요.',
-        required_fields: ['order_ids (배열)'],
-        received: req.body
-      });
-    }
-
-    if (!outbound_date || !employee_id) {
-      console.log('필수 필드 누락');
-      return res.status(400).json({
-        error: '필수 정보가 누락되었습니다.',
-        required_fields: ['order_ids', 'outbound_date', 'employee_id'],
-        received: req.body
-      });
-    }
-
-    const outboundData = {
-      order_ids,
-      outbound_date,
-      employee_id,
-      notes
-    };
-
-    console.log('처리할 출고 데이터:', outboundData);
-
-    const result = await productOutboundService.processOutbound(outboundData);
-    
-    console.log('출고 처리 성공:', result);
-    
-    const response = {
-      ...result,
-      timestamp: new Date().toISOString(),
-      processing_info: {
-        order_count: order_ids.length,
-        order_ids: order_ids,
-        outbound_date,
-        employee_id
-      }
-    };
-    
-    res.status(201).json(response);
-    
-  } catch (err) {
-    console.error('출고 처리 API 오류:', err);
-    
-    // 재고 부족 에러 처리
-    if (err.code === 'INVENTORY_SHORTAGE') {
-      res.status(409).json({
-        error: err.message,
-        error_code: 'INVENTORY_SHORTAGE',
-        suggestion: '재고를 확인한 후 다시 시도해주세요.'
-      });
-    } 
-    // 이미 출고 처리된 주문 에러 처리
-    else if (err.code === 'ALREADY_PROCESSED') {
-      res.status(409).json({
-        error: err.message,
-        error_code: 'ALREADY_PROCESSED',
-        suggestion: '출고 진행 중 목록에서 확인해주세요.'
-      });
-    } 
-    // 기타 중복 에러
-    else if (err.code === 'ER_DUP_ENTRY') {
-      res.status(409).json({
-        error: '중복된 데이터가 있습니다.',
-        error_code: 'DUPLICATE_DATA',
-        details: err.message
-      });
-    } 
-    // 입력값 에러
-    else if (err.message.includes('필수 입력값')) {
-      res.status(400).json({
-        error: err.message,
-        error_code: 'VALIDATION_ERROR'
-      });
-    } 
-    // 기타 서버 에러
-    else {
-      res.status(500).json({
-        error: '출고 처리 중 오류가 발생했습니다.',
-        error_code: 'PROCESSING_ERROR',
-        details: err.message
-      });
-    }
-  }
-});
-
-// [PUT] /productOutbound/complete/:outboundId - 출고 완료 처리
-router.put('/complete/:outboundId', async (req, res) => {
-  try {
-    console.log('=== 출고 완료 처리 API 호출 ===');
-    
-    const { outboundId } = req.params;
-    
-    console.log(`완료 처리 대상 - outbound_id: ${outboundId}`);
-    
-    const result = await productOutboundService.completeOutbound(outboundId);
-    
-    console.log('출고 완료 처리 성공:', result);
-    
-    res.json({
-      ...result,
-      timestamp: new Date().toISOString()
-    });
-    
-  } catch (err) {
-    console.error('출고 완료 처리 API 오류:', err);
-    res.status(500).json({ 
-      error: '출고 완료 처리에 실패했습니다.',
-      error_code: 'COMPLETION_ERROR',
-      details: err.message 
-    });
-  }
-});
-
-// ========== 유틸리티 API ==========
-
 // [POST] /productOutbound/check-inventory - 재고 부족 체크
 router.post('/check-inventory', async (req, res) => {
   try {
-    console.log('=== 재고 부족 체크 API 호출 ===');
-    
     const { order_ids } = req.body;
-    
+
     if (!order_ids || !Array.isArray(order_ids) || order_ids.length === 0) {
       return res.status(400).json({
-        error: '주문 ID 배열이 필요합니다.',
+        error: '주문 ID 목록이 필요합니다.',
         received: req.body
       });
     }
-    
-    console.log('체크할 주문 IDs:', order_ids);
-    
-    const shortageItems = await productOutboundService.checkInventoryAvailable(order_ids);
-    
-    res.json({
-      success: true,
-      has_shortage: shortageItems.length > 0,
-      shortage_count: shortageItems.length,
-      shortage_items: shortageItems
-    });
-    
+
+    const results = [];
+    let hasOverallShortage = false;
+
+    for (const orderId of order_ids) {
+      const result = await productOutboundService.checkInventoryAvailable(orderId);
+      if (result.has_shortage) {
+        hasOverallShortage = true;
+        results.push(...result.shortage_items);
+      }
+    }
+
+    const response = {
+      has_shortage: hasOverallShortage,
+      shortage_items: results
+    };
+
+    res.json(response);
   } catch (err) {
     console.error('재고 부족 체크 API 오류:', err);
     res.status(500).json({ 
@@ -352,20 +206,194 @@ router.post('/check-inventory', async (req, res) => {
   }
 });
 
+// [POST] /productOutbound/process-single - 단일 주문 출고 처리
+router.post('/process-single', async (req, res) => {
+  try {
+    const {
+      order_id,
+      employee_id,
+      notes = ''
+    } = req.body;
+
+    if (!order_id || !employee_id) {
+      return res.status(400).json({
+        error: '주문 ID와 직원 ID가 필요합니다.',
+        required_fields: ['order_id', 'employee_id'],
+        received: req.body
+      });
+    }
+
+    // 재고 체크
+    const inventoryCheck = await productOutboundService.checkInventoryAvailable(order_id);
+    if (inventoryCheck.has_shortage) {
+      return res.status(400).json({
+        error: '재고가 부족합니다.',
+        shortage_items: inventoryCheck.shortage_items
+      });
+    }
+
+    const result = await productOutboundService.processOutbound(order_id, employee_id, notes);
+    
+    const response = {
+      ...result,
+      timestamp: new Date().toISOString(),
+      processing_info: {
+        order_id,
+        employee_id,
+        generated_outbound_code: result.outbound_code
+      }
+    };
+    
+    res.status(201).json(response);
+    
+  } catch (err) {
+    console.error('단일 주문 출고 처리 API 오류:', err);
+    
+    if (err.message.includes('주문 ID와 직원 ID')) {
+      res.status(400).json({
+        error: err.message,
+        error_code: 'VALIDATION_ERROR'
+      });
+    } else {
+      res.status(500).json({
+        error: '출고 처리 중 오류가 발생했습니다.',
+        error_code: 'PROCESSING_ERROR',
+        details: err.message
+      });
+    }
+  }
+});
+
+// [POST] /productOutbound/process - 다중 주문 출고 처리
+router.post('/process', async (req, res) => {
+  try {
+    const {
+      order_ids,
+      employee_id,
+      notes = ''
+    } = req.body;
+
+    if (!order_ids || !Array.isArray(order_ids) || order_ids.length === 0) {
+      return res.status(400).json({
+        error: '주문 ID 목록이 필요합니다.',
+        received: req.body
+      });
+    }
+
+    if (!employee_id) {
+      return res.status(400).json({
+        error: '직원 ID가 필요합니다.',
+        received: req.body
+      });
+    }
+
+    const result = await productOutboundService.processMultipleOutbound(order_ids, employee_id, notes);
+    
+    // 부분 성공인 경우 206 상태 코드 사용
+    const statusCode = result.error_count > 0 ? 206 : 201;
+    
+    const response = {
+      message: `전체 ${result.total}건 중 ${result.success_count}건 성공, ${result.error_count}건 실패`,
+      timestamp: new Date().toISOString(),
+      processing_summary: {
+        total_requested: order_ids.length,
+        success_count: result.success_count,
+        error_count: result.error_count,
+        success_rate: `${((result.success_count / result.total) * 100).toFixed(1)}%`
+      },
+      ...result
+    };
+    
+    res.status(statusCode).json(response);
+
+  } catch (err) {
+    console.error('다중 주문 출고 처리 API 오류:', err);
+    res.status(500).json({ 
+      error: '다중 주문 출고 처리 중 오류가 발생했습니다.',
+      error_code: 'MULTIPLE_PROCESSING_ERROR',
+      details: err.message 
+    });
+  }
+});
+
+// [PUT] /productOutbound/complete/:outboundCode - 단일 출고 완료 처리
+router.put('/complete/:outboundCode', async (req, res) => {
+  try {
+    const { outboundCode } = req.params;
+
+    if (!outboundCode) {
+      return res.status(400).json({
+        error: '출고 코드가 필요합니다.',
+        received: { outboundCode }
+      });
+    }
+
+    const result = await productOutboundService.completeOutbound([outboundCode]);
+    
+    if (result.affected_rows === 0) {
+      return res.status(404).json({
+        error: '출고 완료 처리할 수 없습니다.',
+        message: '해당 출고가 존재하지 않거나 이미 완료되었습니다.',
+        outbound_code: outboundCode
+      });
+    }
+    
+    res.json(result);
+    
+  } catch (err) {
+    console.error('출고 완료 처리 API 오류:', err);
+    res.status(500).json({ 
+      error: '출고 완료 처리에 실패했습니다.',
+      details: err.message 
+    });
+  }
+});
+
+// [PUT] /productOutbound/complete-multiple - 다중 출고 완료 처리
+router.put('/complete-multiple', async (req, res) => {
+  try {
+    const { outbound_codes } = req.body;
+
+    if (!outbound_codes || !Array.isArray(outbound_codes) || outbound_codes.length === 0) {
+      return res.status(400).json({
+        error: '출고 코드 목록이 필요합니다.',
+        received: req.body
+      });
+    }
+
+    const result = await productOutboundService.completeOutbound(outbound_codes);
+    
+    if (result.affected_rows === 0) {
+      return res.status(404).json({
+        error: '출고 완료 처리할 수 없습니다.',
+        message: '해당 출고들이 존재하지 않거나 이미 완료되었습니다.',
+        outbound_codes: outbound_codes
+      });
+    }
+    
+    res.json(result);
+    
+  } catch (err) {
+    console.error('다중 출고 완료 처리 API 오류:', err);
+    res.status(500).json({ 
+      error: '다중 출고 완료 처리에 실패했습니다.',
+      details: err.message 
+    });
+  }
+});
+
 // [GET] /productOutbound/test - API 연결 테스트
 router.get('/test', async (req, res) => {
   try {
-    console.log('=== 제품 출고 API 테스트 호출 ===');
-    
     res.json({
       success: true,
       message: '제품 출고 관리 API가 정상적으로 작동합니다.',
       timestamp: new Date().toISOString(),
       version: '1.0',
       features: {
-        multiple_order_outbound: true,
+        individual_outbound_code_generation: true,
         fifo_inventory_management: true,
-        specific_date_search: true,
+        multiple_order_processing: true,
         inventory_shortage_check: true
       },
       available_endpoints: [
@@ -373,11 +401,13 @@ router.get('/test', async (req, res) => {
         'GET /productOutbound/order-details/:orderId',
         'GET /productOutbound/processing-list',
         'GET /productOutbound/completed-list',
-        'GET /productOutbound/details/:outboundId',
+        'GET /productOutbound/outbound-details/:outboundCode',
         'GET /productOutbound/status/:orderId',
-        'POST /productOutbound/process',
-        'PUT /productOutbound/complete/:outboundId',
         'POST /productOutbound/check-inventory',
+        'POST /productOutbound/process-single',
+        'POST /productOutbound/process',
+        'PUT /productOutbound/complete/:outboundCode',
+        'PUT /productOutbound/complete-multiple',
         'GET /productOutbound/test'
       ]
     });
