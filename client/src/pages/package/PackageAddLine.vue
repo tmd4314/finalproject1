@@ -152,29 +152,30 @@
               <th>생산능력</th>
               <th>담당자</th>
               <th>제품코드</th>
-              <th>작업정보</th>
               <!-- 포장 부서 권한이 있는 경우만 작업 열 표시 -->
               <th v-if="authStore.canManageLines">작업</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="(line, index) in sortedLines" :key="`${line.line_id}-${line.line_type}`">
+            <tr v-for="(line, index) in sortedLines" :key="`${line.line_code}-${line.line_type}`">
               <td v-if="authStore.canManageLines" class="checkbox-col">
                 <input 
                   type="checkbox" 
                   v-model="selectedLines"
-                  :value="`${line.line_id}-${line.line_type}`"
+                  :value="`${line.line_code}-${line.line_type}`"
                 />
               </td>
               <td>{{ index + 1 }}</td>
               <td>
                 <div class="line-info">
                   <div class="line-name">{{ line.line_name }}</div>
-                  <div class="line-id">ID: {{ line.line_id }}</div>
+                  <div class="line-id">ID: {{ line.line_code }}</div>
                 </div>
               </td>
               <td>
-                {{ getLineTypeText(line.line_type) }}
+                <span class="type-badge" :class="line.line_type ? line.line_type.toLowerCase() : 'inner'">
+                  {{ getLineTypeText(line.line_type) }}
+                </span>
               </td>
               <td>{{ line.eq_name || '-' }}</td>
               <td>
@@ -206,14 +207,7 @@
               <td>
                 <div class="product-info">
                   <div class="product-code">{{ line.product_code || '-' }}</div>
-                  <div v-if="line.product_name" class="product-name">{{ line.product_name }}</div>
-                </div>
-              </td>
-              <td>
-                <div class="work-info">
-                  <div v-if="line.current_work_number" class="work-order">작업번호: {{ line.current_work_number }}</div>
-                  <div v-if="line.work_start_time" class="work-time">시작: {{ formatDateTime(line.work_start_time) }}</div>
-                  <div v-if="!line.current_work_number" class="no-work">미작업</div>
+                  <div v-if="line.product_name && line.product_name !== line.product_code" class="product-name">{{ line.product_name }}</div>
                 </div>
               </td>
               <!-- 포장 부서 권한이 있는 경우만 작업 버튼 표시 -->
@@ -243,7 +237,7 @@
             <div class="form-row">
               <div class="form-group">
                 <label>라인 ID</label>
-                <input :value="editingLine?.line_id" type="text" disabled />
+                <input :value="editingLine?.line_code" type="text" disabled />
               </div>
               <div class="form-group">
                 <label>제품코드</label>
@@ -259,7 +253,7 @@
             <div class="form-row">
               <div class="form-group">
                 <label>라인 타입</label>
-                <input :value="getLineTypeText(editingLine?.line_type)" type="text" disabled />
+                <input :value="getLineTypeText(editingLine?.line_type || 'INNER')" type="text" disabled />
               </div>
               <div class="form-group">
                 <label>설비명 *</label>
@@ -351,15 +345,20 @@
             <p><strong>제품코드:</strong> 공정흐름도에 따라 자동으로 처리됩니다.</p>
           </div>
 
+          <!-- 설비 로드 상태 표시 -->
+          <div v-if="equipmentLoadStatus" class="equipment-status" :class="equipmentLoadStatus.type">
+            <span>{{ equipmentLoadStatus.message }}</span>
+          </div>
+
           <form @submit.prevent="dualRegisterLine" class="line-form">
             <div class="form-row">
               <div class="form-group">
                 <label>라인 ID *</label>
-                <select v-model="dualFormData.line_id" :class="{ error: dualErrors.line_id }">
+                <select v-model="dualFormData.line_code" :class="{ error: dualErrors.line_code }">
                   <option value="">라인 선택</option>
                   <option v-for="id in availableLineIds" :key="id" :value="id">{{ id }}라인</option>
                 </select>
-                <div v-if="dualErrors.line_id" class="error-message">{{ dualErrors.line_id }}</div>
+                <div v-if="dualErrors.line_code" class="error-message">{{ dualErrors.line_code }}</div>
               </div>
               <div class="form-group">
                 <label>제품코드</label>
@@ -374,7 +373,7 @@
 
             <div class="form-row">
               <div class="form-group">
-                <label>내포장 설비명 *</label>
+                <label>내포장 설비명 * ({{ innerEquipments.length }}개 설비)</label>
                 <select v-model="dualFormData.inner_eq_name" :class="{ error: dualErrors.inner_eq_name }">
                   <option value="">설비 선택</option>
                   <option v-for="eq in innerEquipments" :key="eq.eq_name" :value="eq.eq_name">
@@ -382,9 +381,10 @@
                   </option>
                 </select>
                 <div v-if="dualErrors.inner_eq_name" class="error-message">{{ dualErrors.inner_eq_name }}</div>
+                <div v-if="innerEquipments.length === 0" class="warning-message">내포장 설비가 없습니다</div>
               </div>
               <div class="form-group">
-                <label>외포장 설비명 *</label>
+                <label>외포장 설비명 * ({{ outerEquipments.length }}개 설비)</label>
                 <select v-model="dualFormData.outer_eq_name" :class="{ error: dualErrors.outer_eq_name }">
                   <option value="">설비 선택</option>
                   <option v-for="eq in outerEquipments" :key="eq.eq_name" :value="eq.eq_name">
@@ -392,6 +392,7 @@
                   </option>
                 </select>
                 <div v-if="dualErrors.outer_eq_name" class="error-message">{{ dualErrors.outer_eq_name }}</div>
+                <div v-if="outerEquipments.length === 0" class="warning-message">외포장 설비가 없습니다</div>
               </div>
             </div>
 
@@ -534,6 +535,51 @@ import axios from 'axios'
 const router = useRouter()
 const authStore = useAuthStore()
 
+// 🆕 추가: 전역 에러 핸들링
+const setupGlobalErrorHandling = () => {
+  // Vue 에러 핸들링
+  const originalErrorHandler = window.onerror
+  window.onerror = (message, source, lineno, colno, error) => {
+    console.error('전역 에러 감지:', { message, source, lineno, colno, error })
+    
+    // Vuestic 관련 에러는 무시 (UI 라이브러리 에러)
+    if (message && (
+      message.includes('vuestic') || 
+      message.includes('selectAppTreeItem') ||
+      message.includes('Could not find item')
+    )) {
+      console.warn('Vuestic UI 에러 무시:', message)
+      return true // 에러 무시
+    }
+    
+    // 원래 핸들러 호출
+    if (originalErrorHandler) {
+      return originalErrorHandler(message, source, lineno, colno, error)
+    }
+    
+    return false
+  }
+  
+  // Promise rejection 핸들링
+  window.addEventListener('unhandledrejection', (event) => {
+    console.error('처리되지 않은 Promise 에러:', event.reason)
+    
+    // Vuestic 관련 에러는 무시
+    if (event.reason && event.reason.message && (
+      event.reason.message.includes('vuestic') ||
+      event.reason.message.includes('selectAppTreeItem') ||
+      event.reason.message.includes('Could not find item')
+    )) {
+      console.warn('Vuestic Promise 에러 무시:', event.reason.message)
+      event.preventDefault() // 에러 무시
+      return
+    }
+    
+    // 다른 에러는 로그만 출력하고 계속 진행
+    event.preventDefault()
+  })
+}
+
 // API 설정 - 프록시 활용 (vite.config.ts의 proxy 설정 사용)
 axios.defaults.timeout = 10000
 axios.defaults.headers.common['Content-Type'] = 'application/json'
@@ -556,6 +602,9 @@ const isConnected = ref(false)
 const lastUpdated = ref(null)
 const apiStatus = ref(null)
 const error = ref('')
+
+// 🆕 추가: 설비 로드 상태
+const equipmentLoadStatus = ref(null)
 
 // 정렬 상태
 const sortField = ref('')
@@ -597,7 +646,7 @@ const editFormData = ref({
 
 // dualFormData 초기화
 const dualFormData = ref({
-  line_id: '',
+  line_code: '',
   product_code: '',
   inner_eq_name: '',
   outer_eq_name: '',
@@ -654,18 +703,23 @@ const filteredLines = computed(() => {
 
 // 정렬된 라인 목록
 const sortedLines = computed(() => {
-  return filteredLines.value
-})
-
-// 라이프사이클
-onMounted(async () => {
-  await authStore.initialize()
-  await loadCurrentEmployee()
-  await loadLines()
-  await loadAvailableLineIds()
-  await loadAvailableProducts()
-  await loadAvailableEmployees()
-  await loadAvailableEquipments()
+  const lines = filteredLines.value.map(line => {
+    // 라인 데이터에 필요한 정보가 모두 있는지 확인
+    console.log('라인 데이터 확인:', {
+      line_code: line.line_code,
+      line_type: line.line_type,
+      line_name: line.line_name,
+      eq_name: line.eq_name
+    });
+    
+    return {
+      ...line,
+      // line_type이 없으면 INNER로 기본 설정
+      line_type: line.line_type || 'INNER'
+    };
+  });
+  
+  return lines;
 })
 
 // 체크박스 감시
@@ -842,40 +896,136 @@ async function loadAvailableEmployees() {
 
 async function loadAvailableEquipments() {
   try {
+    equipmentLoadStatus.value = { type: 'info', message: '설비 목록을 불러오는 중...' }
+    
     const response = await axios.get('/lines/available-equipments')
     
     if (response.data && response.data.success) {
       availableEquipments.value = response.data.data
       
-      innerEquipments.value = availableEquipments.value.filter(eq => 
-        eq.line_type === 'INNER' || eq.eq_type === 'INNER'
-      )
-      outerEquipments.value = availableEquipments.value.filter(eq => 
-        eq.line_type === 'OUTER' || eq.eq_type === 'OUTER'
-      )
+      console.log('🔧 서버에서 받은 전체 설비 목록:', availableEquipments.value)
       
-      console.log('설비명 목록 로드 성공:', availableEquipments.value.length, '개')
+      // 매우 엄격한 필터링 로직
+      innerEquipments.value = []
+      outerEquipments.value = []
+      
+      availableEquipments.value.forEach(eq => {
+        const eqName = eq.eq_name?.toLowerCase() || '';
+        console.log(`🔍 설비 분류 중: ${eq.eq_name}`);
+        
+        // 외포장 설비 키워드 체크 (우선순위)
+        if (eqName.includes('카톤') || 
+            eqName.includes('박스') || 
+            eqName.includes('케이스') ||
+            eqName.includes('상자')) {
+          console.log(`📦 외포장으로 분류: ${eq.eq_name} (키워드 매칭)`);
+          outerEquipments.value.push(eq);
+          return;
+        }
+        
+        // 내포장 설비 키워드 체크
+        if (eqName.includes('블리스터') || 
+            eqName.includes('모노블럭') || 
+            eqName.includes('병') ||
+            eqName.includes('캡슐') ||
+            eqName.includes('튜브') ||
+            (eqName.includes('정') && !eqName.includes('카톤'))) {
+          console.log(`🔧 내포장으로 분류: ${eq.eq_name} (키워드 매칭)`);
+          innerEquipments.value.push(eq);
+          return;
+        }
+        
+        // 타입 기반 분류 (보조)
+        if (eq.line_type === 'OUTER' || eq.eq_type === 'OUTER') {
+          console.log(`📦 외포장으로 분류: ${eq.eq_name} (타입 기반)`);
+          outerEquipments.value.push(eq);
+        } else {
+          console.log(`🔧 내포장으로 분류: ${eq.eq_name} (기본값)`);
+          innerEquipments.value.push(eq);
+        }
+      });
+      
+      console.log('✅ 최종 내포장 설비:', innerEquipments.value.map(eq => eq.eq_name));
+      console.log('✅ 최종 외포장 설비:', outerEquipments.value.map(eq => eq.eq_name));
+      
+      // 설비가 없는 경우 기본 설비 추가
+      if (outerEquipments.value.length === 0) {
+        console.warn('⚠️ 외포장 설비가 없어서 기본 설비를 추가합니다')
+        setDefaultOuterEquipments()
+      }
+      
+      if (innerEquipments.value.length === 0) {
+        console.warn('⚠️ 내포장 설비가 없어서 기본 설비를 추가합니다')
+        setDefaultInnerEquipments()
+      }
+      
+      equipmentLoadStatus.value = { 
+        type: 'success', 
+        message: `설비 목록 로드 완료 (내포장: ${innerEquipments.value.length}개, 외포장: ${outerEquipments.value.length}개)` 
+      }
+      
+      // 3초 후 상태 메시지 숨기기
+      setTimeout(() => {
+        equipmentLoadStatus.value = null
+      }, 3000)
+      
     } else {
+      console.warn('⚠️ API 응답이 비어있어서 기본 설비를 설정합니다')
       setDefaultEquipments()
+      equipmentLoadStatus.value = { type: 'warning', message: '기본 설비 목록을 사용합니다' }
     }
   } catch (error) {
-    console.error('설비명 목록 로드 실패:', error)
+    console.error('❌ 설비명 목록 로드 실패:', error)
     setDefaultEquipments()
+    equipmentLoadStatus.value = { type: 'error', message: '설비 목록 로드 실패 - 기본 설비 사용' }
   }
 }
 
 function setDefaultEquipments() {
+  // 기본 설비를 완전히 분리해서 설정
+  console.log('🔧 기본 설비 데이터 설정 시작...');
+  
+  // 내포장 전용 설비
   innerEquipments.value = [
-    { eq_name: '10정용 블리스터 포장기', line_type: 'INNER' },
-    { eq_name: '30정용 블리스터 포장기', line_type: 'INNER' },
-    { eq_name: '60정용 블리스터 포장기', line_type: 'INNER' },
-    { eq_name: '병 모노블럭', line_type: 'INNER'},
-  ]
+    { eq_name: '10정 블리스터 포장기', line_type: 'INNER', eq_type: 'INNER' },
+    { eq_name: '30정 블리스터 포장기', line_type: 'INNER', eq_type: 'INNER' },
+    { eq_name: '60정 블리스터 포장기', line_type: 'INNER', eq_type: 'INNER' },
+    { eq_name: '100정 병 모노블럭', line_type: 'INNER', eq_type: 'INNER' }
+  ];
+  
+  // 외포장 전용 설비
   outerEquipments.value = [
-    { eq_name: '소형 카톤 포장기', line_type: 'OUTER' },
-    { eq_name: '중형 카톤 포장기', line_type: 'OUTER' },
-    { eq_name: '대형 카톤 포장기', line_type: 'OUTER' }
+    { eq_name: '소형 카톤포장기', line_type: 'OUTER', eq_type: 'OUTER' },
+    { eq_name: '중형 카톤포장기', line_type: 'OUTER', eq_type: 'OUTER' },
+    { eq_name: '대형 카톤포장기', line_type: 'OUTER', eq_type: 'OUTER' },
+    { eq_name: '특수 카톤포장기', line_type: 'OUTER', eq_type: 'OUTER' }
+  ];
+  
+  // 전체 설비 목록도 업데이트
+  availableEquipments.value = [...innerEquipments.value, ...outerEquipments.value];
+  
+  console.log('✅ 기본 내포장 설비:', innerEquipments.value.map(eq => eq.eq_name));
+  console.log('✅ 기본 외포장 설비:', outerEquipments.value.map(eq => eq.eq_name));
+}
+
+function setDefaultInnerEquipments() {
+  innerEquipments.value = [
+    { eq_name: '10정 블리스터 포장기', line_type: 'INNER', eq_type: 'INNER' },
+    { eq_name: '30정 블리스터 포장기', line_type: 'INNER', eq_type: 'INNER' },
+    { eq_name: '60정 블리스터 포장기', line_type: 'INNER', eq_type: 'INNER' },
+    { eq_name: '100정 병 모노블럭', line_type: 'INNER', eq_type: 'INNER'}
   ]
+  console.log('📦 기본 내포장 설비 설정 완료:', innerEquipments.value.map(eq => eq.eq_name))
+}
+
+function setDefaultOuterEquipments() {
+  outerEquipments.value = [
+    { eq_name: '소형 카톤포장기', line_type: 'OUTER', eq_type: 'OUTER' },
+    { eq_name: '중형 카톤포장기', line_type: 'OUTER', eq_type: 'OUTER' },
+    { eq_name: '대형 카톤포장기', line_type: 'OUTER', eq_type: 'OUTER' },
+    { eq_name: '특수 카톤포장기', line_type: 'OUTER', eq_type: 'OUTER' }
+  ]
+  console.log('📦 기본 외포장 설비 설정 완료:', outerEquipments.value.map(eq => eq.eq_name))
 }
 
 function setApiStatus(type, message) {
@@ -928,116 +1078,12 @@ async function loadLines() {
 
 async function loadAvailableLineIds() {
   try {
-    const usedIds = lines.value.map(line => line.line_id).filter(id => id)
+    const usedIds = lines.value.map(line => line.line_code).filter(code => code)
     const allIds = Array.from({length: 26}, (_, i) => String.fromCharCode(65 + i))
     availableLineIds.value = allIds.filter(id => !usedIds.includes(id))
   } catch (error) {
     console.warn('사용 가능한 라인 ID 계산 실패:', error)
     availableLineIds.value = ['F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
-  }
-}
-
-async function saveLine() {
-  if (!checkPackagingPermission('라인 수정')) return
-  if (!validateEditForm()) return
-  
-  saving.value = true
-  editErrors.value = {}
-  
-  try {
-    const updateData = {
-      line_id: editingLine.value.line_id,
-      line_type: editingLine.value.line_type,
-      eq_name: editFormData.value.eq_name,
-      line_state: editFormData.value.line_state,
-      max_capacity: editFormData.value.max_capacity,
-      current_speed: editFormData.value.current_speed,
-      product_code: editFormData.value.product_code,
-      target_qty: editFormData.value.target_qty,
-      description: editFormData.value.description,
-      employee_id: editFormData.value.employee_id,
-      employee_name: availableEmployees.value.find(emp => emp.employee_id == editFormData.value.employee_id)?.employee_name || ''
-    }
-    
-    const response = await axios.put(`/lines/${editingLine.value.line_id}`, updateData)
-    
-    if (response.data.success) {
-      setApiStatus('success', response.data.message || '라인이 성공적으로 수정되었습니다')
-      closeEditModal()
-      await loadLines()
-      await loadAvailableProducts()
-    } else {
-      throw new Error(response.data.message || '수정에 실패했습니다')
-    }
-  } catch (error) {
-    console.error('라인 수정 실패:', error)
-    setApiStatus('error', error.response?.data?.message || `라인 수정 실패: ${error.message}`)
-  } finally {
-    saving.value = false
-  }
-}
-
-// 수정된 라인 등록 함수 - dual API 사용
-async function dualRegisterLine() {
-  if (!checkPackagingPermission('라인 등록')) return
-  if (!validateDualForm()) return
-  
-  saving.value = true
-  dualErrors.value = {}
-  
-  try {
-    setApiStatus('info', '내포장/외포장 라인을 등록하는 중...')
-    
-    const requestData = {
-      line_id: dualFormData.value.line_id,
-      product_code: dualFormData.value.product_code,
-      inner_eq_name: dualFormData.value.inner_eq_name,
-      outer_eq_name: dualFormData.value.outer_eq_name,
-      inner_capacity: dualFormData.value.inner_capacity,
-      outer_capacity: dualFormData.value.outer_capacity,
-      inner_speed: dualFormData.value.inner_speed,
-      outer_speed: dualFormData.value.outer_speed,
-      inner_employee_id: dualFormData.value.inner_employee_id,
-      outer_employee_id: dualFormData.value.outer_employee_id,
-      description: dualFormData.value.description
-    }
-    
-    console.log('동시 등록 요청 데이터:', requestData)
-    
-    const response = await axios.post('/lines/dual', requestData)
-    
-    if (response.data.success) {
-      setApiStatus('success', response.data.message || '내포장/외포장 라인이 성공적으로 등록되었습니다')
-      closeDualModal()
-      await loadLines()
-      await loadAvailableLineIds()
-      await loadAvailableProducts()
-      await loadAvailableEmployees()
-      await loadAvailableEquipments()
-    } else {
-      throw new Error(response.data.message || '동시 등록에 실패했습니다')
-    }
-    
-  } catch (error) {
-    console.error('동시 등록 실패:', error)
-    
-    // 에러 메시지 개선
-    let errorMessage = '동시 등록에 실패했습니다'
-    
-    if (error.response?.data?.message) {
-      errorMessage = error.response.data.message
-    } else if (error.message) {
-      errorMessage = error.message
-    }
-    
-    // 중복 에러인 경우 특별 처리
-    if (errorMessage.includes('이미 존재하는 라인')) {
-      errorMessage = `${dualFormData.value.line_id}라인이 이미 존재합니다. 다른 라인 ID를 선택해주세요.`
-    }
-    
-    setApiStatus('error', errorMessage)
-  } finally {
-    saving.value = false
   }
 }
 
@@ -1047,8 +1093,8 @@ function editSelectedLines() {
   
   if (selectedLines.value.length === 1) {
     const selectedValue = selectedLines.value[0]
-    const [lineId, lineType] = selectedValue.split('-')
-    const line = lines.value.find(l => l.line_id === lineId && l.line_type === lineType)
+    const [lineCode, lineType] = selectedValue.split('-')
+    const line = lines.value.find(l => l.line_code === lineCode && l.line_type === lineType)
     if (line) {
       openEditModal(line)
     }
@@ -1069,7 +1115,10 @@ async function deleteSelectedLines() {
       setApiStatus('info', '선택된 라인들을 삭제하는 중...')
       
       const deletePromises = selectedLines.value.map(lineId => 
-        axios.delete(`/lines/${lineId}`)
+        axios.delete(`/lines/${lineId}`).catch(error => {
+          console.error(`라인 삭제 실패 (${lineId}):`, error)
+          return { success: false, error: error.message }
+        })
       )
       
       const results = await Promise.allSettled(deletePromises)
@@ -1078,16 +1127,24 @@ async function deleteSelectedLines() {
       let failCount = 0
       
       results.forEach((result, index) => {
-        if (result.status === 'fulfilled' && result.value.data.success) {
+        if (result.status === 'fulfilled' && 
+            result.value && 
+            result.value.data && 
+            result.value.data.success) {
           successCount++
         } else {
           failCount++
-          console.error(`라인 삭제 실패 (${selectedLines.value[index]}):`, result.reason)
+          console.error(`라인 삭제 실패 (${selectedLines.value[index]}):`, result.reason || result.value?.error)
         }
       })
       
-      selectedLines.value = []
-      selectAll.value = false
+      // 🔧 수정: 안전한 선택 상태 초기화
+      try {
+        selectedLines.value = []
+        selectAll.value = false
+      } catch (stateError) {
+        console.warn('상태 초기화 중 에러 (무시):', stateError)
+      }
       
       if (failCount === 0) {
         setApiStatus('success', `${successCount}개의 라인이 삭제되었습니다`)
@@ -1095,9 +1152,16 @@ async function deleteSelectedLines() {
         setApiStatus('warning', `${successCount}개 삭제 완료, ${failCount}개 실패`)
       }
       
-      await loadLines()
-      await loadAvailableLineIds()
-      await loadAvailableProducts()
+      // 🔧 수정: 안전한 데이터 새로고침
+      try {
+        await refreshDataSafely()
+      } catch (refreshError) {
+        console.warn('데이터 새로고침 중 에러 (무시):', refreshError)
+        // 페이지 새로고침으로 대체
+        setTimeout(() => {
+          window.location.reload()
+        }, 2000)
+      }
       
     } catch (error) {
       console.error('일괄 삭제 실패:', error)
@@ -1111,7 +1175,7 @@ function toggleSelectAll() {
   if (!authStore.canManageLines) return
   
   if (selectAll.value) {
-    selectedLines.value = sortedLines.value.map(line => `${line.line_id}-${line.line_type}`)
+    selectedLines.value = sortedLines.value.map(line => `${line.line_code}-${line.line_type}`)
   } else {
     selectedLines.value = []
   }
@@ -1143,8 +1207,8 @@ function validateEditForm() {
 function validateDualForm() {
   const newErrors = {}
   
-  if (!dualFormData.value.line_id) {
-    newErrors.line_id = '라인 ID를 선택해주세요.'
+  if (!dualFormData.value.line_code) {
+    newErrors.line_code = '라인 코드를 선택해주세요.'
   }
   
   if (!dualFormData.value.inner_eq_name) {
@@ -1186,7 +1250,13 @@ function validateDualForm() {
 function openEditModal(line) {
   if (!checkPackagingPermission('라인 수정')) return
   
-  editingLine.value = line
+  console.log('수정할 라인 정보:', line);
+  
+  editingLine.value = {
+    ...line,
+    line_type: line.line_type,
+    line_code: line.line_code
+  }
   
   editFormData.value = {
     eq_name: line.eq_name || '',
@@ -1203,13 +1273,15 @@ function openEditModal(line) {
   loadAvailableEmployees()
   loadAvailableEquipments()
   showEditModal.value = true
+  
+  console.log('editingLine 설정:', editingLine.value);
 }
 
 async function openDualModal() {
   if (!checkPackagingPermission('라인 등록')) return
   
   dualFormData.value = {
-    line_id: '',
+    line_code: '',
     product_code: '',
     inner_eq_name: '',
     outer_eq_name: '',
@@ -1229,6 +1301,204 @@ async function openDualModal() {
   await loadAvailableProducts()
   await loadAvailableEquipments()
   showDualModal.value = true
+}
+
+// 🆕 추가: 안전한 데이터 새로고침 함수
+async function refreshDataSafely() {
+  const refreshPromises = []
+  
+  try {
+    // 각 함수를 개별적으로 실행하고 에러가 발생해도 계속 진행
+    refreshPromises.push(
+      loadLines().catch(error => {
+        console.warn('라인 목록 새로고침 실패:', error)
+        return []
+      })
+    )
+    
+    refreshPromises.push(
+      loadAvailableLineIds().catch(error => {
+        console.warn('라인 ID 목록 새로고침 실패:', error)
+        return []
+      })
+    )
+    
+    refreshPromises.push(
+      loadAvailableProducts().catch(error => {
+        console.warn('제품 목록 새로고침 실패:', error)
+        return []
+      })
+    )
+    
+    refreshPromises.push(
+      loadAvailableEmployees().catch(error => {
+        console.warn('담당자 목록 새로고침 실패:', error)
+        return []
+      })
+    )
+    
+    refreshPromises.push(
+      loadAvailableEquipments().catch(error => {
+        console.warn('설비 목록 새로고침 실패:', error)
+        return []
+      })
+    )
+    
+    // 모든 새로고침 작업을 병렬로 실행
+    await Promise.allSettled(refreshPromises)
+    
+    console.log('데이터 새로고침 완료')
+    
+  } catch (error) {
+    console.error('데이터 새로고침 중 예외 발생:', error)
+    throw error
+  }
+}
+
+async function refreshData() {
+  try {
+    await refreshDataSafely()
+  } catch (error) {
+    console.error('데이터 새로고침 실패:', error)
+    setApiStatus('error', '데이터 새로고침에 실패했습니다.')
+  }
+}
+
+// 내포장/외포장 동시 등록 함수
+async function dualRegisterLine() {
+  if (!checkPackagingPermission('라인 등록')) return
+  if (!validateDualForm()) return
+  
+  saving.value = true
+  dualErrors.value = {}
+  
+  try {
+    console.log('내포장/외포장 동시 등록 API 호출');
+    console.log('요청 데이터:', JSON.stringify(dualFormData.value, null, 2));
+    
+    // 필수 필드 검증
+    const requiredFields = ['line_code', 'inner_eq_name', 'outer_eq_name', 'inner_employee_id', 'outer_employee_id'];
+    const missingFields = requiredFields.filter(field => !dualFormData.value[field]);
+    
+    if (missingFields.length > 0) {
+      throw new Error(`필수 필드가 누락되었습니다: ${missingFields.join(', ')}`);
+    }
+    
+    const requestData = {
+      ...dualFormData.value,
+      eq_group_code: 'e3'
+    };
+    
+    const response = await axios.post('/lines/dual', requestData)
+    
+    if (response.data.success) {
+      setApiStatus('success', response.data.message || '내포장/외포장 라인이 성공적으로 등록되었습니다.')
+      
+      // 🔧 수정: 안전한 모달 닫기
+      try {
+        closeDualModal()
+      } catch (modalError) {
+        console.warn('모달 닫기 중 에러 (무시):', modalError)
+      }
+      
+      // 🔧 수정: 안전한 데이터 새로고침
+      try {
+        await refreshDataSafely()
+      } catch (refreshError) {
+        console.warn('데이터 새로고침 중 에러 (무시):', refreshError)
+        // 페이지 새로고침으로 대체
+        setTimeout(() => {
+          window.location.reload()
+        }, 2000)
+      }
+    } else {
+      throw new Error(response.data.message || '동시 등록에 실패했습니다')
+    }
+    
+  } catch (error) {
+    console.error('동시 등록 실패:', error)
+    
+    // 에러 메시지 개선
+    let errorMessage = '동시 등록에 실패했습니다'
+    
+    if (error.response?.data?.message) {
+      errorMessage = error.response.data.message
+    } else if (error.message) {
+      errorMessage = error.message
+    }
+    
+    // 중복 에러인 경우 특별 처리
+    if (errorMessage.includes('이미 존재하는 라인')) {
+      errorMessage = `${dualFormData.value.line_code}라인이 이미 존재합니다. 다른 라인 코드를 선택해주세요.`
+    }
+    
+    setApiStatus('error', errorMessage)
+  } finally {
+    saving.value = false
+  }
+}
+
+async function saveLine() {
+  if (!checkPackagingPermission('라인 수정')) return
+  if (!validateEditForm()) return
+  
+  saving.value = true
+  editErrors.value = {}
+  
+  try {
+    console.log('수정 API 호출 정보:');
+    console.log('  라인 코드:', editingLine.value.line_code);
+    console.log('  라인 타입:', editingLine.value.line_type);
+    
+    const updateData = {
+      line_code: editingLine.value.line_code,
+      line_type: editingLine.value.line_type,
+      eq_name: editFormData.value.eq_name,
+      line_state: editFormData.value.line_state,
+      max_capacity: editFormData.value.max_capacity,
+      current_speed: editFormData.value.current_speed,
+      product_code: editFormData.value.product_code,
+      target_qty: editFormData.value.target_qty,
+      description: editFormData.value.description,
+      employee_id: editFormData.value.employee_id,
+      employee_name: availableEmployees.value.find(emp => emp.employee_id == editFormData.value.employee_id)?.employee_name || ''
+    }
+    
+    // ★ 개별 수정 API 호출
+    const apiUrl = `/lines/${editingLine.value.line_code}/${editingLine.value.line_type}`
+    console.log('API URL:', apiUrl);
+    
+    const response = await axios.put(apiUrl, updateData)
+    
+    if (response.data.success) {
+      setApiStatus('success', response.data.message || `${editingLine.value.line_code}라인 ${getLineTypeText(editingLine.value.line_type)}이 성공적으로 수정되었습니다`)
+      
+      // 🔧 수정: 안전한 모달 닫기
+      try {
+        closeEditModal()
+      } catch (modalError) {
+        console.warn('모달 닫기 중 에러 (무시):', modalError)
+      }
+      
+      // 🔧 수정: 안전한 데이터 새로고침
+      try {
+        await refreshDataSafely()
+      } catch (refreshError) {
+        console.warn('데이터 새로고침 중 에러 (무시):', refreshError)
+        // 페이지 새로고침으로 대체
+        setTimeout(() => {
+          window.location.reload()
+        }, 2000)
+      }
+    } else {
+      throw new Error(response.data.message || '수정에 실패했습니다')
+    }
+  } catch (error) {
+    console.error('라인 수정 실패:', error)
+    setApiStatus('error', error.response?.data?.message || `라인 수정 실패: ${error.message}`)
+  } finally {
+    saving.value = false
+  }
 }
 
 function closeEditModal() {
@@ -1251,7 +1521,7 @@ function closeDualModal() {
   showDualModal.value = false
   dualErrors.value = {}
   dualFormData.value = {
-    line_id: '',
+    line_code: '',
     product_code: '',
     inner_eq_name: '',
     outer_eq_name: '',
@@ -1271,18 +1541,16 @@ function clearFilters() {
   typeFilter.value = ''
 }
 
-async function refreshData() {
-  await loadLines()
-  await loadAvailableLineIds()
-  await loadAvailableProducts()
-  await loadAvailableEmployees()
-  await loadAvailableEquipments()
-}
-
 async function retryConnection() {
   error.value = ''
   apiStatus.value = null
-  await loadLines()
+  
+  try {
+    await refreshDataSafely()
+  } catch (error) {
+    console.error('재연결 실패:', error)
+    setApiStatus('error', '재연결에 실패했습니다.')
+  }
 }
 
 // 헬퍼 함수들
@@ -1318,19 +1586,79 @@ function formatDateTime(dateTime) {
   }
 }
 
+// 컴포넌트 마운트 시 에러 핸들링 설정
+onMounted(async () => {
+  setupGlobalErrorHandling()
+  
+  // 🔧 수정: 안전한 초기 데이터 로딩
+  try {
+    console.log('컴포넌트 마운트 - 초기 데이터 로딩 시작')
+    
+    // 병렬로 초기 데이터 로딩 (에러가 발생해도 다른 로딩은 계속 진행)
+    const initPromises = [
+      loadCurrentEmployee().catch(err => console.warn('사용자 정보 로딩 실패:', err)),
+      loadLines().catch(err => console.warn('라인 목록 로딩 실패:', err)),
+      loadAvailableLineIds().catch(err => console.warn('라인 ID 목록 로딩 실패:', err)),
+      loadAvailableProducts().catch(err => console.warn('제품 목록 로딩 실패:', err)),
+      loadAvailableEmployees().catch(err => console.warn('담당자 목록 로딩 실패:', err)),
+      loadAvailableEquipments().catch(err => console.warn('설비 목록 로딩 실패:', err))
+    ]
+    
+    await Promise.allSettled(initPromises)
+    console.log('초기 데이터 로딩 완료')
+    
+  } catch (error) {
+    console.error('초기화 중 예외 발생:', error)
+    setApiStatus('warning', '일부 데이터를 불러오는데 실패했습니다. 새로고침해주세요.')
+  }
+})
+
 defineOptions({
   name: 'PackageLineManagement'
 })
 </script>
 
 <style scoped>
-/* 포장 라인 관리 CSS - 아이콘 제거 버전 */
+/* 포장 라인 관리 CSS - 아이콘 완전 제거 및 개선된 디자인 */
 
 .package-line-management {
   max-width: 1200px;
   margin: 0 auto;
   padding: 20px;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* 설비 로드 상태 */
+.equipment-status {
+  padding: 10px 12px;
+  border-radius: 6px;
+  margin-bottom: 16px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.equipment-status.success {
+  background-color: #d1fae5;
+  color: #065f46;
+  border: 1px solid #10b981;
+}
+
+.equipment-status.warning {
+  background-color: #fef3c7;
+  color: #b45309;
+  border: 1px solid #f59e0b;
+}
+
+.equipment-status.error {
+  background-color: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #ef4444;
+}
+
+.equipment-status.info {
+  background-color: #dbeafe;
+  color: #1e40af;
+  border: 1px solid #3b82f6;
 }
 
 /* 인증 헤더 */
@@ -1421,7 +1749,7 @@ defineOptions({
 }
 
 .btn-edit, .btn-edit-single {
-  background-color: #f59e0b;
+  background-color: #185ef5;
   color: white;
 }
 
@@ -1693,6 +2021,27 @@ defineOptions({
   color: #6b7280;
 }
 
+/* 타입 배지 */
+.type-badge {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  text-align: center;
+  min-width: 60px;
+  display: inline-block;
+}
+
+.type-badge.inner {
+  background-color: #dbeafe;
+  color: #1e40af;
+}
+
+.type-badge.outer {
+  background-color: #f3e8ff;
+  color: #7c3aed;
+}
+
 /* 상태 배지 */
 .status-badge {
   padding: 4px 8px;
@@ -1759,29 +2108,6 @@ defineOptions({
 .product-name {
   font-size: 12px;
   color: #6b7280;
-}
-
-/* 작업 정보 */
-.work-info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.work-order {
-  font-weight: 500;
-  color: #111827;
-}
-
-.work-time {
-  font-size: 12px;
-  color: #6b7280;
-}
-
-.no-work {
-  font-size: 12px;
-  color: #9ca3af;
-  font-style: italic;
 }
 
 /* 액션 버튼 */
@@ -1915,6 +2241,13 @@ defineOptions({
   color: #ef4444;
   font-size: 12px;
   margin-top: 4px;
+}
+
+.warning-message {
+  color: #f59e0b;
+  font-size: 12px;
+  margin-top: 4px;
+  font-weight: 500;
 }
 
 /* 등록 안내 */

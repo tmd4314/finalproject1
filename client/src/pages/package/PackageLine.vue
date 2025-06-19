@@ -127,7 +127,7 @@
           <div class="progress-step" :class="{ completed: completedSteps.includes('INNER'), active: selectedPackageType === 'INNER' }">
             <div class="step-text">내포장</div>
           </div>
-          <div class="progress-arrow">다음</div>
+          <div class="progress-arrow">-></div>
           <div class="progress-step" :class="{ completed: completedSteps.includes('OUTER'), active: selectedPackageType === 'OUTER' }">
             <div class="step-text">외포장</div>
           </div>

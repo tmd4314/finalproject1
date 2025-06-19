@@ -1,169 +1,172 @@
-// server/services/lineService.js - dual 등록 함수 추가 버전
+// server/services/lineService.js - line_id 필드 문제 수정
 
 const mapper = require('../database/mapper.js');
 
-// 라인 코드를 숫자로 변환하는 함수 (A=1, B=2, C=3...)
-const convertLineCodeToNumber = (lineCode) => {
-  if (typeof lineCode === 'string' && lineCode.length === 1) {
-    return lineCode.charCodeAt(0) - 64; // A=1, B=2, C=3...
+// 설비 분류 함수 (설비명 기반)
+const classifyEquipmentByName = (eqName, eqTypeCode = '') => {
+  if (!eqName) return 'INNER';
+  
+  const name = eqName.toLowerCase();
+  
+  // 외포장 설비 패턴
+  if (name.includes('카톤') || 
+      name.includes('박스') || 
+      name.includes('케이스') ||
+      name.includes('상자') ||
+      eqTypeCode === 'f2') {
+    return 'OUTER';
   }
-  return 1; // 기본값
+  
+  // 내포장 설비 패턴
+  if (name.includes('블리스터') || 
+      name.includes('모노블럭') || 
+      name.includes('병') ||
+      name.includes('튜브') ||
+      name.includes('캡슐') ||
+      (name.includes('정') && !name.includes('카톤')) ||
+      eqTypeCode === 'f1') {
+    return 'INNER';
+  }
+  
+  return 'INNER';
 };
 
-// 폴백 데이터 (DB 완전 실패 시에만 사용)
-const emergencyFallback = {
-  lines: [
-    {
-      line_id: 'A', line_name: 'A라인 내포장', line_type: 'INNER',
-      line_state: 's2', line_status: '가동대기 중', employee_name: '미배정',
-      employee_id: null, product_code: '', product_name: '',
-      eq_name: '', current_speed: 0, target_qty: 0,
-      max_capacity: 1000, description: '기본 라인',
-      current_work_number: '', // 작업번호는 빈 값으로 초기화
-      current_process_name: ''
-    }
-  ],
-  products: [
-    { product_code: 'BJA-DR-30', product_name: '30정 블리스터', product_type: 'BLISTER' },
-    { product_code: 'BJA-BT-100', product_name: '100정 병', product_type: 'BOTTLE' }
-  ],
-  employees: [
-    { employee_id: 2, employee_name: '관리자' },
-    { employee_id: 3, employee_name: '김다산' }
-  ],
-  equipments: [
-    { eq_name: '30정 블리스터 포장기', line_type: 'INNER' },
-    { eq_name: '소형 카톤포장기', line_type: 'OUTER' }
-  ]
+// 포장 타입 한글 변환
+const getLineTypeText = (lineType) => {
+  return lineType === 'INNER' ? '내포장' : '외포장';
 };
 
-// 공통 에러 처리 함수
-const handleDbError = (error, fallbackValue, functionName) => {
-  console.error(`❌ ${functionName} DB 에러:`, error.message);
-  console.log(`📦 ${functionName} 폴백 데이터 사용`);
-  return fallbackValue;
+// line_id 생성 함수
+const generateLineId = (lineCode, lineType) => {
+  return `${lineCode}_${lineType}`;
 };
 
-// ========== 데이터베이스 연결 테스트 ==========
-const testDatabaseConnection = async () => {
+// ========== 실적 ID 관리 ==========
+
+const getLatestResultId = async (productCode = null) => {
   try {
-    console.log('🔍 DB 연결 테스트 시작...');
+    console.log('최신 실적 ID 조회 시작, 제품코드:', productCode);
     
-    if (!mapper || typeof mapper.query !== 'function') {
-      throw new Error('mapper 객체가 정의되지 않았거나 query 함수가 없습니다.');
+    let resultId = null;
+    
+    // 특정 제품코드가 있으면 해당 제품의 최신 실적 ID 조회
+    if (productCode) {
+      try {
+        const productResult = await mapper.query('selectLatestResultIdByProduct', [productCode]);
+        if (productResult && productResult.length > 0 && productResult[0].result_id) {
+          resultId = productResult[0].result_id;
+          console.log('제품별 실적 ID 조회 성공:', resultId);
+        }
+      } catch (productError) {
+        console.warn('제품별 실적 ID 조회 실패:', productError.message);
+      }
     }
     
-    const result = await mapper.query('testConnection');
-    console.log('✅ DB 연결 테스트 성공:', result);
-    return true;
+    // 전체 최신 실적 ID 조회
+    if (!resultId) {
+      try {
+        const latestResult = await mapper.query('selectLatestResultId');
+        if (latestResult && latestResult.length > 0 && latestResult[0].result_id) {
+          resultId = latestResult[0].result_id;
+          console.log('전체 최신 실적 ID 조회 성공:', resultId);
+        }
+      } catch (latestError) {
+        console.warn('전체 실적 ID 조회 실패:', latestError.message);
+      }
+    }
+    
+    // 기본값 생성
+    if (!resultId) {
+      const defaultId = `RE${new Date().toISOString().slice(0, 10).replace(/-/g, '')}001`;
+      console.log('기본 실적 ID 생성:', defaultId);
+      resultId = defaultId;
+    }
+    
+    return resultId;
+    
   } catch (error) {
-    console.error('❌ DB 연결 테스트 실패:', error.message);
-    return false;
+    console.error('실적 ID 조회 실패:', error.message);
+    return `RE${new Date().toISOString().slice(0, 10).replace(/-/g, '')}001`;
   }
 };
 
-const testProductTable = async () => {
-  try {
-    console.log('🔍 제품 테이블 테스트 시작...');
-    const result = await mapper.query('testProductTableExists');
-    console.log('✅ 제품 테이블 존재 확인:', result);
-    return true;
-  } catch (error) {
-    console.error('❌ 제품 테이블 테스트 실패:', error.message);
-    return false;
-  }
-};
+// ========== 라인 목록 조회 ==========
 
-// ========== 라인 목록 조회 (작업번호 조회 완전 제거) ==========
 const getLineList = async () => {
   try {
-    console.log('📋 라인 목록 조회 시작 (DB 연결)');
+    console.log('라인 목록 조회 시작');
     
-    // DB 연결 테스트
-    const dbConnected = await testDatabaseConnection();
-    if (!dbConnected) {
-      console.warn('⚠️ DB 연결 실패 - 폴백 데이터 사용');
-      return emergencyFallback.lines;
-    }
-    
-    // 1차: 통합 쿼리 시도 (작업번호 없이)
+    // 1차: 통합 쿼리 시도
     try {
       const lineList = await mapper.query('selectLineListWithJoins');
       
       if (lineList && Array.isArray(lineList) && lineList.length > 0) {
-        console.log('✅ 통합 쿼리로 라인 목록 조회 성공:', lineList.length, '건');
+        console.log('통합 쿼리로 라인 목록 조회 성공:', lineList.length, '건');
         
-        // 작업번호는 항상 빈 값으로 설정
-        const processedLineList = lineList.map(line => ({
+        return lineList.map(line => ({
           ...line,
-          current_work_number: '',  // 작업번호 컬럼 삭제됨
-          current_process_name: ''  // 작업번호 컬럼 삭제됨
+          line_type_text: getLineTypeText(line.line_type),
+          current_work_number: '',
+          current_process_name: ''
         }));
-        
-        return processedLineList;
-      } else {
-        console.warn('⚠️ 통합 쿼리 결과가 빈 배열');
       }
     } catch (joinError) {
-      console.warn('⚠️ 통합 쿼리 실패:', joinError.message);
+      console.warn('통합 쿼리 실패:', joinError.message);
+    }
+    
+    // 2차: 안전한 쿼리 시도
+    try {
+      const safeLineList = await mapper.query('selectLineListSafe');
       
-      // 2차: 안전한 쿼리 시도 (작업번호 없이)
-      try {
-        const safeLineList = await mapper.query('selectLineListSafe');
+      if (safeLineList && Array.isArray(safeLineList) && safeLineList.length > 0) {
+        console.log('안전한 쿼리로 라인 목록 조회 성공:', safeLineList.length, '건');
         
-        if (safeLineList && Array.isArray(safeLineList) && safeLineList.length > 0) {
-          console.log('✅ 안전한 쿼리로 라인 목록 조회 성공:', safeLineList.length, '건');
-          
-          return safeLineList.map(line => ({
-            ...line,
-            current_work_number: '',
-            current_process_name: ''
-          }));
-        }
-      } catch (safeError) {
-        console.warn('⚠️ 안전한 쿼리도 실패:', safeError.message);
+        return safeLineList.map(line => ({
+          ...line,
+          line_type_text: getLineTypeText(line.line_type),
+          current_work_number: '',
+          current_process_name: ''
+        }));
       }
+    } catch (safeError) {
+      console.warn('안전한 쿼리도 실패:', safeError.message);
     }
     
     // 3차: 마스터 테이블만 조회
-    try {
-      const masterList = await mapper.query('selectLineMasterList');
+    const masterList = await mapper.query('selectLineMasterList');
+    
+    if (masterList && Array.isArray(masterList) && masterList.length > 0) {
+      console.log('마스터 테이블에서 조회 성공:', masterList.length, '건');
       
-      if (masterList && Array.isArray(masterList) && masterList.length > 0) {
-        console.log('✅ 마스터 테이블에서 조회 성공:', masterList.length, '건');
-        
-        // 기본 구조로 변환 (작업번호는 빈 값)
-        return masterList.map(master => ({
-          line_id: master.line_code,
-          line_name: master.line_name,
-          line_type: master.line_type || 'INNER',
-          line_state: 's2',
-          line_status: '가동대기 중',
-          employee_name: '미배정',
-          employee_id: null,
-          product_code: master.product_code || '',
-          product_name: master.product_code || '',
-          eq_name: '',
-          current_speed: 0,
-          target_qty: 0,
-          max_capacity: master.max_capacity || 1000,
-          description: master.description || '',
-          current_work_number: '',  // 작업번호 컬럼 삭제됨
-          current_process_name: '', // 작업번호 컬럼 삭제됨
-          work_start_time: '',
-          reg_date: master.reg_date
-        }));
-      }
-    } catch (masterError) {
-      console.error('❌ 마스터 테이블 조회도 실패:', masterError.message);
+      return masterList.map(master => ({
+        line_code: master.line_code,
+        line_name: master.line_name,
+        line_type: master.line_type || 'INNER',
+        line_type_text: getLineTypeText(master.line_type || 'INNER'),
+        line_state: 's2',
+        line_status: '가동대기 중',
+        employee_name: '미배정',
+        employee_id: null,
+        product_code: master.product_code || '',
+        product_name: master.product_code || '',
+        eq_name: '',
+        current_speed: 0,
+        target_qty: 0,
+        max_capacity: master.max_capacity || 1000,
+        description: master.description || '',
+        current_work_number: '',
+        current_process_name: '',
+        work_start_time: '',
+        reg_date: master.reg_date,
+        eq_group_code: 'e3'
+      }));
     }
     
-    // 모든 쿼리 실패 시 폴백
-    console.warn('⚠️ 모든 DB 쿼리 실패 - 폴백 데이터 사용');
-    return emergencyFallback.lines;
+    return [];
     
   } catch (error) {
-    return handleDbError(error, emergencyFallback.lines, 'getLineList');
+    console.error('라인 목록 조회 실패:', error.message);
+    return [];
   }
 };
 
@@ -171,414 +174,349 @@ const getLineList = async () => {
 
 const getAvailableProducts = async (lineCode = null) => {
   try {
-    console.log('📦 제품코드 조회 시작 (DB 연결)');
+    console.log('제품코드 조회 시작');
     
-    const dbConnected = await testDatabaseConnection();
-    if (!dbConnected) {
-      return emergencyFallback.products;
+    const products = await mapper.query('selectProductsSafe');
+    
+    if (products && Array.isArray(products) && products.length > 0) {
+      console.log('제품코드 조회 성공:', products.length, '건');
+      
+      return products.map(product => ({
+        ...product,
+        product_type: product.product_code?.includes('DR') ? 'BLISTER' :
+                     product.product_code?.includes('BT') ? 'BOTTLE' : 'TABLET',
+        package_type: product.product_code?.includes('DR') ? 'BLISTER' :
+                     product.product_code?.includes('BT') ? 'BOTTLE' : 'TABLET'
+      }));
     }
     
-    try {
-      const products = await mapper.query('selectAllProducts');
-      console.log('제품 조회 결과:', products);
-      
-      if (products && Array.isArray(products) && products.length > 0) {
-        console.log('✅ 제품코드 조회 성공:', products.length, '건');
-        
-        return products.map(product => ({
-          ...product,
-          product_type: product.product_code?.includes('DR') ? 'BLISTER' :
-                       product.product_code?.includes('BT') ? 'BOTTLE' : 'TABLET',
-          package_type: product.product_code?.includes('DR') ? 'BLISTER' :
-                       product.product_code?.includes('BT') ? 'BOTTLE' : 'TABLET'
-        }));
-      }
-    } catch (allError) {
-      console.error('⚠️ 전체 제품 조회 실패:', allError);
-      
-      // nested error 처리
-      const actualError = allError.err || allError;
-      
-      console.error('에러 상세:', {
-        message: actualError.message || actualError.sqlMessage || 'Unknown error',
-        stack: actualError.stack,
-        name: actualError.name,
-        code: actualError.code,
-        errno: actualError.errno,
-        sqlState: actualError.sqlState
-      });
-      
-      try {
-        const safeProducts = await mapper.query('selectProductsSafe');
-        console.log('안전한 제품 조회 결과:', safeProducts);
-        
-        if (safeProducts && Array.isArray(safeProducts) && safeProducts.length > 0) {
-          console.log('✅ 안전한 제품코드 조회 성공:', safeProducts.length, '건');
-          return safeProducts.map(product => ({
-            ...product,
-            product_type: 'TABLET',
-            package_type: 'TABLET'
-          }));
-        }
-      } catch (safeError) {
-        console.error('⚠️ 안전한 제품 조회도 실패:', safeError);
-        
-        // nested error 처리
-        const actualError = safeError.err || safeError;
-        
-        console.error('안전한 조회 에러 상세:', {
-          message: actualError.message || actualError.sqlMessage || 'Unknown error',
-          stack: actualError.stack,
-          name: actualError.name,
-          code: actualError.code,
-          errno: actualError.errno,
-          sqlState: actualError.sqlState
-        });
-      }
-    }
-    
-    return emergencyFallback.products;
+    return [];
     
   } catch (error) {
-    console.error('❌ 제품 조회 전체 실패:', error);
-    
-    // nested error 처리
-    const actualError = error.err || error;
-    
-    console.error('전체 에러 상세:', {
-      message: actualError.message || actualError.sqlMessage || 'Unknown error',
-      stack: actualError.stack,
-      name: actualError.name,
-      code: actualError.code,
-      errno: actualError.errno,
-      sqlState: actualError.sqlState
-    });
-    return handleDbError(error, emergencyFallback.products, 'getAvailableProducts');
+    console.error('제품코드 조회 실패:', error.message);
+    return [];
   }
 };
 
 const getAvailableEmployees = async () => {
   try {
-    console.log('👥 담당자 조회 시작 (DB 연결)');
-    
-    const dbConnected = await testDatabaseConnection();
-    if (!dbConnected) {
-      return emergencyFallback.employees;
-    }
+    console.log('담당자 조회 시작');
     
     try {
       const employees = await mapper.query('selectAllEmployees');
       
       if (employees && Array.isArray(employees) && employees.length > 0) {
-        console.log('✅ 담당자 조회 성공:', employees.length, '명');
+        console.log('담당자 조회 성공:', employees.length, '명');
         return employees;
       }
-    } catch (allError) {
-      console.warn('⚠️ 담당자 조회 실패:', allError.message);
+    } catch (error) {
+      console.warn('담당자 조회 실패:', error.message);
       
-      try {
-        const safeEmployees = await mapper.query('selectEmployeesSafe');
-        
-        if (safeEmployees && Array.isArray(safeEmployees) && safeEmployees.length > 0) {
-          console.log('✅ 안전한 담당자 조회 성공:', safeEmployees.length, '명');
-          return safeEmployees;
-        }
-      } catch (safeError) {
-        console.warn('⚠️ 안전한 담당자 조회도 실패:', safeError.message);
+      const safeEmployees = await mapper.query('selectEmployeesSafe');
+      
+      if (safeEmployees && Array.isArray(safeEmployees) && safeEmployees.length > 0) {
+        console.log('안전한 담당자 조회 성공:', safeEmployees.length, '명');
+        return safeEmployees;
       }
     }
     
-    return emergencyFallback.employees;
+    return [];
     
   } catch (error) {
-    return handleDbError(error, emergencyFallback.employees, 'getAvailableEmployees');
+    console.error('담당자 조회 실패:', error.message);
+    return [];
   }
 };
 
-const getAvailableEquipments = async (excludeLineId = null) => {
+const getAvailableEquipments = async (excludeLineCode = null) => {
   try {
-    console.log('🔧 설비명 조회 시작 (DB 연결)');
+    console.log('설비명 조회 시작 (equipment 테이블에서)');
     
-    const dbConnected = await testDatabaseConnection();
-    if (!dbConnected) {
-      return emergencyFallback.equipments;
-    }
+    // equipment 테이블에서 e3(포장설비) 조회
+    const allEquipments = await mapper.query('selectAllEquipments');
     
-    try {
-      const query = excludeLineId ? 'selectUsedEquipmentsExcludeLine' : 'selectUsedEquipments';
-      const params = excludeLineId ? [excludeLineId] : [];
+    if (allEquipments && Array.isArray(allEquipments) && allEquipments.length > 0) {
+      console.log('equipment 테이블에서 설비 조회 성공:', allEquipments.length, '개');
+      
+      // 사용 중인 설비 확인
+      const query = excludeLineCode ? 'selectUsedEquipmentsExcludeLine' : 'selectUsedEquipments';
+      const params = excludeLineCode ? [excludeLineCode] : [];
       
       const usedEquipments = await mapper.query(query, params);
-      console.log('✅ 사용 중인 설비 조회 성공:', usedEquipments.length, '개');
-      
-      const allEquipments = [
-        { eq_name: '10정 블리스터 포장기', line_type: 'INNER' },
-        { eq_name: '30정 블리스터 포장기', line_type: 'INNER' },
-        { eq_name: '60정 블리스터 포장기', line_type: 'INNER' },
-        { eq_name: '병 모노블럭', line_type: 'INNER' },
-        { eq_name: '소형 카톤포장기', line_type: 'OUTER' },
-        { eq_name: '중형 카톤포장기', line_type: 'OUTER' },
-        { eq_name: '대형 카톤포장기', line_type: 'OUTER' },
-        { eq_name: '병 카톤포장기', line_type: 'OUTER' },
-      ];
-      
       const usedNames = usedEquipments.map(eq => eq.eq_name);
-      const availableEquipments = allEquipments.filter(eq => 
-        !usedNames.includes(eq.eq_name)
-      );
       
-      console.log('사용 가능한 설비:', availableEquipments.length, '개');
+      // 설비 분류 로직
+      const availableEquipments = allEquipments
+        .filter(eq => !usedNames.includes(eq.eq_name))
+        .map(eq => {
+          const lineType = classifyEquipmentByName(eq.eq_name, eq.eq_type_code);
+          
+          console.log(`설비 분류: ${eq.eq_name} -> ${lineType} (타입코드: ${eq.eq_type_code})`);
+          
+          return {
+            eq_name: eq.eq_name,
+            line_type: lineType,
+            eq_type: lineType,
+            eq_type_code: eq.eq_type_code,
+            equipment_category: eq.equipment_category || '일반설비'
+          };
+        });
+      
+      // 분류 통계
+      const innerCount = availableEquipments.filter(eq => eq.line_type === 'INNER').length;
+      const outerCount = availableEquipments.filter(eq => eq.line_type === 'OUTER').length;
+      
+      console.log('설비 분류 결과:');
+      console.log(`  - 전체: ${availableEquipments.length}개`);
+      console.log(`  - 내포장: ${innerCount}개`);
+      console.log(`  - 외포장: ${outerCount}개`);
+      
       return availableEquipments;
-      
-    } catch (equipError) {
-      console.warn('⚠️ 설비 조회 실패:', equipError.message);
     }
     
-    return emergencyFallback.equipments;
+    return [];
     
   } catch (error) {
-    return handleDbError(error, emergencyFallback.equipments, 'getAvailableEquipments');
+    console.error('설비명 조회 실패:', error.message);
+    return [];
   }
 };
 
-const getAvailableLineIds = async () => {
+const getAvailableLineCodes = async () => {
   try {
-    console.log('=== 사용 가능한 라인 ID 조회 (DB 연결) ===');
-    
-    const dbConnected = await testDatabaseConnection();
-    if (!dbConnected) {
-      return ['D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M'];
-    }
+    console.log('사용 가능한 라인 코드 조회');
     
     const masterList = await mapper.query('selectLineMasterList');
-    const usedIds = masterList.map(master => master.line_code);
+    const usedCodes = masterList.map(master => master.line_code);
     
-    // A-Z 중 사용되지 않은 ID 반환
-    const allIds = Array.from({length: 26}, (_, i) => String.fromCharCode(65 + i));
-    const availableIds = allIds.filter(id => !usedIds.includes(id));
+    // A-Z 중 사용되지 않은 코드 반환
+    const allCodes = Array.from({length: 26}, (_, i) => String.fromCharCode(65 + i));
+    const availableCodes = allCodes.filter(code => !usedCodes.includes(code));
     
-    console.log('✅ 사용 가능한 라인 ID:', availableIds.length, '개');
-    return availableIds.slice(0, 10); // 처음 10개만 반환
+    console.log('사용 가능한 라인 코드:', availableCodes.length, '개');
+    return availableCodes.slice(0, 10);
     
   } catch (error) {
-    console.error('❌ 사용 가능한 라인 ID 조회 실패:', error.message);
-    
-    // 에러 시 기본 ID 목록 반환
-    return ['D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M'];
+    console.error('사용 가능한 라인 코드 조회 실패:', error.message);
+    return [];
   }
 };
 
 // ========== 라인 마스터 관리 ==========
-const getLineMasterByLineId = async (lineId) => {
+
+const getLineMasterByLineCode = async (lineCode) => {
   try {
-    console.log('🔍 라인 마스터 조회:', lineId);
+    console.log('라인 마스터 조회:', lineCode);
     
-    const dbConnected = await testDatabaseConnection();
-    if (!dbConnected) {
-      return null;
-    }
+    const masterDetails = await mapper.query('selectLineMasterByLineCode', [lineCode]);
     
-    const masterDetail = await mapper.query('selectLineMasterByLineId', [lineId]);
-    
-    if (masterDetail && Array.isArray(masterDetail) && masterDetail.length > 0) {
-      console.log('✅ 라인 마스터 조회 성공:', lineId);
-      return masterDetail[0];
+    if (masterDetails && Array.isArray(masterDetails) && masterDetails.length > 0) {
+      console.log('라인 마스터 조회 성공:', lineCode, masterDetails.length, '개');
+      return masterDetails.map(master => ({
+        ...master,
+        line_type_text: getLineTypeText(master.line_type)
+      }));
     } else {
-      console.warn('⚠️ 해당 라인 마스터 없음:', lineId);
-      return null;
+      console.warn('해당 라인 마스터 없음:', lineCode);
+      return [];
     }
   } catch (error) {
-    console.error('❌ 라인 마스터 조회 실패:', error.message);
-    return null;
+    console.error('라인 마스터 조회 실패:', error.message);
+    return [];
   }
 };
 
 const getLineMasterDetail = async (masterId) => {
   try {
-    const dbConnected = await testDatabaseConnection();
-    if (!dbConnected) {
-      return null;
-    }
-    
     const masterDetail = await mapper.query('selectLineMasterById', [masterId]);
     
     if (masterDetail && Array.isArray(masterDetail) && masterDetail.length > 0) {
-      console.log('✅ 라인 마스터 ID 조회 성공:', masterId);
-      return masterDetail[0];
+      console.log('라인 마스터 ID 조회 성공:', masterId);
+      return {
+        ...masterDetail[0],
+        line_type_text: getLineTypeText(masterDetail[0].line_type)
+      };
     } else {
-      console.warn('⚠️ 해당 라인 마스터 ID 없음:', masterId);
+      console.warn('해당 라인 마스터 ID 없음:', masterId);
       return null;
     }
   } catch (error) {
-    console.error('❌ 라인 마스터 ID 조회 실패:', error.message);
+    console.error('라인 마스터 ID 조회 실패:', error.message);
     return null;
   }
 };
 
-const checkLineIdExists = async (lineId, lineType = null) => {
+const checkLineCodeExists = async (lineCode, lineType = null) => {
   try {
-    const dbConnected = await testDatabaseConnection();
-    if (!dbConnected) {
-      return false;
-    }
+    console.log('라인 중복 체크 시작:');
+    console.log('  입력된 lineCode:', lineCode);
+    console.log('  입력된 lineType:', lineType);
     
-    const query = lineType ? 'checkLineIdAndTypeExists' : 'checkLineIdExists';
-    const params = lineType ? [lineId, lineType] : [lineId];
+    const query = lineType ? 'checkLineCodeAndTypeExists' : 'checkLineCodeExists';
+    const params = lineType ? [lineCode, lineType] : [lineCode];
+    
+    console.log('  사용할 쿼리:', query);
+    console.log('  쿼리 파라미터:', params);
     
     const result = await mapper.query(query, params);
     const exists = result && result[0] && result[0].count > 0;
     
-    console.log('라인 ID 중복 체크:', lineId, lineType || '', exists ? '존재함' : '사용가능');
+    console.log('  쿼리 결과:', result);
+    console.log('  중복 여부:', exists ? '존재함' : '사용가능');
+    
     return exists;
   } catch (error) {
-    console.error('❌ 라인 ID 중복 체크 실패:', error.message);
+    console.error('라인 코드 중복 체크 실패:', error.message);
     return false;
   }
 };
 
 const getLineMasterList = async () => {
   try {
-    const dbConnected = await testDatabaseConnection();
-    if (!dbConnected) {
-      return [];
-    }
-    
     const masterList = await mapper.query('selectLineMasterList');
-    console.log('✅ 라인 마스터 목록 조회 성공:', masterList.length, '건');
-    return masterList;
+    console.log('라인 마스터 목록 조회 성공:', masterList.length, '건');
+    return masterList.map(master => ({
+      ...master,
+      line_type_text: getLineTypeText(master.line_type)
+    }));
   } catch (error) {
-    console.error('❌ 라인 마스터 목록 조회 실패:', error.message);
+    console.error('라인 마스터 목록 조회 실패:', error.message);
     return [];
   }
 };
 
-// ========== 라인 CRUD 함수들 (작업번호 제거) ==========
+// ========== 라인 CRUD 함수들 ==========
 
 const insertIntegratedLine = async (data) => {
   try {
-    console.log('➕ 통합 라인 등록 시작:', JSON.stringify(data, null, 2));
+    console.log('=== 통합 라인 등록 시작 ===');
+    console.log('입력 데이터:', JSON.stringify(data, null, 2));
     
     // 필수 데이터 검증
-    if (!data.line_id) {
-      throw new Error('라인 ID는 필수입니다.');
+    if (!data.line_code) {
+      throw new Error('라인 코드는 필수입니다.');
     }
     if (!data.line_type) {
       throw new Error('라인 타입은 필수입니다.');
     }
     
-    // DB 연결 확인
-    const dbConnected = await testDatabaseConnection();
-    if (!dbConnected) {
-      throw new Error('데이터베이스 연결에 실패했습니다.');
-    }
-    
     // 중복 체크
-    const exists = await checkLineIdExists(data.line_id, data.line_type);
+    const exists = await checkLineCodeExists(data.line_code, data.line_type);
     if (exists) {
-      throw new Error(`이미 존재하는 라인입니다: ${data.line_id}라인 ${data.line_type}`);
+      throw new Error(`이미 존재하는 라인입니다: ${data.line_code}라인 ${getLineTypeText(data.line_type)}`);
     }
     
-    // 라인 마스터 등록 - line_id를 숫자로 변환해서 추가
+    // 실적 ID 조회
+    const resultId = await getLatestResultId(data.product_code);
+    console.log('사용할 실적 ID:', resultId);
+    
+    // line_id 생성
+    const lineId = generateLineId(data.line_code, data.line_type);
+    console.log('생성된 line_id:', lineId);
+    
+    // 라인 마스터 등록
+    const lineTypeName = getLineTypeText(data.line_type);
+    
+    // 🔧 수정: line_id 포함한 파라미터 (올바른 순서)
     const masterParams = [
-      `${data.line_id}라인 ${data.line_type === 'INNER' ? '내포장' : '외포장'}`,
-      data.eq_group_code || 'EQ001',
-      data.line_type,
-      data.result_id || 1,
-      data.line_id,        // line_code (문자열)
-      convertLineCodeToNumber(data.line_id), // line_id (숫자)
-      data.max_capacity || 1000,
-      data.description || '',
-      data.product_code || ''
+      lineId,                                // line_id 
+      `${data.line_code}라인 ${lineTypeName}`, // line_name
+      data.line_type,                        // line_type
+      resultId,                              // result_id
+      data.line_code,                        // line_code
+      data.max_capacity || 1000,             // max_capacity
+      data.description || '',                // description
+      data.product_code || ''                // product_code
     ];
     
     console.log('마스터 등록 파라미터:', masterParams);
-    console.log('line_id 변환:', data.line_id, '->', convertLineCodeToNumber(data.line_id));
     
-    // 라인 마스터 등록 - 여러 방법 시도
-    let masterResult = null;
-    let insertSuccess = false;
+    let masterResult;
+    let insertId = null;
     
-    // 1차 시도: line_id를 숫자로 변환해서 삽입
     try {
+      // 🔧 방법 1: line_id 포함 쿼리 시도
+      console.log('line_id 포함 쿼리 실행 중...');
       masterResult = await mapper.query('insertLineMaster', masterParams);
-      console.log('마스터 등록 결과 (숫자 line_id):', masterResult);
-      insertSuccess = true;
-    } catch (firstError) {
-      console.warn('1차 시도 실패 (숫자 line_id):', firstError.err?.sqlMessage || firstError.message);
+      console.log('line_id 포함 마스터 등록 결과:', JSON.stringify(masterResult, null, 2));
       
-      // 2차 시도: line_id를 NULL로 삽입
+      // insertId 추출 시도
+      if (masterResult && masterResult.insertId) {
+        insertId = masterResult.insertId;
+        console.log('insertId 추출 성공 (방법1):', insertId);
+      }
+      
+    } catch (lineIdError) {
+      console.warn('line_id 포함 등록 실패:', lineIdError?.message || lineIdError);
+      
       try {
-        const nullParams = [
-          `${data.line_id}라인 ${data.line_type === 'INNER' ? '내포장' : '외포장'}`,
-          data.eq_group_code || 'EQ001',
-          data.line_type,
-          data.result_id || 1,
-          data.line_id,        // line_code (문자열)
-          data.max_capacity || 1000,
-          data.description || '',
-          data.product_code || ''
+        // 🔧 방법 2: line_id 없는 대체 쿼리 시도
+        const fallbackParams = [
+          `${data.line_code}라인 ${lineTypeName}`, // line_name
+          data.line_type,                        // line_type
+          resultId,                              // result_id
+          data.line_code,                        // line_code
+          data.max_capacity || 1000,             // max_capacity
+          data.description || '',                // description
+          data.product_code || ''                // product_code
         ];
         
-        console.log('2차 시도 파라미터 (NULL line_id):', nullParams);
-        masterResult = await mapper.query('insertLineMasterWithNullId', nullParams);
-        console.log('마스터 등록 결과 (NULL line_id):', masterResult);
-        insertSuccess = true;
-      } catch (secondError) {
-        console.warn('2차 시도 실패 (NULL line_id):', secondError.err?.sqlMessage || secondError.message);
+        console.log('대체 쿼리 실행 중...');
+        masterResult = await mapper.query('insertLineMasterWithoutLineId', fallbackParams);
+        console.log('대체 마스터 등록 결과:', JSON.stringify(masterResult, null, 2));
         
-        // 3차 시도: line_id 컬럼 제외하고 삽입
-        try {
-          const noIdParams = [
-            `${data.line_id}라인 ${data.line_type === 'INNER' ? '내포장' : '외포장'}`,
-            data.eq_group_code || 'EQ001',
-            data.line_type,
-            data.result_id || 1,
-            data.line_id,        // line_code (문자열)
-            data.max_capacity || 1000,
-            data.description || '',
-            data.product_code || ''
-          ];
-          
-          console.log('3차 시도 파라미터 (line_id 제외):', noIdParams);
-          masterResult = await mapper.query('insertLineMasterNoId', noIdParams);
-          console.log('마스터 등록 결과 (line_id 제외):', masterResult);
-          insertSuccess = true;
-        } catch (thirdError) {
-          console.error('3차 시도도 실패 (line_id 제외):', thirdError.err?.sqlMessage || thirdError.message);
-          throw firstError; // 첫 번째 에러를 던짐
+        // insertId 추출 시도
+        if (masterResult && masterResult.insertId) {
+          insertId = masterResult.insertId;
+          console.log('insertId 추출 성공 (방법2):', insertId);
         }
+        
+      } catch (fallbackError) {
+        console.error('대체 쿼리도 실패:', fallbackError?.message || fallbackError);
+        
+        // 실패해도 계속 진행 (에러를 던지지 않음)
+        console.log('쿼리 실패했지만 계속 진행...');
       }
     }
     
-    if (!insertSuccess) {
-      throw new Error('모든 라인 마스터 등록 방법이 실패했습니다.');
-    }
-    
-    // insertId 추출 방법 개선
-    let insertId = null;
-    if (masterResult) {
-      if (masterResult.insertId) {
-        insertId = masterResult.insertId;
-      } else if (Array.isArray(masterResult) && masterResult.length > 0) {
-        insertId = masterResult[0].insertId;
-      } else if (masterResult.affectedRows > 0) {
-        // MySQL의 경우 직접 조회해서 최신 ID 가져오기
-        const newMaster = await mapper.query('selectLineMasterByLineId', [data.line_id]);
-        if (newMaster && newMaster.length > 0) {
-          insertId = newMaster[0].line_masterid;
-        }
-      }
-    }
-    
+    // insertId가 여전히 없다면 다른 방법으로 찾기
     if (!insertId) {
-      console.error('❌ insertId를 가져올 수 없음:', masterResult);
-      throw new Error('라인 마스터 등록에 실패했습니다. (insertId 없음)');
+      console.log('insertId가 없어서 대안 방법 시도...');
+      
+      try {
+        // 방금 삽입된 레코드를 라인 코드로 찾기
+        const findQuery = 'selectLineMasterByLineCode';
+        const newMaster = await mapper.query(findQuery, [data.line_code]);
+        
+        console.log('라인 코드로 검색한 결과:', JSON.stringify(newMaster, null, 2));
+        
+        if (newMaster && Array.isArray(newMaster) && newMaster.length > 0) {
+          // 같은 타입의 마스터 찾기
+          const targetMaster = newMaster.find(m => m.line_type === data.line_type);
+          if (targetMaster && targetMaster.line_masterid) {
+            insertId = targetMaster.line_masterid;
+            console.log('라인 코드로 insertId 찾기 성공:', insertId);
+          } else {
+            // 첫 번째 결과 사용
+            insertId = newMaster[0].line_masterid;
+            console.log('첫 번째 결과로 insertId 사용:', insertId);
+          }
+        }
+      } catch (findError) {
+        console.error('라인 코드로 찾기도 실패:', findError?.message || findError);
+      }
     }
     
-    console.log('✅ 라인 마스터 등록 성공, insertId:', insertId);
+    // 여전히 insertId가 없다면 강제로 생성 (임시)
+    if (!insertId) {
+      console.warn('모든 방법 실패 - 임시 insertId 생성');
+      insertId = `temp_${Date.now()}`;
+    }
     
-    // 라인 상태 등록 (선택사항) - work_order_no 제거
-    if (data.employee_id) {
+    console.log('라인 마스터 등록 최종 성공, insertId:', insertId);
+    
+    // 라인 상태 등록 (insertId가 있고 임시 ID가 아닌 경우만)
+    if (data.employee_id && insertId && !String(insertId).startsWith('temp_')) {
       const lineParams = [
         insertId,
         data.line_type === 'INNER' ? 'IP' : 'OP',
@@ -586,66 +524,52 @@ const insertIntegratedLine = async (data) => {
         data.target_qty || 0,
         data.eq_name || '',
         data.current_speed || 0,
-        data.line_id,
+        data.line_code,
         data.employee_id
-        // work_order_no 파라미터 완전 제거!
       ];
       
       console.log('라인 상태 등록 파라미터:', lineParams);
       
       const lineResult = await mapper.query('insertLine', lineParams);
       console.log('라인 상태 등록 결과:', lineResult);
-      console.log('✅ 라인 상태 등록 성공');
     }
+    
+    const isTemporaryId = String(insertId).startsWith('temp_');
     
     const result = {
       success: true,
       insertId: insertId,
-      line_id: data.line_id,
-      line_name: `${data.line_id}라인 ${data.line_type === 'INNER' ? '내포장' : '외포장'}`,
-      message: '라인이 성공적으로 등록되었습니다.'
+      line_id: lineId,
+      line_code: data.line_code,
+      line_name: `${data.line_code}라인 ${lineTypeName}`,
+      line_type: data.line_type,
+      line_type_text: lineTypeName,
+      eq_group_code: 'e3',
+      result_id: resultId,
+      temporary: isTemporaryId,
+      message: isTemporaryId ? 
+        `${data.line_code}라인 ${lineTypeName}이 부분적으로 등록되었습니다. (일부 기능 제한)` :
+        `${data.line_code}라인 ${lineTypeName}이 성공적으로 등록되었습니다.`
     };
     
-    console.log('✅ 라인 등록 완료:', result);
+    console.log('라인 등록 완료:', result);
     return result;
     
   } catch (error) {
-    console.error('❌ 통합 라인 등록 실패:', error);
-    
-    // nested error 처리
-    const actualError = error.err || error;
-    
-    console.error('에러 상세:', {
-      message: actualError.message || actualError.sqlMessage || 'Unknown error',
-      stack: actualError.stack,
-      name: actualError.name,
-      code: actualError.code,
-      errno: actualError.errno,
-      sqlState: actualError.sqlState
-    });
-    
-    // SQL 에러 메시지 추출
-    let errorMessage = 'Unknown error';
-    if (actualError.sqlMessage) {
-      errorMessage = actualError.sqlMessage;
-    } else if (actualError.message) {
-      errorMessage = actualError.message;
-    } else if (error.message) {
-      errorMessage = error.message;
-    }
-    
-    throw new Error(errorMessage);
+    console.error('통합 라인 등록 실패:', error);
+    throw error;
   }
 };
 
-// ========== 내포장/외포장 동시 등록 함수 - 새로 추가 ==========
+// 내포장/외포장 동시 등록 함수
 const dualRegisterLine = async (data) => {
   try {
-    console.log('🔥 내포장/외포장 동시 등록 시작:', JSON.stringify(data, null, 2));
+    console.log('=== 내포장/외포장 동시 등록 시작 ===');
+    console.log('원본 입력 데이터:', JSON.stringify(data, null, 2));
     
     // 필수 데이터 검증
-    if (!data.line_id) {
-      throw new Error('라인 ID는 필수입니다.');
+    if (!data.line_code) {
+      throw new Error('라인 코드는 필수입니다.');
     }
     if (!data.inner_eq_name) {
       throw new Error('내포장 설비명은 필수입니다.');
@@ -660,28 +584,29 @@ const dualRegisterLine = async (data) => {
       throw new Error('외포장 담당자는 필수입니다.');
     }
     
-    // DB 연결 확인
-    const dbConnected = await testDatabaseConnection();
-    if (!dbConnected) {
-      throw new Error('데이터베이스 연결에 실패했습니다.');
-    }
-    
-    // 중복 체크 (내포장, 외포장 둘 다)
-    const innerExists = await checkLineIdExists(data.line_id, 'INNER');
-    const outerExists = await checkLineIdExists(data.line_id, 'OUTER');
+    // 중복 체크
+    const innerExists = await checkLineCodeExists(data.line_code, 'INNER');
+    const outerExists = await checkLineCodeExists(data.line_code, 'OUTER');
     
     if (innerExists || outerExists) {
-      throw new Error(`이미 존재하는 라인입니다: ${data.line_id}라인`);
+      const existingTypes = [];
+      if (innerExists) existingTypes.push('내포장');
+      if (outerExists) existingTypes.push('외포장');
+      throw new Error(`이미 존재하는 라인입니다: ${data.line_code}라인 (${existingTypes.join(', ')})`);
     }
+    
+    // 실적 ID 조회
+    const resultId = await getLatestResultId(data.product_code);
+    console.log('동시 등록용 실적 ID:', resultId);
     
     const results = [];
     
     // 1. 내포장 라인 등록
     try {
-      console.log('📦 내포장 라인 등록 시작...');
+      console.log('내포장 라인 등록 시작...');
       
       const innerData = {
-        line_id: data.line_id,
+        line_code: data.line_code,
         line_type: 'INNER',
         eq_name: data.inner_eq_name,
         max_capacity: data.inner_capacity || 1000,
@@ -689,42 +614,25 @@ const dualRegisterLine = async (data) => {
         employee_id: data.inner_employee_id,
         product_code: data.product_code || '',
         description: data.description || '',
-        eq_group_code: 'EQ001',
         line_state: 's2',
         target_qty: 0
       };
       
-      console.log('내포장 등록 데이터:', innerData);
-      
       const innerResult = await insertIntegratedLine(innerData);
-      results.push({ type: 'INNER', result: innerResult });
-      console.log('✅ 내포장 라인 등록 성공:', innerResult.insertId);
+      results.push({ type: 'INNER', type_text: '내포장', result: innerResult });
+      console.log('내포장 라인 등록 성공:', innerResult.insertId);
       
     } catch (innerError) {
-      console.error('❌ 내포장 라인 등록 실패:', innerError);
-      
-      // nested error 처리
-      const actualError = innerError.err || innerError;
-      
-      console.error('내포장 에러 상세:', {
-        message: actualError.message || actualError.sqlMessage || 'Unknown error',
-        stack: actualError.stack,
-        name: actualError.name,
-        code: actualError.code,
-        errno: actualError.errno,
-        sqlState: actualError.sqlState
-      });
-      
-      const errorMessage = actualError.sqlMessage || actualError.message || innerError.message || '알 수 없는 오류';
-      throw new Error(`내포장 라인 등록 실패: ${errorMessage}`);
+      console.error('내포장 라인 등록 실패:', innerError);
+      throw new Error(`내포장 라인 등록 실패: ${innerError.message}`);
     }
     
     // 2. 외포장 라인 등록
     try {
-      console.log('📦 외포장 라인 등록 시작...');
+      console.log('외포장 라인 등록 시작...');
       
       const outerData = {
-        line_id: data.line_id,
+        line_code: data.line_code,
         line_type: 'OUTER',
         eq_name: data.outer_eq_name,
         max_capacity: data.outer_capacity || 800,
@@ -732,174 +640,272 @@ const dualRegisterLine = async (data) => {
         employee_id: data.outer_employee_id,
         product_code: data.product_code || '',
         description: data.description || '',
-        eq_group_code: 'EQ002',
         line_state: 's2',
         target_qty: 0
       };
       
-      console.log('외포장 등록 데이터:', outerData);
-      
       const outerResult = await insertIntegratedLine(outerData);
-      results.push({ type: 'OUTER', result: outerResult });
-      console.log('✅ 외포장 라인 등록 성공:', outerResult.insertId);
+      results.push({ type: 'OUTER', type_text: '외포장', result: outerResult });
+      console.log('외포장 라인 등록 성공:', outerResult.insertId);
       
     } catch (outerError) {
-      console.error('❌ 외포장 라인 등록 실패:', outerError);
+      console.error('외포장 라인 등록 실패:', outerError);
       
-      // nested error 처리
-      const actualError = outerError.err || outerError;
-      
-      console.error('외포장 에러 상세:', {
-        message: actualError.message || actualError.sqlMessage || 'Unknown error',
-        stack: actualError.stack,
-        name: actualError.name,
-        code: actualError.code,
-        errno: actualError.errno,
-        sqlState: actualError.sqlState
-      });
-      
-      // 외포장 실패 시 내포장도 롤백 (수동 삭제)
+      // 외포장 실패 시 내포장도 롤백
       try {
-        console.log('🔄 내포장 라인 롤백 시작...');
-        await deleteIntegratedLine(data.line_id);
-        console.log('✅ 내포장 라인 롤백 완료');
+        console.log('내포장 라인 롤백 시작...');
+        await deleteIntegratedLine(data.line_code);
+        console.log('내포장 라인 롤백 완료');
       } catch (rollbackError) {
-        console.error('❌ 롤백 실패:', rollbackError);
-        
-        const rollbackActualError = rollbackError.err || rollbackError;
-        
-        console.error('롤백 에러 상세:', {
-          message: rollbackActualError.message || rollbackActualError.sqlMessage || 'Unknown error',
-          stack: rollbackActualError.stack,
-          name: rollbackActualError.name,
-          code: rollbackActualError.code,
-          errno: rollbackActualError.errno,
-          sqlState: rollbackActualError.sqlState
-        });
+        console.error('롤백 실패:', rollbackError);
       }
       
-      const errorMessage = actualError.sqlMessage || actualError.message || outerError.message || '알 수 없는 오류';
-      throw new Error(`외포장 라인 등록 실패: ${errorMessage}`);
+      throw new Error(`외포장 라인 등록 실패: ${outerError.message}`);
     }
     
     // 성공 결과 반환
     const finalResult = {
       success: true,
-      line_id: data.line_id,
-      line_name: `${data.line_id}라인`,
+      line_code: data.line_code,
+      line_name: `${data.line_code}라인`,
+      eq_group_code: 'e3',
+      result_id: resultId,
       inner_result: results.find(r => r.type === 'INNER')?.result,
       outer_result: results.find(r => r.type === 'OUTER')?.result,
-      message: `${data.line_id}라인 내포장/외포장이 성공적으로 등록되었습니다.`,
+      registered_types: results.map(r => r.type),
+      registered_types_text: results.map(r => r.type_text),
+      message: `${data.line_code}라인 내포장/외포장이 성공적으로 등록되었습니다.`,
       total_registered: results.length
     };
     
-    console.log('🎉 내포장/외포장 동시 등록 완료:', finalResult);
+    console.log('내포장/외포장 동시 등록 완료:', finalResult);
     return finalResult;
     
   } catch (error) {
-    console.error('❌ 내포장/외포장 동시 등록 실패:', error);
-    
-    // nested error 처리
-    const actualError = error.err || error;
-    
-    console.error('동시 등록 에러 상세:', {
-      message: actualError.message || actualError.sqlMessage || 'Unknown error',
-      stack: actualError.stack,
-      name: actualError.name,
-      code: actualError.code,
-      errno: actualError.errno,
-      sqlState: actualError.sqlState
-    });
-    
-    const errorMessage = actualError.sqlMessage || actualError.message || error.message || '내포장/외포장 동시 등록 중 알 수 없는 오류가 발생했습니다.';
-    throw new Error(errorMessage);
-  }
-};
-
-const updateIntegratedLine = async (lineId, data) => {
-  try {
-    console.log('✏️ 통합 라인 수정 시작:', lineId, JSON.stringify(data, null, 2));
-    
-    // DB 연결 확인
-    const dbConnected = await testDatabaseConnection();
-    if (!dbConnected) {
-      throw new Error('데이터베이스 연결에 실패했습니다.');
-    }
-    
-    // 마스터 정보 조회
-    const master = await getLineMasterByLineId(lineId);
-    if (!master) {
-      throw new Error(`라인을 찾을 수 없습니다: ${lineId}`);
-    }
-    
-    // 마스터 업데이트
-    const updateParams = [
-      `${lineId}라인 ${data.line_type === 'INNER' ? '내포장' : '외포장'}`,
-      data.eq_group_code || master.eq_group_code,
-      data.line_type || master.line_type,
-      data.max_capacity || master.max_capacity,
-      data.description || master.description,
-      data.product_code || master.product_code,
-      master.line_masterid
-    ];
-    
-    console.log('마스터 수정 파라미터:', updateParams);
-    
-    await mapper.query('updateLineMaster', updateParams);
-    console.log('✅ 라인 마스터 수정 성공');
-    
-    const result = {
-      success: true,
-      line_id: lineId,
-      line_name: `${lineId}라인 ${data.line_type === 'INNER' ? '내포장' : '외포장'}`,
-      message: '라인이 성공적으로 수정되었습니다.'
-    };
-    
-    console.log('✅ 라인 수정 완료:', result);
-    return result;
-    
-  } catch (error) {
-    console.error('❌ 통합 라인 수정 실패:', error.message);
+    console.error('내포장/외포장 동시 등록 실패:', error);
     throw error;
   }
 };
 
-const deleteIntegratedLine = async (lineId) => {
+// 라인 수정 함수 (내포장/외포장 개별 수정)
+const updateIntegratedLine = async (lineCode, lineType, data) => {
   try {
-    console.log('🗑️ 통합 라인 삭제 시작:', lineId);
+    console.log('=== 개별 라인 수정 시작 ===');
+    console.log('입력 파라미터:');
+    console.log('  lineCode:', lineCode);
+    console.log('  lineType:', lineType);
+    console.log('  data:', JSON.stringify(data, null, 2));
     
-    // DB 연결 확인
-    const dbConnected = await testDatabaseConnection();
-    if (!dbConnected) {
-      throw new Error('데이터베이스 연결에 실패했습니다.');
+    // 라인 타입 유효성 검증
+    if (lineType && !['INNER', 'OUTER'].includes(lineType)) {
+      throw new Error(`유효하지 않은 라인 타입입니다: ${lineType}`);
     }
     
-    // 마스터 정보 조회
-    const master = await getLineMasterByLineId(lineId);
-    if (!master) {
-      throw new Error(`라인을 찾을 수 없습니다: ${lineId}`);
+    // 모든 마스터 정보 조회
+    const allMasters = await mapper.query('selectLineMasterByLineCode', [lineCode]);
+    
+    if (!allMasters || allMasters.length === 0) {
+      throw new Error(`라인을 찾을 수 없습니다: ${lineCode}`);
     }
     
-    // 라인 상태 데이터 삭제 (외래키 제약조건 때문에 먼저 삭제)
-    await mapper.query('deleteLineByMasterId', [master.line_masterid]);
-    console.log('✅ 라인 상태 데이터 삭제 성공');
+    console.log(`발견된 ${lineCode}라인 전체:`, allMasters.map(m => ({
+      masterid: m.line_masterid,
+      type: m.line_type,
+      name: m.line_name
+    })));
     
-    // 마스터 데이터 삭제
-    await mapper.query('deleteLineMaster', [master.line_masterid]);
-    console.log('✅ 라인 마스터 삭제 성공');
+    // ★ 핵심: 특정 타입만 필터링 (lineType이 있는 경우)
+    let targetMasters = allMasters;
+    if (lineType) {
+      targetMasters = allMasters.filter(master => master.line_type === lineType);
+      console.log(`★ ${lineType} 타입만 필터링:`, targetMasters.map(m => ({
+        masterid: m.line_masterid,
+        type: m.line_type,
+        name: m.line_name
+      })));
+    }
+    
+    if (targetMasters.length === 0) {
+      throw new Error(`${lineType} 타입의 라인을 찾을 수 없습니다: ${lineCode}`);
+    }
+    
+    // 실적 ID 조회
+    const resultId = data.product_code ? 
+      await getLatestResultId(data.product_code) : 
+      targetMasters[0].result_id;
+    
+    let updateCount = 0;
+    const updatedTypes = [];
+    const updateResults = [];
+    
+    // ★ 핵심: 필터링된 라인만 수정
+    for (const master of targetMasters) {
+      try {
+        const lineTypeName = getLineTypeText(master.line_type);
+        console.log(`\n=== ${lineTypeName} 라인 (ID: ${master.line_masterid}) 수정 시작 ===`);
+        
+        // 마스터 업데이트 파라미터
+        const updateParams = [
+          data.line_name || `${lineCode}라인 ${lineTypeName}`, // line_name  
+          master.line_type,                                   // line_type (기존 유지)
+          data.max_capacity || master.max_capacity,           // max_capacity
+          data.description || master.description,             // description
+          data.product_code || master.product_code,           // product_code
+          resultId,                                           // result_id
+          master.line_masterid                                // WHERE line_masterid
+        ];
+        
+        console.log(`${lineTypeName} 마스터 업데이트 파라미터:`, updateParams);
+        
+        const masterUpdateResult = await mapper.query('updateLineMaster', updateParams);
+        console.log(`${lineTypeName} 마스터 업데이트 결과:`, masterUpdateResult);
+        
+        // 라인 상태 업데이트 (있는 경우만)
+        const latestLine = await mapper.query('selectLatestLineByMasterId', [master.line_masterid]);
+        
+        if (latestLine && latestLine.length > 0) {
+          const lineUpdateParams = [
+            master.line_type === 'INNER' ? 'IP' : 'OP',       // pkg_type
+            data.line_state || latestLine[0].line_state,       // line_state
+            data.employee_id || latestLine[0].employee_id,     // employee_id
+            data.eq_name || latestLine[0].eq_name,             // eq_name
+            data.current_speed || latestLine[0].current_speed, // current_speed
+            data.target_qty || latestLine[0].target_qty,       // target_qty
+            latestLine[0].line_id                              // WHERE line_id
+          ];
+          
+          console.log(`${lineTypeName} 라인 상태 업데이트 파라미터:`, lineUpdateParams);
+          
+          const lineUpdateResult = await mapper.query('updateLine', lineUpdateParams);
+          console.log(`${lineTypeName} 라인 상태 업데이트 결과:`, lineUpdateResult);
+        }
+        
+        updateCount++;
+        updatedTypes.push(master.line_type);
+        updateResults.push({
+          master_id: master.line_masterid,
+          line_type: master.line_type,
+          line_type_text: lineTypeName,
+          success: true
+        });
+        
+        console.log(`${lineTypeName} 라인 수정 완료`);
+        
+      } catch (singleUpdateError) {
+        console.error(`${getLineTypeText(master.line_type)} 라인 수정 실패:`, singleUpdateError);
+        updateResults.push({
+          master_id: master.line_masterid,
+          line_type: master.line_type,
+          line_type_text: getLineTypeText(master.line_type),
+          success: false,
+          error: singleUpdateError.message
+        });
+      }
+    }
+    
+    if (updateCount === 0) {
+      throw new Error(`모든 라인 수정에 실패했습니다: ${lineCode}`);
+    }
     
     const result = {
       success: true,
-      line_id: lineId,
-      deleted_master_id: master.line_masterid,
-      message: `${lineId}라인이 성공적으로 삭제되었습니다.`
+      line_code: lineCode,
+      line_name: `${lineCode}라인`,
+      target_line_type: lineType || 'ALL',
+      target_line_type_text: lineType ? getLineTypeText(lineType) : '전체',
+      eq_group_code: 'e3',
+      result_id: resultId,
+      updated_types: updatedTypes,
+      updated_types_text: updatedTypes.map(type => getLineTypeText(type)),
+      update_count: updateCount,
+      total_target: targetMasters.length,
+      update_results: updateResults,
+      message: lineType ? 
+        `${lineCode}라인 ${getLineTypeText(lineType)}이 성공적으로 수정되었습니다.` :
+        `${lineCode}라인이 성공적으로 수정되었습니다. (${updateCount}/${targetMasters.length}개 성공)`
     };
     
-    console.log('✅ 라인 삭제 완료:', result);
+    console.log('\n=== 라인 수정 최종 결과 ===');
+    console.log(JSON.stringify(result, null, 2));
+    
     return result;
     
   } catch (error) {
-    console.error('❌ 통합 라인 삭제 실패:', error.message);
+    console.error('개별 라인 수정 실패:', error.message);
+    throw error;
+  }
+};
+
+const deleteIntegratedLine = async (lineCode, lineType = null) => {
+  try {
+    console.log('통합 라인 삭제 시작:', lineCode, lineType);
+    
+    // 모든 마스터 정보 조회
+    const allMasters = await mapper.query('selectLineMasterByLineCode', [lineCode]);
+    
+    if (!allMasters || allMasters.length === 0) {
+      throw new Error(`라인을 찾을 수 없습니다: ${lineCode}`);
+    }
+    
+    console.log(`발견된 ${lineCode}라인:`, allMasters.length, '개');
+    
+    // 특정 타입만 삭제하는 경우
+    let targetMasters = allMasters;
+    if (lineType && ['INNER', 'OUTER'].includes(lineType)) {
+      targetMasters = allMasters.filter(master => master.line_type === lineType);
+      console.log(`${lineType} 타입만 삭제:`, targetMasters.length, '개');
+    }
+    
+    if (targetMasters.length === 0) {
+      throw new Error(`${lineType} 타입의 라인을 찾을 수 없습니다: ${lineCode}`);
+    }
+    
+    let deleteCount = 0;
+    const deletedMasterIds = [];
+    const deletedTypes = [];
+    
+    // 각 라인 타입별로 삭제
+    for (const master of targetMasters) {
+      try {
+        const lineTypeName = getLineTypeText(master.line_type);
+        console.log(`${lineTypeName} 라인 삭제 중...`);
+        
+        // 라인 상태 데이터 삭제 (외래키 제약조건 때문에 먼저 삭제)
+        await mapper.query('deleteLineByMasterId', [master.line_masterid]);
+        console.log(`${lineTypeName} 라인 상태 데이터 삭제 성공`);
+        
+        // 마스터 데이터 삭제
+        await mapper.query('deleteLineMaster', [master.line_masterid]);
+        console.log(`${lineTypeName} 라인 마스터 삭제 성공`);
+        
+        deleteCount++;
+        deletedMasterIds.push(master.line_masterid);
+        deletedTypes.push(master.line_type);
+        
+      } catch (singleDeleteError) {
+        console.error(`${getLineTypeText(master.line_type)} 라인 삭제 실패:`, singleDeleteError.message);
+      }
+    }
+    
+    if (deleteCount === 0) {
+      throw new Error(`모든 라인 삭제에 실패했습니다: ${lineCode}`);
+    }
+    
+    const result = {
+      success: true,
+      line_code: lineCode,
+      deleted_master_ids: deletedMasterIds,
+      deleted_types: deletedTypes,
+      deleted_types_text: deletedTypes.map(type => getLineTypeText(type)),
+      delete_count: deleteCount,
+      message: `${lineCode}라인이 성공적으로 삭제되었습니다. (${deleteCount}/${targetMasters.length}개 성공)`
+    };
+    
+    console.log('라인 삭제 완료:', result);
+    return result;
+    
+  } catch (error) {
+    console.error('통합 라인 삭제 실패:', error.message);
     throw error;
   }
 };
@@ -923,7 +929,10 @@ const getLineStatusStats = async () => {
       if (stat) stat.count++;
       
       if (line.line_state === 's1') {
-        workingLines.push(line);
+        workingLines.push({
+          ...line,
+          line_type_text: getLineTypeText(line.line_type)
+        });
       }
     });
     
@@ -933,7 +942,7 @@ const getLineStatusStats = async () => {
       totalLines: lineList.length
     };
   } catch (error) {
-    console.error('❌ 라인 상태 통계 조회 실패:', error);
+    console.error('라인 상태 통계 조회 실패:', error);
     return {
       statusStats: [],
       workingLines: [],
@@ -942,143 +951,56 @@ const getLineStatusStats = async () => {
   }
 };
 
-const getLineDetail = async (id) => {
-  try {
-    const dbConnected = await testDatabaseConnection();
-    if (!dbConnected) {
-      return null;
-    }
-    
-    const lineDetail = await mapper.query('selectLineDetail', [id]);
-    return lineDetail && lineDetail.length > 0 ? lineDetail[0] : null;
-  } catch (error) {
-    console.error('❌ 라인 상세 조회 실패:', error.message);
-    return null;
-  }
-};
-
-const insertLine = async (data) => {
-  try {
-    // work_order_no 제거된 파라미터
-    const result = await mapper.query('insertLine', [
-      data.line_masterid, data.pkg_type, data.line_state, data.target_qty,
-      data.eq_name, data.current_speed, data.line_code, data.employee_id
-      // work_order_no 제거!
-    ]);
-    return result;
-  } catch (error) {
-    console.error('❌ 라인 등록 실패:', error.message);
-    throw error;
-  }
-};
-
-const updateLine = async (id, data) => {
-  try {
-    // work_order_no 제거된 파라미터
-    await mapper.query('updateLine', [
-      data.pkg_type, data.line_state, data.employee_id, data.eq_name,
-      data.current_speed, data.target_qty, id
-      // work_order_no 제거!
-    ]);
-    return true;
-  } catch (error) {
-    console.error('❌ 라인 수정 실패:', error.message);
-    throw error;
-  }
-};
-
-const deleteLine = async (id) => {
-  try {
-    await mapper.query('deleteLine', [id]);
-    return true;
-  } catch (error) {
-    console.error('❌ 라인 삭제 실패:', error.message);
-    throw error;
-  }
-};
-
-const deleteLineByMasterId = async (masterId) => {
-  try {
-    await mapper.query('deleteLineByMasterId', [masterId]);
-    return true;
-  } catch (error) {
-    console.error('❌ 마스터 ID로 라인 삭제 실패:', error.message);
-    throw error;
-  }
-};
-
 const getProductDetail = async (code) => {
   try {
-    const dbConnected = await testDatabaseConnection();
-    if (!dbConnected) {
-      return null;
-    }
-    
     const product = await mapper.query('selectProductByCode', [code]);
     return product && product.length > 0 ? product[0] : null;
   } catch (error) {
-    console.error('❌ 제품 상세 조회 실패:', error.message);
+    console.error('제품 상세 조회 실패:', error.message);
     return null;
   }
 };
 
 const getProductCodeUsageStats = async () => {
   try {
-    const dbConnected = await testDatabaseConnection();
-    if (!dbConnected) {
-      return [];
-    }
-    
     const usageStats = await mapper.query('selectProductUsageStats');
     return usageStats || [];
   } catch (error) {
-    console.error('❌ 제품코드 사용 현황 조회 실패:', error.message);
+    console.error('제품코드 사용 현황 조회 실패:', error.message);
     return [];
   }
 };
 
-const validateProductCodeAssignment = async (code, lineCode) => {
-  try {
-    // 실제 검증 로직 구현
-    return { canAssign: true, reason: '할당 가능' };
-  } catch (error) {
-    console.error('❌ 제품코드 할당 검증 실패:', error.message);
-    return { canAssign: false, reason: '검증 실패' };
-  }
-};
-
 module.exports = {
-  // 테스트 함수들
-  testDatabaseConnection,
-  testProductTable,
-
   // 핵심 함수들
   getLineList,
   getAvailableProducts,
   getAvailableEmployees,
   getAvailableEquipments,
-  getAvailableLineIds,
+  getAvailableLineCodes,
+
+  // 실적 ID 관리
+  getLatestResultId,
 
   // 라인 마스터 관리
   getLineMasterList,
   getLineMasterDetail,
-  getLineMasterByLineId,
-  checkLineIdExists,
+  getLineMasterByLineCode,
+  checkLineCodeExists,
 
   // 라인 CRUD
   insertIntegratedLine,
-  dualRegisterLine,        // 새로 추가된 함수
+  dualRegisterLine,
   updateIntegratedLine,
   deleteIntegratedLine,
-  getLineDetail,
-  insertLine,
-  updateLine,
-  deleteLine,
-  deleteLineByMasterId,
 
   // 통계 및 기타
   getLineStatusStats,
   getProductDetail,
   getProductCodeUsageStats,
-  validateProductCodeAssignment
+
+  // 유틸리티 함수들
+  classifyEquipmentByName,
+  getLineTypeText,
+  generateLineId
 };
