@@ -29,7 +29,6 @@ WHERE
 const insertInspection = 
 `
 INSERT INTO inspection_standard (
-  insp_code,
   process_int,
   insp_value_type,
   insp_unit,
@@ -37,15 +36,7 @@ INSERT INTO inspection_standard (
   insp_value_min,
   insp_value_max,
   insp_remark
-) VALUES (
-  (
-    SELECT CONCAT('IC', DATE_FORMAT(NOW(), '%Y'),
-           LPAD(IFNULL(MAX(CAST(SUBSTRING(insp_code, 9, 4) AS UNSIGNED)), 0) + 1, 4, '0'))
-    FROM inspection_standard
-    WHERE SUBSTRING(insp_code, 3, 4) = DATE_FORMAT(NOW(), '%Y')
-  ),
-  ?, ?, ?, ?, ?, ?, ?
-)
+) VALUES (?, ?, ?, ?, ?, ?, ?)
 `
 module.exports = {
   processNameList,
