@@ -190,7 +190,7 @@ const workStopEq = async(eqId, stopReason) => {
   
   const data = convertObjToAry(stopReason, updateColumns)
 
-  let resInfo = await mariadb.query("updateStopEq", data, eqId)
+  let resInfo = await mariadb.query("updateStopEq", [...data, eqId])
   .catch(err => {
     console.error(err);
     return null; // 또는 throw err;
