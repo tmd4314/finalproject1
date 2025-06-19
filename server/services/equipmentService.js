@@ -104,7 +104,7 @@ const getEquipmentOnly = async (equipmentId) => {
   return convertData(equipment)
 }
 
-const updateEquipment = async (equipmentId, formData) => {
+const equipmentUpdate = async (equipmentId, formData) => {
   const [existing] = await mariadb.query('selectEquipmentDetail', [equipmentId]);
   if (!existing) throw new Error('수정할 설비를 찾을 수 없습니다.');
 
@@ -151,7 +151,7 @@ const updateEquipment = async (equipmentId, formData) => {
     equipmentId
   ];
 
-  const result = await mariadb.query('updateEquipment', values);
+  const result = await mariadb.query('equipmentUpdate', values);
   return convertData({ ...result, imageFileName, name: finalName });
 };
 
@@ -204,7 +204,7 @@ module.exports = {
   getEquipmentList,
   getEquipmentDetail,
   getEquipmentOnly,
-  updateEquipment,
+  equipmentUpdate,
   deleteEquipment,
   deleteMultipleEquipments,
   rawQuery
