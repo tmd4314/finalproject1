@@ -1,47 +1,54 @@
-// 전체 조회
-
-const selectInspectionList = 
-`SELECT   insp_code,
-          insp_name,
-          insp_value_type,
-          insp_ref_value,
-          insp_quantita_value,
-          insp_qualita_value,
-          insp_unit,
-          insp_quantita_min,
-          insp_quantita_max,
-          insp_remark
-FROM      inspection_item
-ORDER BY insp_code`
-;
-
-const productNameList = 
-`SELECT product_name, MIN(product_code) AS product_code
-FROM product
-GROUP BY product_name
-ORDER BY product_name;
+// 공정명 리스트
+const processNameList = 
+`
+SELECT process_int,
+       process_name
+FROM   process_it
 `
 ;
 
-const insertInspection =
-`INSERT INTO inspection_item (
-  product_code,          
+// 공정별 조건 리스트
+const inspectionListByProcessName =
+`
+SELECT 
   insp_code,
-  insp_name,
   insp_value_type,
-  insp_ref_value,
-  insp_quantita_value,
-  insp_qualita_value,
   insp_unit,
-  insp_quantita_min,
-  insp_quantita_max,
-  insp_remark
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+  insp_value_qty,
+  insp_value_min,
+  insp_value_max,
+  insp_remark,
+  process_int
+FROM 
+  inspection_standard
+WHERE 
+  process_int = ?;
 `
-;
 
+// 검사정보 등록
+const insertInspection = 
+`
+INSERT INTO inspection_standard (
+  insp_code,
+  process_int,
+  insp_value_type,
+  insp_unit,
+  insp_value_qty,
+  insp_value_min,
+  insp_value_max,
+  insp_remark
+) VALUES (
+  (
+    SELECT CONCAT('IC', DATE_FORMAT(NOW(), '%Y'),
+           LPAD(IFNULL(MAX(CAST(SUBSTRING(insp_code, 9, 4) AS UNSIGNED)), 0) + 1, 4, '0'))
+    FROM inspection_standard
+    WHERE SUBSTRING(insp_code, 3, 4) = DATE_FORMAT(NOW(), '%Y')
+  ),
+  ?, ?, ?, ?, ?, ?, ?
+)
+`
 module.exports = {
-  selectInspectionList,
-  productNameList,
+  processNameList,
+  inspectionListByProcessName,
   insertInspection
 }
