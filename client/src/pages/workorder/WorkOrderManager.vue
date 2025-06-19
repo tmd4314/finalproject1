@@ -2,10 +2,17 @@
   <div class="max-w-[1060px] h-[739px] mx-auto p-4 bg-gray-50 overflow-hidden">
     <!-- 상단 타이틀 -->
     <div class="mb-3">
-      <h1 class="text-2xl font-bold text-gray-800">작업지시서 관리</h1>
+      <h1 class="text-2xl font-bold text-gray-800">
+        작업지시서 관리
+        <span class="text-sm font-normal text-gray-500 ml-2">
+          ({{ authStore.user?.employee_name || '사용자' }})
+        </span>
+      </h1>
     </div>
 
     <div class="h-[calc(100%-60px)] bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+
+
       <!-- 기본 정보 영역 -->
       <div class="grid grid-cols-3 gap-3 mb-4">
         <!-- 작업지시서 번호 -->
@@ -18,6 +25,7 @@
               readonly
             />
             <button 
+              v-if="authStore.canManageProduction"
               @click="openWorkOrderModal"
               class="px-2 bg-blue-500 text-white rounded-r-md hover:bg-blue-600 text-xs flex items-center justify-center"
             >
@@ -26,6 +34,11 @@
                 <path d="m21 21-4.35-4.35"/>
               </svg>
             </button>
+            <div v-else class="px-2 bg-gray-300 text-gray-500 rounded-r-md text-xs flex items-center justify-center">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 12l2 2 4-4"/>
+              </svg>
+            </div>
           </div>
         </div>
 
@@ -39,6 +52,7 @@
               readonly
             />
             <button 
+              v-if="authStore.canManageProduction"
               @click="openPlanModal"
               class="px-2 bg-blue-500 text-white rounded-r-md hover:bg-blue-600 text-xs flex items-center justify-center"
             >
@@ -47,6 +61,11 @@
                 <path d="m21 21-4.35-4.35"/>
               </svg>
             </button>
+            <div v-else class="px-2 bg-gray-300 text-gray-500 rounded-r-md text-xs flex items-center justify-center">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 12l2 2 4-4"/>
+              </svg>
+            </div>
           </div>
         </div>
 
@@ -81,7 +100,9 @@
           <input 
             v-model="form.order_start_dt" 
             type="date"
-            class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+            class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs"
+            :class="authStore.canManageProduction ? 'focus:outline-none focus:ring-1 focus:ring-blue-500' : 'bg-gray-50'"
+            :readonly="!authStore.canManageProduction"
           />
         </div>
 
@@ -91,7 +112,9 @@
           <input 
             v-model="form.order_end_dt" 
             type="date"
-            class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+            class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs"
+            :class="authStore.canManageProduction ? 'focus:outline-none focus:ring-1 focus:ring-blue-500' : 'bg-gray-50'"
+            :readonly="!authStore.canManageProduction"
           />
         </div>
 
@@ -100,7 +123,9 @@
           <label class="block text-xs font-medium text-blue-600 mb-1">비고</label>
           <input 
             v-model="form.order_remark" 
-            class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+            class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs"
+            :class="authStore.canManageProduction ? 'focus:outline-none focus:ring-1 focus:ring-blue-500' : 'bg-gray-50'"
+            :readonly="!authStore.canManageProduction"
             placeholder="비고 입력"
           />
         </div>
@@ -110,7 +135,7 @@
       <div class="flex flex-col h-[calc(100%-140px)]">
         <div class="flex justify-between items-center mb-3">
           <label class="text-sm font-medium text-blue-600">제품 목록</label>
-          <div class="flex gap-2">
+          <div class="flex gap-2" v-if="authStore.canManageProduction">
             <button 
               @click="removeSelectedProducts" 
               class="px-3 py-1.5 bg-red-500 text-white text-xs rounded hover:bg-red-600 transition-colors disabled:opacity-50"
@@ -132,7 +157,7 @@
           <table class="w-full text-xs border-collapse bg-white">
             <thead class="bg-gray-50 sticky top-0">
               <tr>
-                <th class="border border-gray-200 px-2 py-1.5 text-center font-medium text-gray-700">#</th>
+                <th class="border border-gray-200 px-2 py-1.5 text-center font-medium text-gray-700" v-if="authStore.canManageProduction">#</th>
                 <th class="border border-gray-200 px-2 py-1.5 text-left font-medium text-gray-700">제품코드</th>
                 <th class="border border-gray-200 px-2 py-1.5 text-left font-medium text-gray-700">제품명</th>
                 <th class="border border-gray-200 px-2 py-1.5 text-left font-medium text-gray-700">단위</th>
@@ -145,7 +170,7 @@
             </thead>
             <tbody>
               <tr v-for="(product, index) in form.products" :key="index" class="hover:bg-gray-50">
-                <td class="border border-gray-200 px-2 py-1.5 text-center">
+                <td class="border border-gray-200 px-2 py-1.5 text-center" v-if="authStore.canManageProduction">
                   <input type="checkbox" v-model="product.selected" class="rounded w-3 h-3" />
                 </td>
                 <td class="border border-gray-200 px-2 py-1.5">{{ product.product_code }}</td>
@@ -159,7 +184,9 @@
                     type="number" 
                     min="1"
                     step="1"
-                    class="w-20 px-1 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 text-center"
+                    class="w-20 px-1 py-0.5 border border-gray-300 rounded text-xs text-center"
+                    :class="authStore.canManageProduction ? 'focus:outline-none focus:ring-1 focus:ring-blue-500' : 'bg-gray-50'"
+                    :readonly="!authStore.canManageProduction"
                     placeholder="수량"
                   />
                 </td>
@@ -168,15 +195,19 @@
                     v-model.number="product.work_order_priority" 
                     type="number" 
                     min="1"
-                    class="w-16 px-1 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    class="w-16 px-1 py-0.5 border border-gray-300 rounded text-xs"
+                    :class="authStore.canManageProduction ? 'focus:outline-none focus:ring-1 focus:ring-blue-500' : 'bg-gray-50'"
+                    :readonly="!authStore.canManageProduction"
                     placeholder=""
-                    @input="sortProductsByPriority"
+                    @input="authStore.canManageProduction && sortProductsByPriority()"
                   />
                 </td>
                 <td class="border border-gray-200 px-2 py-1.5">
                   <input 
                     v-model="product.order_detail_remark" 
-                    class="w-full px-1 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    class="w-full px-1 py-0.5 border border-gray-300 rounded text-xs"
+                    :class="authStore.canManageProduction ? 'focus:outline-none focus:ring-1 focus:ring-blue-500' : 'bg-gray-50'"
+                    :readonly="!authStore.canManageProduction"
                     placeholder="비고"
                   />
                 </td>
@@ -186,7 +217,7 @@
         </div>
 
         <!-- 저장/초기화 버튼 -->
-        <div class="flex gap-3 justify-center">
+        <div class="flex gap-3 justify-center" v-if="authStore.canManageProduction">
           <button 
             @click="saveWorkOrder" 
             class="px-6 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 transition-colors font-medium disabled:opacity-50"
@@ -204,21 +235,21 @@
       </div>
     </div>
 
-    <!-- 모달들 -->
+    <!-- 모달들 (권한 있을 때만 렌더링) -->
     <ProductSearchModal 
-      v-if="showProductModal" 
+      v-if="showProductModal && authStore.canManageProduction" 
       @select="addProduct" 
       @close="showProductModal = false" 
     />
     
     <PlanSearchModal 
-      v-if="showPlanModal" 
+      v-if="showPlanModal && authStore.canManageProduction" 
       @select="selectPlan" 
       @close="showPlanModal = false" 
     />
 
     <WorkOrderSearchModal 
-      v-if="showWorkOrderModal" 
+      v-if="showWorkOrderModal && authStore.canManageProduction" 
       @select="selectWorkOrder" 
       @close="showWorkOrderModal = false" 
     />
@@ -228,6 +259,10 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import axios from 'axios'
+
+// 권한 스토어
+import { useAuthStore } from '@/stores/authStore'
+const authStore = useAuthStore()
 
 // 모달 컴포넌트들
 import ProductSearchModal from './ProductSearchModal.vue'
@@ -262,23 +297,37 @@ const hasSelectedProducts = computed(() => {
 
 const canSave = computed(() => {
   return form.value.writer_id && 
-         form.value.products.length > 0
+         form.value.products.length > 0 &&
+         authStore.canManageProduction
 })
+
+// 권한 체크 함수들
+const checkProductionPermission = (action = '이 작업') => {
+  if (!authStore.canManageProduction) {
+    alert(authStore.getPermissionMessage('production') || '생산 관리 권한이 없습니다.')
+    return false
+  }
+  return true
+}
 
 // 메서드들
 const openWorkOrderModal = () => {
+  if (!checkProductionPermission('작업지시서 검색')) return
   showWorkOrderModal.value = true
 }
 
 const openPlanModal = () => {
+  if (!checkProductionPermission('계획 검색')) return
   showPlanModal.value = true
 }
 
 const openProductModal = () => {
+  if (!checkProductionPermission('제품 추가')) return
   showProductModal.value = true
 }
 
 const selectPlan = (plan) => {
+  if (!checkProductionPermission('계획 선택')) return
   form.value.plan_id = plan.plan_id
   loadPlanProducts(plan.plan_id)
   showPlanModal.value = false
@@ -286,6 +335,8 @@ const selectPlan = (plan) => {
 
 // 제품 추가 시 process_group_code 자동 입력
 const addProduct = (product) => {
+  if (!checkProductionPermission('제품 추가')) return
+  
   console.log('선택된 제품 데이터:', product)
   
   const newProduct = {
@@ -306,6 +357,8 @@ const addProduct = (product) => {
 }
 
 const removeSelectedProducts = () => {
+  if (!checkProductionPermission('제품 제거')) return
+  
   const selectedProducts = form.value.products.filter(product => product.selected)
   
   if (selectedProducts.length === 0) {
@@ -355,19 +408,24 @@ const loadPlanProducts = async (planId) => {
 }
 
 const saveWorkOrder = async () => {
+  if (!checkProductionPermission('작업지시서 저장')) return
+  
   if (!canSave.value) {
     alert('작성자, 제품을 모두 입력해주세요.')
     return
   }
+  
   const now = new Date()
   const yyyyMMdd = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`
   const random = Math.floor(100 + Math.random() * 900)
   const resultId = `RE${yyyyMMdd}${random}`
+  
   try {
     const payload = {
       master: {
         plan_id: form.value.plan_id || '',
-        writer_id: form.value.writer_id,
+        writer_id: form.value.writer_id || authStore.user?.employee_id || '',
+        writer_name: form.value.writer_name || authStore.user?.employee_name || '',
         write_date: form.value.write_date,
         order_start_dt: form.value.order_start_dt || '',
         order_end_dt: form.value.order_end_dt || '',
@@ -385,8 +443,12 @@ const saveWorkOrder = async () => {
       }))
     }
 
-    console.log('전송할 payload:', JSON.stringify(payload, null, 2))
-    console.log('전송할 payload:', payload)
+    console.log('전송할 payload:', {
+      ...payload,
+      로그인사용자: authStore.user?.employee_name,
+      작성자ID: payload.master.writer_id,
+      작성자명: payload.master.writer_name
+    })
     let response
     if (isEditMode.value) {
       payload.master.work_order_no = form.value.work_order_no
@@ -424,18 +486,27 @@ const saveWorkOrder = async () => {
 }
 
 const resetForm = () => {
+  if (!checkProductionPermission('폼 초기화')) return
+  
+  const today = new Date().toISOString().split('T')[0]
+  
   form.value = {
     work_order_no: '',
     plan_id: '',
-    writer_id: '2',
-    writer_name: '김홍인',
-    write_date: new Date().toISOString().split('T')[0],
+    writer_id: authStore.user?.employee_id?.toString() || '',
+    writer_name: authStore.user?.employee_name || '',
+    write_date: today,
     order_start_dt: '',
     order_end_dt: '',
     order_remark: '',
     products: []
   }
   isEditMode.value = false
+  
+  console.log('폼 초기화 - 작성자 정보:', {
+    writer_id: form.value.writer_id,
+    writer_name: form.value.writer_name
+  })
 }
 
 const generateWorkOrderNo = async () => {
@@ -490,11 +561,23 @@ const selectWorkOrder = async (workOrder) => {
 }
 
 onMounted(() => {
+  // 권한 체크 및 알림
+  if (!authStore.canManageProduction) {
+    alert('조회만 가능합니다. 생산 관리 권한이 없습니다.')
+  }
+  
   const today = new Date().toISOString().split('T')[0]
   form.value.write_date = today
-  form.value.writer_name = '김홍인'
-  form.value.writer_id = '2'
+  // 로그인된 사용자 정보로 초기화
+  form.value.writer_name = authStore.user?.employee_name || ''
+  form.value.writer_id = authStore.user?.employee_id?.toString() || ''
   form.value.work_order_no = ''
+  
+  console.log('초기화된 작성자 정보:', {
+    writer_id: form.value.writer_id,
+    writer_name: form.value.writer_name,
+    loginUser: authStore.user?.employee_name
+  })
 })
 </script>
 
@@ -529,4 +612,4 @@ input:focus, select:focus {
 button {
   transition: all 0.15s ease-in-out;
 }
-</style>
+</style>  
