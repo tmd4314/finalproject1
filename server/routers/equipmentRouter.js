@@ -101,51 +101,6 @@ router.get('/:id/detail', async (req, res) => {
   }
 });
 
-// 설비 상세 조회 (수정용)
-router.get('/:id', async (req, res) => {
-  try {
-    const equipment = await equipmentService.getEquipmentOnly(req.params.id)
-    if (!equipment) {
-      return res.status(404).json({ isSuccessed: false, message: '설비를 찾을 수 없습니다.' })
-    }
-    res.json({ isSuccessed: true, data: equipment })
-  } catch (err) {
-    console.error('단일 설비 조회 실패:', err)
-    res.status(500).json({ isSuccessed: false, message: '단일 설비 조회 실패' })
-  }
-})
-
-// 설비 수정
-router.put('/:id', upload.single('image'), async (req, res) => {
-  try {
-    const requiredFields = ['name', 'category', 'type', 'installType', 'factory', 'floor', 'room', 'manufactureDate', 'maker', 'model', 'serial', 'power', 'maxRuntime', 'maintenanceCycle'];
-    for (const field of requiredFields) {
-      if (!req.body[field]) {
-        return res.status(400).json({ isSuccessed: false, message: `${field}는 필수 입력 항목입니다.` });
-      }
-    }
-    if (req.body.category === 'e3' && !req.body.line) {
-      return res.status(400).json({ isSuccessed: false, message: '포장설비는 라인을 선택해야 합니다.' });
-    }
-
-    const imageFilename = req.file ? req.file.filename : req.body.existingImage || null;
-
-    // 수정 시 등록일은 현재 날짜로 자동 설정
-    const updatedData = {
-      ...req.body,
-      eq_image: imageFilename,
-      registerDate: new Date().toISOString().slice(0, 10),
-    };
-
-    const result = await equipmentService.updateEquipment(req.params.id, updatedData);
-
-    res.json({ isSuccessed: true, result });
-  } catch (err) {
-    console.error('설비 수정 실패:', err);
-    res.status(500).json({ isSuccessed: false, message: '설비 수정 실패' });
-  }
-});
-
 // 설비 단일 삭제
 router.delete('/:id', async (req, res) => {
   try {
@@ -192,6 +147,54 @@ router.post('/delete', async (req, res) => {
       message: '설비 삭제 중 오류가 발생했습니다.',
       error: err.message
     });
+  }
+});
+
+// 설비 상세 조회 (수정용) - 순서 중요!
+router.get('/:id', async (req, res) => {
+  try {
+    const equipment = await equipmentService.getEquipmentOnly(req.params.id)
+    if (!equipment) {
+      return res.status(404).json({ isSuccessed: false, message: '설비를 찾을 수 없습니다.' })
+    }
+    res.json({ isSuccessed: true, data: equipment })
+  } catch (err) {
+    console.error('단일 설비 조회 실패:', err)
+    res.status(500).json({ isSuccessed: false, message: '단일 설비 조회 실패' })
+  }
+})
+
+// 설비 수정
+router.put('/:id', upload.single('image'), async (req, res) => {
+  console.log('=== PUT 요청 받음 ===');
+  console.log('ID:', req.params.id);
+  console.log('Body:', req.body);
+  try {
+    const requiredFields = ['name', 'category', 'type', 'installType', 'factory', 'floor', 'room', 'manufactureDate', 'maker', 'model', 'serial', 'power', 'maxRuntime', 'maintenanceCycle'];
+    for (const field of requiredFields) {
+      if (!req.body[field]) {
+        return res.status(400).json({ isSuccessed: false, message: `${field}는 필수 입력 항목입니다.` });
+      }
+    }
+    if (req.body.category === 'e3' && !req.body.line) {
+      return res.status(400).json({ isSuccessed: false, message: '포장설비는 라인을 선택해야 합니다.' });
+    }
+
+    const imageFilename = req.file ? req.file.filename : req.body.existingImage || null;
+
+    // 수정 시 등록일은 현재 날짜로 자동 설정
+    const updatedData = {
+      ...req.body,
+      eq_image: imageFilename,
+      registerDate: new Date().toISOString().slice(0, 10),
+    };
+
+    const result = await equipmentService.equipmentUpdate(req.params.id, updatedData);
+
+    res.json({ isSuccessed: true, result });
+  } catch (err) {
+    console.error('설비 수정 실패:', err);
+    res.status(500).json({ isSuccessed: false, message: '설비 수정 실패' });
   }
 });
 

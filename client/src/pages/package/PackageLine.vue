@@ -215,7 +215,6 @@
           
           <div class="line-status">
             <span class="status-badge" :class="line.line_status.toLowerCase()">
-              <span class="status-icon">{{ getStatusIcon(line.line_status) }}</span>
               {{ getStatusText(line.line_status) }}
             </span>
           </div>
@@ -246,7 +245,7 @@
               :class="{ recommended: isRecommendedLine(line) }"
               @click="startPackagingWork(line)"
             >
-              {{ isRecommendedLine(line) ? ' 작업 시작' : ' 작업 시작' }}
+              {{ isRecommendedLine(line) ? '작업 시작' : '작업 시작' }}
             </button>
             <button
               v-else-if="line.line_status === 'WORKING'"
@@ -301,7 +300,7 @@
           <!--  워크플로우 정보 표시 -->
           <div v-if="selectedPackageType === 'OUTER' && completedSteps.includes('INNER')" class="workflow-info">
             <div class="workflow-step completed">
-              <span class="step-icon">✅</span>
+              <span class="step-status">완료</span>
               <div class="step-details">
                 <strong>내포장 완료</strong>
                 <div class="step-meta">작업번호: {{ innerWorkNo }} • {{ formatTime(innerCompletionTime) }}</div>
@@ -397,12 +396,12 @@ const filteredLines = computed(() => {
 
 //  URL 파라미터 처리 (개선된 버전)
 onBeforeMount(() => {
-  console.log(' 포장 라인 페이지 로드')
-  console.log(' URL 파라미터:', route.query)
+  console.log('포장 라인 페이지 로드')
+  console.log('URL 파라미터:', route.query)
   
   // Case 1: 내포장 완료 후 외포장으로 자동 이동
   if (route.query.inner_completed === 'true' || route.query.completed_inner === 'true') {
-    console.log(' 내포장 완료 → 외포장 자동 활성화')
+    console.log('내포장 완료 → 외포장 자동 활성화')
     
     completedSteps.value = ['INNER']
     innerCompletionTime.value = new Date()
@@ -429,7 +428,7 @@ onBeforeMount(() => {
   
   // Case 2: 외포장 완료 후 돌아온 경우
   if (route.query.outer_completed === 'true') {
-    console.log(' 외포장 완료 → 전체 완료')
+    console.log('외포장 완료 → 전체 완료')
     
     completedSteps.value = ['INNER', 'OUTER']
     innerCompletionTime.value = new Date(Date.now() - 3600000) // 1시간 전
@@ -442,7 +441,7 @@ onBeforeMount(() => {
     
     // 전체 완료 메시지
     showCompletionMessage.value = true
-    completionMessage.value = ' 모든 포장 작업이 완료되었습니다!'
+    completionMessage.value = '모든 포장 작업이 완료되었습니다!'
     completionMessageType.value = 'success'
     
     setTimeout(() => {
@@ -456,7 +455,7 @@ onBeforeMount(() => {
   // Case 3: 작업 수행 중 다른 라인으로 돌아온 경우
   if (route.query.from_work === 'true') {
     const maintainType = route.query.maintain_type
-    console.log(` ${maintainType} 작업에서 돌아옴`)
+    console.log(`${maintainType} 작업에서 돌아옴`)
     
     selectedPackageType.value = maintainType
     currentStep.value = 'line-selection'
@@ -473,7 +472,7 @@ onBeforeMount(() => {
   }
   
   // Case 4: 일반 진입
-  console.log(' 일반 진입 - 처음부터 시작')
+  console.log('일반 진입 - 처음부터 시작')
   currentStep.value = 'package-type-selection'
   selectedPackageType.value = null
   completedSteps.value = []
@@ -481,7 +480,7 @@ onBeforeMount(() => {
 
 // 컴포넌트 마운트 시 라인 목록 로드
 onMounted(() => {
-  console.log(' 컴포넌트 마운트 - 라인 목록 로드 시작')
+  console.log('컴포넌트 마운트 - 라인 목록 로드 시작')
   fetchLines()
 })
 
@@ -490,17 +489,17 @@ onMounted(() => {
 // 현재 로그인한 사용자 정보 로드 (에러 방지 버전)
 async function loadCurrentEmployee() {
   try {
-    console.log(' 현재 사용자 정보 로드 시작...')
+    console.log('현재 사용자 정보 로드 시작...')
     const response = await axios.get('/lines/current-employee')
     
     if (response.data && response.data.success) {
       currentEmployee.value = response.data.data
-      console.log(' 현재 사용자 정보 로드 성공:', currentEmployee.value)
+      console.log('현재 사용자 정보 로드 성공:', currentEmployee.value)
     } else {
       throw new Error(response.data?.message || 'API 응답 오류')
     }
   } catch (error) {
-    console.error(' 현재 사용자 정보 로드 실패:', error)
+    console.error('현재 사용자 정보 로드 실패:', error)
     
     //  기본 사용자 정보로 대체 (에러 방지)
     currentEmployee.value = { 
@@ -509,11 +508,11 @@ async function loadCurrentEmployee() {
     }
     
     if (error.response?.status === 401) {
-      console.warn(' 로그인이 필요합니다. 기본 사용자로 진행합니다.')
+      console.warn('로그인이 필요합니다. 기본 사용자로 진행합니다.')
     } else if (error.code === 'ERR_NETWORK') {
-      console.warn(' API 서버에 연결할 수 없습니다. 기본값을 사용합니다.')
+      console.warn('API 서버에 연결할 수 없습니다. 기본값을 사용합니다.')
     } else {
-      console.warn(' 사용자 정보를 불러올 수 없어 기본값을 사용합니다.')
+      console.warn('사용자 정보를 불러올 수 없어 기본값을 사용합니다.')
     }
   }
 }
@@ -527,13 +526,13 @@ async function fetchLines() {
     
     if (res.data && res.data.success && Array.isArray(res.data.data)) {
       packageLines.value = res.data.data
-      console.log(' 라인 목록 로드 완료:', res.data.data.length, '개')
+      console.log('라인 목록 로드 완료:', res.data.data.length, '개')
     } else {
       packageLines.value = []
       error.value = '데이터 형식이 올바르지 않습니다'
     }
   } catch (err) {
-    console.error(' 라인 목록 로드 실패:', err)
+    console.error('라인 목록 로드 실패:', err)
     error.value = '라인 목록을 불러오지 못했습니다.'
     packageLines.value = []
   } finally {
@@ -541,9 +540,9 @@ async function fetchLines() {
   }
 }
 
-// 🔥 포장 타입 선택 (워크플로우 개선)
+// 포장 타입 선택 (워크플로우 개선)
 function selectPackageType(type) {
-  console.log(' 포장 타입 선택:', type)
+  console.log('포장 타입 선택:', type)
   console.log('현재 완료된 단계:', completedSteps.value)
   
   if (type === 'OUTER' && !completedSteps.value.includes('INNER')) {
@@ -557,7 +556,7 @@ function selectPackageType(type) {
   lineStatusFilter.value = ''
   searchText.value = ''
   
-  console.log(` ${type === 'INNER' ? '내포장' : '외포장'} 라인 선택 화면으로 이동`)
+  console.log(`${type === 'INNER' ? '내포장' : '외포장'} 라인 선택 화면으로 이동`)
 }
 
 // 포장 타입 선택으로 돌아가기
@@ -571,7 +570,7 @@ function goBackToPackageTypeSelection() {
 
 // 라인 관리로 이동
 function goBackToLineAdd() {
-  console.log('🔧 포장 라인 관리로 이동')
+  console.log('포장 라인 관리로 이동')
   try {
     router.push({ name: 'package_add_line' })
   } catch (err) {
@@ -594,7 +593,7 @@ function resetAllSteps() {
     lineTypeFilter.value = ''
     lineStatusFilter.value = ''
     searchText.value = ''
-    console.log(' 모든 단계 초기화 완료')
+    console.log('모든 단계 초기화 완료')
   }
 }
 
@@ -636,10 +635,10 @@ async function confirmStartWork() {
   if (!selectedLineForStart.value) return
   
   try {
-    console.log(' 작업 시작:', selectedLineForStart.value)
+    console.log('작업 시작:', selectedLineForStart.value)
     navigateToWorkPage(selectedLineForStart.value)
   } catch (err) {
-    console.error(' 작업 시작 중 오류:', err)
+    console.error('작업 시작 중 오류:', err)
     alert('작업 시작 중 오류가 발생했습니다.')
   } finally {
     closeStartModal()
@@ -648,7 +647,7 @@ async function confirmStartWork() {
 
 //  작업 수행 페이지로 이동 (워크플로우 상태 전달)
 function navigateToWorkPage(line) {
-  console.log(' 작업 페이지로 이동:', line)
+  console.log('작업 페이지로 이동:', line)
   
   const queryParams = {
     line_id: line.line_id,
@@ -678,9 +677,9 @@ function navigateToWorkPage(line) {
       name: 'package_work',
       query: queryParams
     })
-    console.log(' 작업 페이지로 이동 성공')
+    console.log('작업 페이지로 이동 성공')
   } catch (routerError) {
-    console.error(' 라우터 이동 실패:', routerError)
+    console.error('라우터 이동 실패:', routerError)
     
     const params = new URLSearchParams(queryParams)
     window.location.href = `/packaging/work?${params.toString()}`
@@ -703,7 +702,7 @@ function getWorkStartTitle() {
 
 function getWorkStartButtonText() {
   if (selectedPackageType.value === 'OUTER' && completedSteps.value.includes('INNER')) {
-    return ' 외포장 작업 시작'
+    return '외포장 작업 시작'
   }
   return '작업 시작'
 }
@@ -731,16 +730,6 @@ function getStatusText(status) {
     'STOPPED': '정지'
   }
   return map[status] || status
-}
-
-function getStatusIcon(status) {
-  const icons = {
-    'AVAILABLE': '',
-    'WORKING': '',
-    'MAINTENANCE': '',
-    'STOPPED': ''
-  }
-  return icons[status] || ''
 }
 
 function formatTime(date) {
@@ -953,23 +942,6 @@ defineOptions({
   background: #f8f9fa;
 }
 
-.card-icon {
-  margin-bottom: 16px;
-}
-
-.card-icon span {
-  font-size: 36px;
-  color: #007bff;
-}
-
-.package-type-card.completed .card-icon span {
-  color: #007bff;
-}
-
-.package-type-card.disabled .card-icon span {
-  color: #6c757d;
-}
-
 .package-type-card h3 {
   font-size: 18px;
   font-weight: 600;
@@ -1065,18 +1037,6 @@ defineOptions({
   background: #f8f9fa;
   border-radius: 4px;
   border: 1px solid #e9ecef;
-}
-
-.completed-item .icon {
-  font-size: 16px;
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: white;
-  border-radius: 4px;
-  border: 1px solid #dee2e6;
 }
 
 .item-content {
@@ -1295,11 +1255,6 @@ defineOptions({
   margin: 0;
 }
 
-.line-type-icon span {
-  font-size: 20px;
-  color: #6c757d;
-}
-
 .recommended-badge {
   position: absolute;
   top: -8px;
@@ -1506,16 +1461,13 @@ defineOptions({
   padding: 6px 0;
 }
 
-.workflow-step .step-icon {
-  font-size: 16px;
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: white;
+.workflow-step .step-status {
+  font-size: 10px;
+  background: #28a745;
+  color: white;
+  padding: 2px 6px;
   border-radius: 4px;
-  border: 1px solid #dee2e6;
+  font-weight: 600;
 }
 
 .step-details strong {

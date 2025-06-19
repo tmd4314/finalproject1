@@ -61,15 +61,26 @@ const findWorkOrderList = async (searchTerm = '') => {
     .catch(err => console.error(err));
 };
 
-// 작업지시서 마스터 저장 (신규/수정 통합)
+// 작업지시서 마스터 저장 (신규/수정 통합) - writer_name 제거
 const saveWorkOrderMaster = async (workOrderInfo) => {
   const insertColumns = [
     'work_order_no', 'plan_id', 'writer_id', 'write_date',
     'order_start_dt', 'order_end_dt', 'order_remark'
   ];
   const values = convertObjToAry(workOrderInfo, insertColumns);
+  
+  // 로그 추가: 저장되는 작성자 정보 확인
+  console.log('작업지시서 마스터 저장 데이터:', {
+    work_order_no: workOrderInfo.work_order_no,
+    writer_id: workOrderInfo.writer_id,
+    values: values
+  });
+  
   return await mariadb.query('saveWorkOrder', values)
-    .catch(err => console.error(err));
+    .catch(err => {
+      console.error('작업지시서 마스터 저장 오류:', err);
+      throw err;
+    });
 };
 
 // 작업지시서 제품 정보 저장 (기존 삭제 후 재입력)
@@ -112,7 +123,7 @@ const saveWorkResult = async (workOrderNo, products) => {
         product.result_id,
         product.work_order_date
       ];
-      console.log(insertData);
+      console.log('작업 결과 저장:', insertData);
       await mariadb.query('insertResult', insertData);
     }
     
@@ -122,7 +133,6 @@ const saveWorkResult = async (workOrderNo, products) => {
     throw err;
   }
 };
-
 
 // 작업지시서 번호 자동 생성
 const generateWorkOrderNo = async () => {
@@ -144,7 +154,7 @@ const generateWorkOrderNo = async () => {
   }
 };
 
-// 작업지시서 전체 저장 (마스터 + 제품)
+// 작업지시서 전체 저장 (마스터 + 제품) - 로그 강화
 const saveWorkOrderComplete = async (workOrderData) => {
   try {
     const { master, products } = workOrderData;
@@ -154,8 +164,19 @@ const saveWorkOrderComplete = async (workOrderData) => {
       master.work_order_no = await generateWorkOrderNo();
     }
     
-    // 1. 마스터 정보 저장
-    await saveWorkOrderMaster(master);
+    // 작성자 정보 로그
+    console.log('작업지시서 완전 저장 시작:', {
+      work_order_no: master.work_order_no,
+      writer_id: master.writer_id,
+      writer_name: master.writer_name || '(없음)',
+      product_count: products?.length || 0
+    });
+    
+    // 1. 마스터 정보 저장 (writer_name은 DB에 저장하지 않음)
+    await saveWorkOrderMaster({
+      ...master,
+      // writer_name 제거 - DB에는 writer_id만 저장
+    });
     
     // 2. 제품 정보 저장
     if (products && products.length > 0) {
@@ -167,6 +188,11 @@ const saveWorkOrderComplete = async (workOrderData) => {
         await saveWorkResultDetails(resultId, processCodes);
       }
     }
+    
+    console.log('작업지시서 완전 저장 완료:', {
+      work_order_no: master.work_order_no,
+      writer_id: master.writer_id
+    });
     
     return { 
       success: true, 
@@ -181,7 +207,6 @@ const saveWorkOrderComplete = async (workOrderData) => {
 
 const saveWorkResultDetails = async (resultId, processCodes) => {
   try {
-    
     // 2. 새로운 제품 정보 입력
     for (const process of processCodes) {
       const insertData = [

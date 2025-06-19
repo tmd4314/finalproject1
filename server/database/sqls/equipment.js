@@ -63,15 +63,28 @@ selectEquipmentDetail: `
   WHERE eq_id = ?
 `,
   // 설비 수정
-  updateEquipment: `
-    UPDATE equipment SET
-      eq_name = ?, eq_group_code = ?, eq_type_code = ?, eq_import_code = ?,
-      eq_factory_code = ?, eq_floor_code = ?, eq_room_code = ?, line_id = ?,
-      eq_manufacture_date = ?, eq_registration_date = ?, eq_manufacturer = ?, eq_model = ?,
-      eq_serial_number = ?, eq_power_spec = ?, eq_max_operation_time = ?,
-      eq_inspection_cycle = ?, eq_remark = ?, eq_image = ?
-    WHERE eq_id = ?
-  `,
+  equipmentUpdate: `
+  UPDATE equipment SET
+    eq_name = ?, 
+    eq_group_code = ?, 
+    eq_type_code = ?, 
+    eq_import_code = ?,
+    eq_factory_code = ?, 
+    eq_floor_code = ?, 
+    eq_room_code = ?, 
+    line_id = ?,
+    eq_manufacture_date = ?, 
+    eq_registration_date = ?, 
+    eq_manufacturer = ?, 
+    eq_model = ?,
+    eq_serial_number = ?, 
+    eq_power_spec = ?, 
+    eq_max_operation_time = ?,
+    eq_inspection_cycle = ?, 
+    eq_remark = ?, 
+    eq_image = ?
+  WHERE eq_id = ?
+`,
 
   // 설비명 중복 수 조회 (혼합기%, 과립기% 형태로 조회)
   countSameNameEquipments: `

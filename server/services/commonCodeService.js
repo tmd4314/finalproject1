@@ -3,20 +3,22 @@ const db = require('../database/mapper');
 async function getCommonCodes(groups) {
   const result = {};
 
-  for (const group of groups) {
-    if (group === 'line') {
-      const rows = await db.query('selectAllLines');
-      result.line = rows.map(row => ({
-        value: String(row.line_id),        
-        label: `라인 ${row.line_id}`         
-      }));
-    } else {
-      const rows = await db.query('selectCommonCodesByGroup', [group]);
-      result[group] = rows;
+  try {
+    for (const group of groups) {
+      if (group === 'line') {
+        // 변경된 쿼리 이름 사용
+        const rows = await db.query('selectLinesForCommonCode');
+        result.line = rows;
+      } else {
+        const rows = await db.query('selectCommonCodesByGroup', [group]);
+        result[group] = rows;
+      }
     }
+    return result;
+  } catch (error) {
+    console.error('Error in getCommonCodes:', error);
+    throw error;
   }
-
-  return result;
 }
 
 module.exports = {

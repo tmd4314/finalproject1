@@ -20,6 +20,7 @@ const searchWorkOrders = `SELECT
             wom.order_start_dt,
             wom.order_end_dt,
             wom.order_remark,
+            e.employee_name as writer_name,
             CONCAT(
                 (SELECT p2.product_name 
                  FROM work_order_detail wod2 
@@ -34,6 +35,7 @@ const searchWorkOrders = `SELECT
                 END
             ) as product_summary
         FROM work_order_master wom
+            LEFT JOIN employees e ON wom.writer_id = e.employee_id
             LEFT JOIN work_order_detail wod ON wom.work_order_no = wod.work_order_no
             LEFT JOIN product p ON wod.product_code = p.product_code
         WHERE (? = '' OR wom.work_order_no LIKE CONCAT('%', ?, '%')
@@ -96,7 +98,7 @@ const getPlanInfo = `SELECT
             LEFT JOIN product p ON pd.product_code = p.product_code
         WHERE pm.plan_id = ?;`;
 
-// 6. 기존 작업지시서 불러오기
+// 6. 기존 작업지시서 불러오기 (employees 테이블과 조인하여 이름 가져오기)
 const getWorkOrderInfo = `SELECT 
             wom.work_order_no,
             wom.plan_id,
@@ -127,7 +129,7 @@ const getWorkOrderProducts = `SELECT
         WHERE wod.work_order_no = ?
         ORDER BY wod.work_order_priority, wod.work_order_detail_id;`;
 
-// 8. 작업지시서 저장
+// 8. 작업지시서 저장 (writer_id만 저장, writer_name 제거)
 const saveWorkOrder = `INSERT INTO work_order_master (
             work_order_no, plan_id, writer_id, write_date,
             order_start_dt, order_end_dt, order_remark
@@ -148,14 +150,16 @@ const insertWorkOrderProduct = `INSERT INTO work_order_detail (
             order_detail_remark, process_group_code
         ) VALUES (?, ?, ?, ?, ?, ?);`;
 
-// 10. 작업지시서 목록 조회
+// 10. 작업지시서 목록 조회 (employees 테이블과 조인하여 이름 가져오기)
 const getWorkOrderList = `SELECT 
-            work_order_no, plan_id, write_date,
-            order_start_dt, order_end_dt, order_remark
-        FROM work_order_master 
-        WHERE (? = '' OR work_order_no LIKE CONCAT('%', ?, '%')
-                     OR order_remark LIKE CONCAT('%', ?, '%'))
-        ORDER BY write_date DESC, work_order_no DESC;`;
+            wom.work_order_no, wom.plan_id, wom.write_date,
+            wom.order_start_dt, wom.order_end_dt, wom.order_remark,
+            e.employee_name as writer_name
+        FROM work_order_master wom
+            LEFT JOIN employees e ON wom.writer_id = e.employee_id
+        WHERE (? = '' OR wom.work_order_no LIKE CONCAT('%', ?, '%')
+                     OR wom.order_remark LIKE CONCAT('%', ?, '%'))
+        ORDER BY wom.write_date DESC, wom.work_order_no DESC;`;
 
 // 11. 작업지시서 번호 자동 생성
 const generateWorkOrderNo = `
@@ -167,7 +171,7 @@ const generateWorkOrderNo = `
   WHERE work_order_no LIKE CONCAT('WO', DATE_FORMAT(NOW(), '%Y%m%d'), '%')
 `;
 
-// 12. 작업지시서 조회 페이지 (새로 추가)
+// 12. 작업지시서 조회 페이지 (employees 테이블과 조인하여 이름 가져오기)
 const getWorkOrderListPage = `SELECT 
     wom.work_order_no,
     wom.write_date,

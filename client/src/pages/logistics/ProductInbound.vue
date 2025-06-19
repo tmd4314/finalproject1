@@ -100,12 +100,19 @@
 
           <div class="flex gap-2">
             <button 
+              v-if="canManageLogistics"
               @click="processSelectedItems"
               :disabled="!hasSelectedItems"
               class="px-4 py-2 bg-green-600 text-white text-sm rounded hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               입고 ({{ selectedItemsCount }}건)
             </button>
+            <div
+              v-else
+              class="text-sm text-orange-600 bg-orange-50 px-3 py-2 rounded border border-orange-200"
+            >
+              조회 전용 (입고 권한 없음)
+            </div>
           </div>
         </div>
 
@@ -114,7 +121,9 @@
           <table class="w-full text-xs border-collapse bg-white">
             <thead class="bg-gray-50 sticky top-0">
               <tr>
-                <th class="border border-gray-200 px-2 py-2 text-center font-medium text-gray-700 w-12">
+                <th
+                  v-if="canManageLogistics"
+                  class="border border-gray-200 px-2 py-2 text-center font-medium text-gray-700 w-12">
                   <input type="checkbox" v-model="selectAll" @change="toggleSelectAll" class="rounded" />
                 </th>
                 <th class="border border-gray-200 px-2 py-2 text-center font-medium text-gray-700 w-24">요청일자</th>
@@ -128,7 +137,7 @@
             <tbody>
               <!-- 로딩 상태 -->
               <tr v-if="isLoading">
-                <td colspan="7" class="text-center text-gray-500 py-8">
+                <td :colspan="canManageLogistics ? 7 : 6" class="text-center text-gray-500 py-8">
                   <div class="flex items-center justify-center gap-2">
                     <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
                     데이터를 불러오는 중...
@@ -138,7 +147,7 @@
               
               <!-- 데이터 없음 -->
               <tr v-else-if="inboundWaitingList.length === 0">
-                <td colspan="7" class="text-center text-gray-500 py-8">
+                <td :colspan="canManageLogistics ? 7 : 6" class="text-center text-gray-500 py-8">
                   입고 대기 중인 제품이 없습니다.
                 </td>
               </tr>
@@ -146,7 +155,9 @@
               <!-- 데이터 행들 -->
               <tr v-else v-for="(item, index) in inboundWaitingList" :key="`${item.result_id}-${item.product_code}`" 
                   class="hover:bg-gray-50">
-                <td class="border border-gray-200 px-2 py-2 text-center">
+                <td
+                  v-if="canManageLogistics"
+                  class="border border-gray-200 px-2 py-2 text-center">
                   <input type="checkbox" v-model="item.selected" class="rounded" />
                 </td>
                 <td class="border border-gray-200 px-2 py-2 text-center">
@@ -334,63 +345,54 @@
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue'
 import axios from 'axios'
+import { useAuthStore } from '@/stores/authStore'
+
+const authStore = useAuthStore()
+
+// 권한(물류)
+const canManageLogistics = computed(() => authStore.canManageLogistics)
 
 // 상태 관리
 const activeTab = ref('waiting')
 const isLoading = ref(false)
 const isLoadingCompleted = ref(false)
-
-// 데이터
 const inboundWaitingList = ref([])
 const inboundCompletedList = ref([])
 
-// 검색 조건
 const waitingSearch = ref({
   result_id: '',
   product_name: '',
   product_code: '',
-  request_date: ''  // 요청일자 추가
+  request_date: ''
 })
-
 const completedSearch = ref({
   lot_num: '',
   product_name: '',
   product_code: '',
-  inbound_date: ''  // 범위 → 특정 날짜로 변경
+  inbound_date: ''
 })
 
 // 선택 관련
 const selectAll = ref(false)
 
-// Computed 속성들
-const hasSelectedItems = computed(() => {
-  return inboundWaitingList.value.some(item => item.selected)
-})
+const hasSelectedItems = computed(() => inboundWaitingList.value.some(item => item.selected))
+const selectedItemsCount = computed(() => inboundWaitingList.value.filter(item => item.selected).length)
 
-const selectedItemsCount = computed(() => {
-  return inboundWaitingList.value.filter(item => item.selected).length
-})
-
-// 날짜 포맷팅 (입고일시를 날짜만 표시)
+// 날짜 포맷
 const formatDate = (dateTimeString) => {
   if (!dateTimeString) return '-'
-  return dateTimeString.split(' ')[0] // 'YYYY-MM-DD HH:mm:ss'에서 날짜 부분만 추출
+  return dateTimeString.split(' ')[0]
 }
-
-// 숫자 포맷팅
 const formatNumber = (value) => {
   if (!value && value !== 0) return '-'
   return new Intl.NumberFormat('ko-KR').format(value)
 }
-
-// 전체 선택/해제
 const toggleSelectAll = () => {
   inboundWaitingList.value.forEach(item => {
     item.selected = selectAll.value
   })
 }
 
-// 검색 초기화
 const resetWaitingSearch = () => {
   waitingSearch.value = {
     result_id: '',
@@ -400,7 +402,6 @@ const resetWaitingSearch = () => {
   }
   loadInboundWaitingList()
 }
-
 const resetCompletedSearch = () => {
   completedSearch.value = {
     lot_num: '',
@@ -414,34 +415,21 @@ const resetCompletedSearch = () => {
 // 입고 대기 목록 조회
 const loadInboundWaitingList = async () => {
   isLoading.value = true
-  
   try {
-    console.log('입고 대기 목록 조회 시작, 검색 조건:', waitingSearch.value)
-    
     const response = await axios.get('/productInbound/waiting-list', {
       params: waitingSearch.value
     })
-    
-    console.log('조회 결과:', response.data)
-    
-    // 각 항목에 선택 상태 추가
     inboundWaitingList.value = response.data.map(item => ({
       ...item,
       selected: false,
       isProcessing: false
     }))
-    
     selectAll.value = false
-    console.log(`입고 대기 목록 로드 완료: ${inboundWaitingList.value.length}건`)
-    
   } catch (error) {
-    console.error('입고 대기 목록 조회 오류:', error)
-    
     let errorMessage = '입고 대기 목록을 불러오는데 실패했습니다.'
     if (error.response?.data?.error) {
       errorMessage = error.response.data.error
     }
-    
     alert(errorMessage)
     inboundWaitingList.value = []
   } finally {
@@ -452,27 +440,16 @@ const loadInboundWaitingList = async () => {
 // 입고 완료 목록 조회
 const loadInboundCompletedList = async () => {
   isLoadingCompleted.value = true
-  
   try {
-    console.log('입고 완료 목록 조회 시작, 검색 조건:', completedSearch.value)
-    
     const response = await axios.get('/productInbound/completed-list', {
       params: completedSearch.value
     })
-    
-    console.log('조회 결과:', response.data)
-    
     inboundCompletedList.value = response.data
-    console.log(`입고 완료 목록 로드 완료: ${inboundCompletedList.value.length}건`)
-    
   } catch (error) {
-    console.error('입고 완료 목록 조회 오류:', error)
-    
     let errorMessage = '입고 완료 목록을 불러오는데 실패했습니다.'
     if (error.response?.data?.error) {
       errorMessage = error.response.data.error
     }
-    
     alert(errorMessage)
     inboundCompletedList.value = []
   } finally {
@@ -483,23 +460,15 @@ const loadInboundCompletedList = async () => {
 // 선택된 제품들 일괄 입고 처리
 const processSelectedItems = async () => {
   const selectedItems = inboundWaitingList.value.filter(item => item.selected)
-  
   if (selectedItems.length === 0) {
     alert('입고 처리할 제품을 선택해주세요.')
     return
   }
-
   const confirmed = confirm(`선택된 ${selectedItems.length}건의 제품을 일괄 입고 처리하시겠습니까?`)
   if (!confirmed) return
 
   try {
-    console.log('다중 제품 입고 처리 시작:', selectedItems)
-    
-    // 선택된 아이템들을 처리 중 상태로 변경
-    selectedItems.forEach(item => {
-      item.isProcessing = true
-    })
-
+    selectedItems.forEach(item => { item.isProcessing = true })
     const products = selectedItems.map(item => ({
       result_id: item.result_id,
       product_code: item.product_code,
@@ -507,26 +476,18 @@ const processSelectedItems = async () => {
       manufacture_datetime: item.manufacture_datetime,
       work_order_no: item.work_order_no
     }))
-
     const response = await axios.post('/productInbound/process-multiple', { products })
-    
-    console.log('다중 입고 처리 완료:', response.data)
-    
     const { success_count, error_count, results, errors } = response.data
-    
-    // 성공한 제품들을 목록에서 제거
+
+    // 성공한 제품들 목록에서 제거
     if (results && results.length > 0) {
       results.forEach(result => {
         const index = inboundWaitingList.value.findIndex(item => 
           item.result_id === result.result_id && item.product_code === result.product_code
         )
-        if (index > -1) {
-          inboundWaitingList.value.splice(index, 1)
-        }
+        if (index > -1) inboundWaitingList.value.splice(index, 1)
       })
     }
-    
-    // 결과 메시지 표시
     let message = `일괄 입고 처리 완료\n성공: ${success_count}건`
     if (error_count > 0) {
       message += `\n실패: ${error_count}건`
@@ -537,27 +498,16 @@ const processSelectedItems = async () => {
         })
       }
     }
-    
     alert(message)
-    
-    // 전체 선택 해제
     selectAll.value = false
-    
   } catch (error) {
-    console.error('다중 제품 입고 처리 오류:', error)
-    
     let errorMessage = '일괄 입고 처리 중 오류가 발생했습니다.'
     if (error.response?.data?.error) {
       errorMessage = error.response.data.error
     }
-    
     alert(errorMessage)
-    
   } finally {
-    // 처리 중 상태 해제
-    selectedItems.forEach(item => {
-      item.isProcessing = false
-    })
+    selectedItems.forEach(item => { item.isProcessing = false })
   }
 }
 
@@ -570,9 +520,11 @@ const handleTabChange = () => {
   }
 }
 
-// 컴포넌트 마운트 시 데이터 로드
+// 마운트 시 권한 안내 및 데이터 로드
 onMounted(() => {
-  console.log('제품 입고 관리 컴포넌트 마운트')
+  if (!canManageLogistics.value) {
+    alert('조회만 가능합니다. 입고 처리 권한이 없습니다.')
+  }
   loadInboundWaitingList()
 })
 
@@ -584,30 +536,24 @@ watch(activeTab, handleTabChange)
 input, select, button {
   transition: all 0.15s ease-in-out;
 }
-
 input:focus, select:focus {
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
-
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
-
 ::-webkit-scrollbar-track {
   background: #f8fafc;
   border-radius: 3px;
 }
-
 ::-webkit-scrollbar-thumb {
   background: #cbd5e1;
   border-radius: 3px;
 }
-
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
-
 button {
   transition: all 0.15s ease-in-out;
 }
