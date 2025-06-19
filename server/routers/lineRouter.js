@@ -1,4 +1,5 @@
-// server/routers/lineRouter.js
+// server/routers/lineRouter.js - 아이콘 제거, 필드명 수정, 내포장/외포장 개별 수정, 폴백 데이터 제거
+
 const express = require('express');
 const router = express.Router();
 const lineService = require('../services/lineService.js');
@@ -6,24 +7,18 @@ const lineService = require('../services/lineService.js');
 // 로그인 사원 정보 추출 미들웨어
 const extractEmployeeInfo = (req, res, next) => {
   try {
-    // 세션 방식
     if (req.session && req.session.user) {
       req.currentEmployee = {
         employee_id: req.session.user.employee_id,
         employee_name: req.session.user.employee_name
       };
-    }
-    // JWT 토큰 방식 (예시)
-    else if (req.headers.authorization) {
+    } else if (req.headers.authorization) {
       const token = req.headers.authorization.split(' ')[1];
-      // 임시로 기본값 설정 (실제 JWT 디코딩 로직으로 교체 필요)
       req.currentEmployee = {
         employee_id: 2,
         employee_name: '관리자'
       };
-    }
-    // 쿠키 방식 (예시)
-    else if (req.cookies && req.cookies.user_info) {
+    } else if (req.cookies && req.cookies.user_info) {
       try {
         const userInfo = JSON.parse(req.cookies.user_info);
         req.currentEmployee = {
@@ -33,10 +28,7 @@ const extractEmployeeInfo = (req, res, next) => {
       } catch (cookieError) {
         console.warn('쿠키 파싱 실패:', cookieError);
       }
-    }
-    // 개발용 기본값 (실제 운영에서는 제거)
-    else {
-      console.warn('로그인 정보 없음 - 개발용 기본값 사용');
+    } else {
       req.currentEmployee = {
         employee_id: 2,
         employee_name: '관리자'
@@ -47,7 +39,6 @@ const extractEmployeeInfo = (req, res, next) => {
     next();
   } catch (error) {
     console.error('사원 정보 추출 실패:', error);
-    // 에러 시에도 기본값으로 계속 진행
     req.currentEmployee = {
       employee_id: 2,
       employee_name: '관리자'
@@ -56,18 +47,31 @@ const extractEmployeeInfo = (req, res, next) => {
   }
 };
 
-// ========== GET 라우터들 (구체적인 경로 먼저) ==========
+// ========== GET 라우터들 ==========
 
-// 전체 라인 목록 조회 (통합: 마스터 + 최신 상태 + 제품정보 + 공통코드)
+// 전체 라인 목록 조회
 router.get('/list', async (req, res) => {
   try {
     console.log('라인 목록 조회 API 호출');
     const lineList = await lineService.getLineList();
     
+    const innerCount = lineList.filter(line => line.line_type === 'INNER').length;
+    const outerCount = lineList.filter(line => line.line_type === 'OUTER').length;
+    
+    console.log('라인 목록 조회 결과:');
+    console.log(`  - 전체: ${lineList.length}개`);
+    console.log(`  - 내포장: ${innerCount}개`);
+    console.log(`  - 외포장: ${outerCount}개`);
+    
     res.json({
       success: true,
       data: lineList,
       total: lineList.length,
+      summary: {
+        total: lineList.length,
+        inner: innerCount,
+        outer: outerCount
+      },
       message: '라인 목록 조회 성공'
     });
     
@@ -82,45 +86,36 @@ router.get('/list', async (req, res) => {
   }
 });
 
-// 사용 가능한 라인 ID 목록 조회
-router.get('/available-ids', async (req, res) => {
+// 사용 가능한 라인 코드 목록 조회
+router.get('/available-codes', async (req, res) => {
   try {
-    console.log('사용 가능한 라인 ID 조회 API 호출');
-    const availableIds = await lineService.getAvailableLineIds();
+    console.log('사용 가능한 라인 코드 조회 API 호출');
+    const availableCodes = await lineService.getAvailableLineCodes();
     
     res.json({
       success: true,
-      data: availableIds,
-      message: '사용 가능한 라인 ID 조회 성공'
+      data: availableCodes,
+      total: availableCodes.length,
+      message: '사용 가능한 라인 코드 조회 성공'
     });
     
   } catch (err) {
-    console.error('사용 가능한 라인 ID 조회 실패:', err);
-    
-    // 에러 시 기본 라인 ID 목록 반환
-    const defaultIds = ['F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
-    res.json({
-      success: true,
-      data: defaultIds,
-      message: '기본 라인 ID 목록 조회 (API 에러로 인한 기본값)'
+    console.error('사용 가능한 라인 코드 조회 실패:', err);
+    res.status(500).json({
+      success: false,
+      data: [],
+      message: '사용 가능한 라인 코드 조회 실패',
+      error: err.message
     });
   }
 });
 
-// 사용 가능한 제품코드 목록 조회 API (라인별 격리 적용) - 개선된 에러 처리
+// 사용 가능한 제품코드 목록 조회 API
 router.get('/available-products', async (req, res) => {
   try {
     console.log('사용 가능한 제품코드 조회 API 호출');
     
-    // 쿼리 파라미터로 라인 코드 받기
     const lineCode = req.query.lineCode;
-    
-    if (lineCode) {
-      console.log(`${lineCode}라인 전용 제품코드 조회`);
-    } else {
-      console.log('전체 제품코드 조회 (관리자 모드)');
-    }
-    
     const products = await lineService.getAvailableProducts(lineCode);
     
     res.json({
@@ -128,36 +123,27 @@ router.get('/available-products', async (req, res) => {
       data: products,
       total: products.length,
       lineCode: lineCode || null,
-      message: lineCode ? 
-        `${lineCode}라인 제품코드 조회 성공` : 
-        '전체 제품코드 조회 성공'
+      message: '제품코드 조회 성공'
     });
     
   } catch (err) {
-    console.error('사용 가능한 제품코드 조회 실패:', err);
-    
-    // 에러 시 기본 제품코드 목록 반환
-    const defaultProducts = [
-      { product_code: 'BJA-DR-10', product_name: '10정 블리스터 포장', product_type: 'TABLET', package_type: 'BLISTER' },
-      { product_code: 'BJA-DR-30', product_name: '30정 블리스터 포장', product_type: 'TABLET', package_type: 'BLISTER' },
-      { product_code: 'BJA-DR-60', product_name: '60정 블리스터 포장', product_type: 'TABLET', package_type: 'BLISTER' },
-      { product_code: 'BJA-BT-100', product_name: '100정 병 포장', product_type: 'TABLET', package_type: 'BOTTLE' }
-    ];
-    
-    res.json({
-      success: true,
-      data: defaultProducts,
-      total: defaultProducts.length,
-      message: '기본 제품코드 목록 조회 (API 에러로 인한 기본값)'
+    console.error('제품코드 조회 실패:', err);
+    res.status(500).json({
+      success: false,
+      data: [],
+      message: '제품코드 조회 실패',
+      error: err.message
     });
   }
 });
 
-// 사용 가능한 담당자 목록 조회 API - 개선된 에러 처리
+// 사용 가능한 담당자 목록 조회 API
 router.get('/available-employees', async (req, res) => {
   try {
     console.log('사용 가능한 담당자 목록 조회 API 호출');
     const employees = await lineService.getAvailableEmployees();
+    
+    console.log('담당자 목록 조회 성공:', employees.length, '명');
     
     res.json({
       success: true,
@@ -168,62 +154,72 @@ router.get('/available-employees', async (req, res) => {
     
   } catch (err) {
     console.error('담당자 목록 조회 실패:', err);
-    
-    // 에러 시 기본 담당자 목록 반환
-    const defaultEmployees = [
-      { employee_id: 2, employee_name: '김홍인' },
-      { employee_id: 3, employee_name: '김다산' },
-      { employee_id: 4, employee_name: '최현석' },
-      { employee_id: 5, employee_name: '이승민' }
-    ];
-    
-    res.json({
-      success: true,
-      data: defaultEmployees,
-      total: defaultEmployees.length,
-      message: '기본 담당자 목록 조회 (API 에러로 인한 기본값)'
+    res.status(500).json({
+      success: false,
+      data: [],
+      message: '담당자 목록 조회 실패',
+      error: err.message
     });
   }
 });
 
-// 사용 가능한 설비명 목록 조회 API (설비명 중복 방지) - 개선된 에러 처리
+// 사용 가능한 설비명 목록 조회 API
 router.get('/available-equipments', async (req, res) => {
   try {
     console.log('사용 가능한 설비명 목록 조회 API 호출');
     
-    // 쿼리 파라미터로 제외할 라인 ID 받기 (라인 수정 시 사용)
-    const excludeLineId = req.query.excludeLineId;
+    const excludeLineCode = req.query.excludeLineCode;
     
-    if (excludeLineId) {
-      console.log('라인 수정 모드 - 제외할 라인 ID:', excludeLineId);
+    if (excludeLineCode) {
+      console.log('라인 수정 모드 - 제외할 라인 코드:', excludeLineCode);
     }
     
-    const equipments = await lineService.getAvailableEquipments(excludeLineId);
+    const equipments = await lineService.getAvailableEquipments(excludeLineCode);
+    
+    const innerCount = equipments.filter(eq => eq.line_type === 'INNER').length;
+    const outerCount = equipments.filter(eq => eq.line_type === 'OUTER').length;
+    
+    console.log('설비 분류 현황:');
+    console.log(`  - 전체: ${equipments.length}개`);
+    console.log(`  - 내포장: ${innerCount}개`);
+    console.log(`  - 외포장: ${outerCount}개`);
+    
+    const innerEquipments = equipments.filter(eq => eq.line_type === 'INNER');
+    const outerEquipments = equipments.filter(eq => eq.line_type === 'OUTER');
     
     res.json({
       success: true,
       data: equipments,
       total: equipments.length,
+      summary: {
+        total: equipments.length,
+        inner: innerCount,
+        outer: outerCount,
+        inner_equipments: innerEquipments.map(eq => ({
+          name: eq.eq_name,
+          type_code: eq.eq_type_code
+        })),
+        outer_equipments: outerEquipments.map(eq => ({
+          name: eq.eq_name,
+          type_code: eq.eq_type_code
+        }))
+      },
+      classification: {
+        inner_names: innerEquipments.map(eq => eq.eq_name),
+        outer_names: outerEquipments.map(eq => eq.eq_name)
+      },
       message: '설비명 목록 조회 성공',
-      excludedLine: excludeLineId || null
+      eq_group_code: 'e3',
+      excludedLine: excludeLineCode || null
     });
     
   } catch (err) {
     console.error('설비명 목록 조회 실패:', err);
-    
-    // 에러 시 기본 설비명 목록 반환
-    const defaultEquipments = [
-      { eq_name: '10정 블리스터 포장기', line_type: 'INNER', eq_type: 'INNER' },
-      { eq_name: '30정 블리스터 포장기', line_type: 'INNER', eq_type: 'INNER' },
-      { eq_name: '소형 카톤포장기', line_type: 'OUTER', eq_type: 'OUTER' },
-      { eq_name: '중형 카톤포장기', line_type: 'OUTER', eq_type: 'OUTER' }
-    ];
-    
-    res.json({
-      success: true,
-      data: defaultEquipments,
-      total: defaultEquipments.length,
-      message: '기본 설비명 목록 조회 (API 에러로 인한 기본값)'
+    res.status(500).json({
+      success: false,
+      data: [],
+      message: '설비명 목록 조회 실패',
+      error: err.message
     });
   }
 });
@@ -232,7 +228,6 @@ router.get('/available-equipments', async (req, res) => {
 router.get('/product-code-usage', async (req, res) => {
   try {
     console.log('제품코드 사용 현황 조회 API 호출');
-    
     const usageStats = await lineService.getProductCodeUsageStats();
     
     res.json({
@@ -244,11 +239,11 @@ router.get('/product-code-usage', async (req, res) => {
     
   } catch (err) {
     console.error('제품코드 사용 현황 조회 실패:', err);
-    res.json({
-      success: true,
+    res.status(500).json({
+      success: false,
       data: [],
-      total: 0,
-      message: '제품코드 사용 현황 조회 실패 (빈 목록 반환)'
+      message: '제품코드 사용 현황 조회 실패',
+      error: err.message
     });
   }
 });
@@ -267,15 +262,46 @@ router.get('/stats/status', async (req, res) => {
     
   } catch (err) {
     console.error('라인 상태 통계 조회 실패:', err);
-    res.json({
-      success: true,
+    res.status(500).json({
+      success: false,
       data: { statusStats: [], workingLines: [], totalLines: 0 },
-      message: '라인 상태 통계 조회 실패 (기본값 반환)'
+      message: '라인 상태 통계 조회 실패',
+      error: err.message
     });
   }
 });
 
-// 특정 제품코드 상세 조회 API (사용현황 포함)
+// 최신 실적 ID 조회 API
+router.get('/latest-result-id', async (req, res) => {
+  try {
+    const productCode = req.query.productCode;
+    console.log('최신 실적 ID 조회 API 호출, 제품코드:', productCode);
+    
+    const resultId = await lineService.getLatestResultId(productCode);
+    
+    res.json({
+      success: true,
+      data: {
+        result_id: resultId,
+        product_code: productCode || null,
+        timestamp: new Date().toISOString()
+      },
+      message: productCode ? 
+        `${productCode} 제품의 최신 실적 ID 조회 성공` : 
+        '전체 최신 실적 ID 조회 성공'
+    });
+    
+  } catch (err) {
+    console.error('최신 실적 ID 조회 실패:', err);
+    res.status(500).json({
+      success: false,
+      message: '최신 실적 ID 조회 실패',
+      error: err.message
+    });
+  }
+});
+
+// 특정 제품코드 상세 조회 API
 router.get('/product/:productCode', async (req, res) => {
   try {
     const { productCode } = req.params;
@@ -306,64 +332,7 @@ router.get('/product/:productCode', async (req, res) => {
   }
 });
 
-// 공정흐름도 조회 API
-router.get('/process-flow/:productCode', async (req, res) => {
-  try {
-    const { productCode } = req.params;
-    console.log('공정흐름도 조회 API 호출:', productCode);
-    
-    const processFlow = await lineService.getProcessFlowByProduct(productCode);
-    
-    res.json({
-      success: true,
-      data: processFlow,
-      total: processFlow.length,
-      message: '공정흐름도 조회 성공'
-    });
-    
-  } catch (err) {
-    console.error('공정흐름도 조회 실패:', err);
-    
-    // 에러 시 기본 공정흐름도 반환
-    const defaultProcessFlow = [
-      { 공정그룹코드: `${req.params.productCode}-Process`, 순서: 1, 공정코드: `${req.params.productCode}Process1`, 공정유형코드: 'p2', 공정명: '내포장', 공정유형명: '포장', 공정시간: '30분', 공정비고: '기본 내포장 공정' },
-      { 공정그룹코드: `${req.params.productCode}-Process`, 순서: 2, 공정코드: `${req.params.productCode}Process2`, 공정유형코드: 'p2', 공정명: '외포장', 공정유형명: '포장', 공정시간: '20분', 공정비고: '기본 외포장 공정' }
-    ];
-    
-    res.json({
-      success: true,
-      data: defaultProcessFlow,
-      total: defaultProcessFlow.length,
-      message: '기본 공정흐름도 조회 (API 에러로 인한 기본값)'
-    });
-  }
-});
-
-// 내포장 완료된 건 조회 API
-router.get('/completed-inner/:lineId', async (req, res) => {
-  try {
-    const { lineId } = req.params;
-    console.log('내포장 완료된 건 조회 API 호출:', lineId);
-    
-    const completed = await lineService.getCompletedInnerPackaging(lineId);
-    
-    res.json({
-      success: true,
-      data: completed,
-      message: completed ? '내포장 완료된 건 조회 성공' : '내포장 완료된 건이 없습니다.'
-    });
-    
-  } catch (err) {
-    console.error('내포장 완료된 건 조회 실패:', err);
-    res.json({
-      success: true,
-      data: null,
-      message: '내포장 완료된 건 조회 실패'
-    });
-  }
-});
-
-// 현재 사용자 정보 조회 API - 새로 추가
+// 현재 사용자 정보 조회 API
 router.get('/current-employee', extractEmployeeInfo, async (req, res) => {
   try {
     console.log('현재 사용자 정보 조회 API 호출');
@@ -376,10 +345,10 @@ router.get('/current-employee', extractEmployeeInfo, async (req, res) => {
     
   } catch (err) {
     console.error('현재 사용자 정보 조회 실패:', err);
-    res.json({
-      success: true,
-      data: { employee_id: 2, employee_name: '기본사용자' },
-      message: '기본 사용자 정보 반환'
+    res.status(500).json({
+      success: false,
+      message: '현재 사용자 정보 조회 실패',
+      error: err.message
     });
   }
 });
@@ -391,10 +360,20 @@ router.get('/master/list', async (req, res) => {
   try {
     console.log('라인 마스터 목록 조회 API');
     const masterList = await lineService.getLineMasterList();
+    
+    const innerCount = masterList.filter(master => master.line_type === 'INNER').length;
+    const outerCount = masterList.filter(master => master.line_type === 'OUTER').length;
+    
     res.json({
       success: true,
       data: masterList,
-      total: masterList.length
+      total: masterList.length,
+      summary: {
+        total: masterList.length,
+        inner: innerCount,
+        outer: outerCount
+      },
+      eq_group_code: 'e3'
     });
   } catch (err) {
     console.error('라인 마스터 목록 조회 실패:', err);
@@ -415,7 +394,10 @@ router.get('/master/:masterId', async (req, res) => {
     if (masterDetail) {
       res.json({
         success: true,
-        data: masterDetail
+        data: {
+          ...masterDetail,
+          eq_group_code: 'e3'
+        }
       });
     } else {
       res.status(404).json({
@@ -433,42 +415,22 @@ router.get('/master/:masterId', async (req, res) => {
   }
 });
 
-// ========== 기존 API (하위 호환성 유지) ==========
-
-// 단일 라인 상세 (상태 + 마스터 join) - 기존 API 유지
-router.get('/line/:line_id', async (req, res) => {
+// 라인 상세 조회 (라인 코드로) - 맨 마지막에 배치
+router.get('/:lineCode', async (req, res) => {
   try {
-    console.log('기존 라인 상세 조회 API:', req.params.line_id);
-    const lineDetail = await lineService.getLineWithMaster(req.params.line_id);
+    const { lineCode } = req.params;
+    console.log('라인 상세 조회 API 호출:', lineCode);
     
-    if (lineDetail) {
-      res.send(lineDetail);
-    } else {
-      res.status(404).send({ message: 'Line Not Found' });
-    }
-  } catch (err) {
-    console.error('기존 라인 상세 조회 실패:', err);
-    res.status(500).send({ message: '서버 오류' });
-  }
-});
-
-// 라인 상세 조회 (동적 경로는 마지막에 배치)
-router.get('/:lineId', async (req, res) => {
-  try {
-    const { lineId } = req.params;
-    console.log('라인 상세 조회 API 호출:', lineId);
-    
-    // A-INNER, A-OUTER 형식의 ID 처리
-    let actualLineId = lineId;
-    if (lineId.includes('-')) {
-      // "A-INNER" -> "A"로 변환
-      actualLineId = lineId.split('-')[0];
-      console.log('라인 ID 변환:', lineId, '->', actualLineId);
+    // A-INNER, A-OUTER 형식의 코드 처리
+    let actualLineCode = lineCode;
+    if (lineCode.includes('-')) {
+      actualLineCode = lineCode.split('-')[0];
+      console.log('라인 코드 변환:', lineCode, '->', actualLineCode);
     }
     
-    const lineDetail = await lineService.getLineMasterByLineId(actualLineId);
+    const lineDetails = await lineService.getLineMasterByLineCode(actualLineCode);
     
-    if (!lineDetail) {
+    if (!lineDetails || lineDetails.length === 0) {
       return res.status(404).json({
         success: false,
         message: '라인을 찾을 수 없습니다.'
@@ -477,8 +439,10 @@ router.get('/:lineId', async (req, res) => {
     
     res.json({
       success: true,
-      data: lineDetail,
-      message: '라인 상세 조회 성공'
+      data: lineDetails,
+      total: lineDetails.length,
+      message: '라인 상세 조회 성공',
+      eq_group_code: 'e3'
     });
     
   } catch (err) {
@@ -493,18 +457,18 @@ router.get('/:lineId', async (req, res) => {
 
 // ========== POST 라우터들 ==========
 
-// 라인 등록 (로그인 사원 정보 추가) - 제품코드 기반
+// 라인 등록
 router.post('/', extractEmployeeInfo, async (req, res) => {
   try {
     console.log('라인 등록 API 호출');
     console.log('요청 데이터:', req.body);
     console.log('현재 사원:', req.currentEmployee);
     
-    // 로그인 사원 정보를 요청 데이터에 추가
     const requestData = {
       ...req.body,
       employee_id: req.currentEmployee.employee_id,
-      employee_name: req.currentEmployee.employee_name
+      employee_name: req.currentEmployee.employee_name,
+      eq_group_code: 'e3'
     };
     
     const result = await lineService.insertIntegratedLine(requestData);
@@ -512,7 +476,8 @@ router.post('/', extractEmployeeInfo, async (req, res) => {
     res.status(201).json({
       success: true,
       data: result,
-      message: result.message
+      message: result.message,
+      eq_group_code: 'e3'
     });
     
   } catch (err) {
@@ -522,7 +487,7 @@ router.post('/', extractEmployeeInfo, async (req, res) => {
       res.status(409).json({
         success: false,
         message: err.message,
-        error: 'DUPLICATE_LINE_ID'
+        error: 'DUPLICATE_LINE_CODE'
       });
     } else {
       res.status(500).json({
@@ -534,266 +499,129 @@ router.post('/', extractEmployeeInfo, async (req, res) => {
   }
 });
 
-// 내포장/외포장 동시 등록 API (로그인 사원 정보 추가) - 제품코드 기반
+// 내포장/외포장 동시 등록 API
 router.post('/dual', extractEmployeeInfo, async (req, res) => {
   try {
     console.log('내포장/외포장 동시 등록 API 호출');
-    console.log('요청 데이터:', req.body);
+    console.log('요청 데이터:', JSON.stringify(req.body, null, 2));
     console.log('현재 사원:', req.currentEmployee);
     
-    // 로그인 사원 정보를 요청 데이터에 추가
+    // 필수 필드 검증
+    const requiredFields = ['line_code', 'inner_eq_name', 'outer_eq_name', 'inner_employee_id', 'outer_employee_id'];
+    const missingFields = requiredFields.filter(field => !req.body[field]);
+    
+    if (missingFields.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `필수 필드가 누락되었습니다: ${missingFields.join(', ')}`,
+        error: 'MISSING_REQUIRED_FIELDS',
+        missingFields: missingFields
+      });
+    }
+    
     const requestData = {
       ...req.body,
-      employee_id: req.currentEmployee.employee_id,
-      employee_name: req.currentEmployee.employee_name
+      current_employee_id: req.currentEmployee.employee_id,
+      current_employee_name: req.currentEmployee.employee_name,
+      eq_group_code: 'e3'
     };
     
-    const result = await lineService.insertDualPackagingLine(requestData);
+    const result = await lineService.dualRegisterLine(requestData);
     
     res.status(201).json({
       success: true,
       data: result,
-      message: result.message
+      message: result.message || '내포장/외포장 라인이 성공적으로 등록되었습니다.',
+      registered_types: ['INNER', 'OUTER'],
+      registered_types_text: ['내포장', '외포장'],
+      total_registered: result.total_registered || 2,
+      eq_group_code: 'e3'
     });
     
   } catch (err) {
-    console.error('내포장/외포장 동시 등록 실패:', err);
+    console.error('동시 등록 실패:', err);
     
     if (err.message.includes('이미 존재하는 라인')) {
       res.status(409).json({
         success: false,
         message: err.message,
-        error: 'DUPLICATE_LINE_ID'
+        error: 'DUPLICATE_LINE_CODE',
+        line_code: req.body.line_code
+      });
+    } else if (err.message.includes('필수입니다')) {
+      res.status(400).json({
+        success: false,
+        message: err.message,
+        error: 'VALIDATION_ERROR'
       });
     } else {
       res.status(500).json({
         success: false,
-        message: '라인 동시 등록에 실패했습니다.',
+        message: '내포장/외포장 동시 등록에 실패했습니다.',
         error: err.message
       });
     }
   }
 });
 
-// 제품코드 할당 검증 API
-router.post('/validate-product-code', async (req, res) => {
-  try {
-    const { productCode, lineCode } = req.body;
-    console.log('제품코드 할당 검증 API 호출:', productCode, '→', lineCode);
-    
-    if (!productCode || !lineCode) {
-      return res.status(400).json({
-        success: false,
-        message: '제품코드와 라인 코드를 입력해주세요.'
-      });
-    }
-    
-    const validation = await lineService.validateProductCodeAssignment(productCode, lineCode);
-    
-    res.json({
-      success: true,
-      data: validation,
-      message: validation.canAssign ? '할당 가능' : '할당 불가'
-    });
-    
-  } catch (err) {
-    console.error('제품코드 할당 검증 실패:', err);
-    res.json({
-      success: false,
-      data: { canAssign: false, reason: '검증 실패: ' + err.message },
-      message: '제품코드 할당 검증에 실패했습니다.'
-    });
-  }
-});
-
-// 라인 작업 시작 API (공정흐름도 기반 처리)
-router.post('/start-work', extractEmployeeInfo, async (req, res) => {
-  try {
-    const { lineId, productCode } = req.body;
-    console.log('라인 작업 시작 API 호출:', lineId, '→', productCode);
-    
-    if (!lineId || !productCode) {
-      return res.status(400).json({
-        success: false,
-        message: '라인 ID와 제품코드를 입력해주세요.'
-      });
-    }
-    
-    const result = await lineService.startLineWork(lineId, productCode, req.currentEmployee);
-    
-    res.json({
-      success: true,
-      data: result,
-      message: '라인 작업이 시작되었습니다.'
-    });
-    
-  } catch (err) {
-    console.error('라인 작업 시작 실패:', err);
-    res.status(500).json({
-      success: false,
-      message: '라인 작업 시작에 실패했습니다.',
-      error: err.message
-    });
-  }
-});
-
-// 내포장 작업 완료 API - 새로 추가
-router.post('/complete-inner-work', extractEmployeeInfo, async (req, res) => {
-  try {
-    const { lineId, workOrderNo, outputQty } = req.body;
-    console.log('내포장 작업 완료 API 호출:', lineId, '→', workOrderNo);
-    
-    if (!lineId) {
-      return res.status(400).json({
-        success: false,
-        message: '라인 ID를 입력해주세요.'
-      });
-    }
-    
-    const result = await lineService.completeInnerPackagingWork(lineId, workOrderNo, outputQty);
-    
-    res.json({
-      success: true,
-      data: result,
-      message: '내포장 작업이 완료되었습니다.'
-    });
-    
-  } catch (err) {
-    console.error('내포장 작업 완료 실패:', err);
-    res.status(500).json({
-      success: false,
-      message: '내포장 작업 완료에 실패했습니다.',
-      error: err.message
-    });
-  }
-});
-
-// 외포장 작업 완료 API
-router.post('/complete-outer-work', extractEmployeeInfo, async (req, res) => {
-  try {
-    const { lineId, workOrderNo, outputQty } = req.body;
-    console.log('외포장 작업 완료 API 호출:', lineId, '→', workOrderNo);
-    
-    if (!lineId) {
-      return res.status(400).json({
-        success: false,
-        message: '라인 ID를 입력해주세요.'
-      });
-    }
-    
-    const result = await lineService.completeOuterPackagingWork(lineId, workOrderNo, outputQty);
-    
-    res.json({
-      success: true,
-      data: result,
-      message: '외포장 작업이 완료되었습니다.'
-    });
-    
-  } catch (err) {
-    console.error('외포장 작업 완료 실패:', err);
-    res.status(500).json({
-      success: false,
-      message: '외포장 작업 완료에 실패했습니다.',
-      error: err.message
-    });
-  }
-});
-
-// 라인 마스터 등록
-router.post('/master', async (req, res) => {
-  try {
-    console.log('라인 마스터 등록 API');
-    const result = await lineService.insertLineMaster(req.body);
-    res.status(201).json({
-      success: true,
-      data: result,
-      message: '라인 마스터 등록 성공'
-    });
-  } catch (err) {
-    console.error('라인 마스터 등록 실패:', err);
-    res.status(500).json({
-      success: false,
-      message: '라인 마스터 등록 실패',
-      error: err.message
-    });
-  }
-});
-
-// 라인 실적 등록 - 기존 API 유지
-router.post('/line', async (req, res) => {
-  try {
-    console.log('기존 라인 실적 등록 API');
-    const result = await lineService.insertLine(req.body);
-    res.send(result);
-  } catch (err) {
-    console.error('기존 라인 실적 등록 실패:', err);
-    res.status(500).send({ isSuccessed: false, message: '서버 오류' });
-  }
-});
-
 // ========== PUT 라우터들 ==========
 
-// 라인 마스터 수정
-router.put('/master/:masterId', async (req, res) => {
+// 라인 수정 (전체 수정)
+router.put('/:lineCode', extractEmployeeInfo, async (req, res) => {
   try {
-    console.log('라인 마스터 수정 API:', req.params.masterId);
-    const result = await lineService.updateLineMaster(req.params.masterId, req.body);
-    res.json({
-      success: true,
-      data: result,
-      message: '라인 마스터 수정 성공'
-    });
-  } catch (err) {
-    console.error('라인 마스터 수정 실패:', err);
-    res.status(500).json({
-      success: false,
-      message: '라인 마스터 수정 실패',
-      error: err.message
-    });
-  }
-});
-
-// 라인 실적 수정 - 기존 API 유지
-router.put('/line/:line_id', async (req, res) => {
-  try {
-    console.log('기존 라인 실적 수정 API:', req.params.line_id);
-    const result = await lineService.updateLine(req.params.line_id, req.body);
-    res.send(result);
-  } catch (err) {
-    console.error('기존 라인 실적 수정 실패:', err);
-    res.status(500).send({ isUpdated: false, message: '서버 오류' });
-  }
-});
-
-// 라인 수정 (동적 경로는 마지막에) - 제품코드 기반
-router.put('/:lineId', extractEmployeeInfo, async (req, res) => {
-  try {
-    const { lineId } = req.params;
-    console.log('라인 수정 API 호출:', lineId);
-    console.log('수정 데이터:', req.body);
+    const { lineCode } = req.params;
+    console.log('라인 전체 수정 API 호출:', lineCode);
+    console.log('수정 데이터:', JSON.stringify(req.body, null, 2));
     console.log('현재 사원:', req.currentEmployee);
     
-    // A-INNER, A-OUTER 형식의 ID 처리
-    let actualLineId = lineId;
-    if (lineId.includes('-')) {
-      // "A-INNER" -> "A"로 변환
-      actualLineId = lineId.split('-')[0];
-      console.log('라인 ID 변환:', lineId, '->', actualLineId);
+    // A-INNER, A-OUTER 형식의 코드 처리
+    let actualLineCode = lineCode;
+    let actualLineType = null;
+    
+    if (lineCode.includes('-')) {
+      const parts = lineCode.split('-');
+      actualLineCode = parts[0];
+      actualLineType = parts[1];
+      console.log('라인 코드 파싱:', lineCode, '->', actualLineCode, actualLineType);
     }
     
-    // 로그인 사원 정보를 요청 데이터에 추가
+    // 라인 존재 여부 확인
+    const existingMasters = await lineService.getLineMasterByLineCode(actualLineCode);
+    if (!existingMasters || existingMasters.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: `라인을 찾을 수 없습니다: ${actualLineCode}`,
+        error: 'LINE_NOT_FOUND'
+      });
+    }
+    
+    console.log(`발견된 ${actualLineCode}라인:`, existingMasters.length, '개');
+    
     const requestData = {
       ...req.body,
       employee_id: req.currentEmployee.employee_id,
-      employee_name: req.currentEmployee.employee_name
+      employee_name: req.currentEmployee.employee_name,
+      eq_group_code: 'e3',
+      modified_by: req.currentEmployee.employee_name,
+      modified_at: new Date().toISOString()
     };
     
-    const result = await lineService.updateIntegratedLine(actualLineId, requestData);
+    console.log('처리할 수정 데이터:', JSON.stringify(requestData, null, 2));
+    
+    const result = await lineService.updateIntegratedLine(actualLineCode, actualLineType, requestData);
+    
+    console.log('수정 성공 결과:', JSON.stringify(result, null, 2));
     
     res.json({
       success: true,
       data: result,
-      message: result.message
+      message: result.message,
+      updated_line: actualLineCode,
+      updated_type: actualLineType || 'ALL',
+      updated_types: result.updated_types || [],
+      updated_types_text: result.updated_types_text || [],
+      update_count: result.update_count || 1,
+      eq_group_code: 'e3'
     });
     
   } catch (err) {
@@ -802,115 +630,222 @@ router.put('/:lineId', extractEmployeeInfo, async (req, res) => {
     if (err.message.includes('찾을 수 없습니다')) {
       res.status(404).json({
         success: false,
-        message: err.message
+        message: err.message,
+        error: 'LINE_NOT_FOUND'
       });
     } else {
       res.status(500).json({
         success: false,
         message: '라인 수정에 실패했습니다.',
-        error: err.message
+        error: err.message,
+        line_code: req.params.lineCode
       });
     }
+  }
+});
+
+// 라인 수정 (특정 타입만)
+router.put('/:lineCode/:lineType', extractEmployeeInfo, async (req, res) => {
+  try {
+    const { lineCode, lineType } = req.params;
+    console.log('\n=== 개별 라인 수정 API 호출 ===');
+    console.log('파라미터:');
+    console.log('  lineCode:', lineCode);
+    console.log('  lineType:', lineType);
+    console.log('요청 본문:', JSON.stringify(req.body, null, 2));
+    console.log('현재 사원:', req.currentEmployee);
+    
+    // 타입 검증 강화
+    if (!lineType || !['INNER', 'OUTER'].includes(lineType.toUpperCase())) {
+      console.error('유효하지 않은 라인 타입:', lineType);
+      return res.status(400).json({
+        success: false,
+        message: `유효하지 않은 라인 타입입니다: ${lineType}. INNER 또는 OUTER만 가능합니다.`,
+        error: 'INVALID_LINE_TYPE',
+        received_type: lineType,
+        valid_types: ['INNER', 'OUTER']
+      });
+    }
+    
+    // 라인 코드 검증
+    if (!lineCode || lineCode.trim() === '') {
+      console.error('라인 코드가 없음:', lineCode);
+      return res.status(400).json({
+        success: false,
+        message: '라인 코드는 필수입니다.',
+        error: 'MISSING_LINE_CODE'
+      });
+    }
+    
+    // 라인 존재 여부 확인
+    const existingMasters = await lineService.getLineMasterByLineCode(lineCode);
+    if (!existingMasters || existingMasters.length === 0) {
+      console.error('라인을 찾을 수 없음:', lineCode);
+      return res.status(404).json({
+        success: false,
+        message: `라인을 찾을 수 없습니다: ${lineCode}`,
+        error: 'LINE_NOT_FOUND',
+        line_code: lineCode
+      });
+    }
+    
+    // 해당 타입의 라인 존재 여부 확인
+    const targetTypeMaster = existingMasters.find(master => master.line_type === lineType.toUpperCase());
+    if (!targetTypeMaster) {
+      console.error(`${lineType} 타입의 라인이 없음:`, lineCode);
+      return res.status(404).json({
+        success: false,
+        message: `${lineCode}라인에 ${lineType} 타입이 존재하지 않습니다.`,
+        error: 'LINE_TYPE_NOT_FOUND',
+        line_code: lineCode,
+        line_type: lineType,
+        available_types: existingMasters.map(m => m.line_type)
+      });
+    }
+    
+    console.log(`발견된 ${lineCode}라인:`, existingMasters.length, '개');
+    console.log(`수정할 ${lineType} 타입:`, targetTypeMaster.line_masterid);
+    
+    const requestData = {
+      ...req.body,
+      employee_id: req.currentEmployee.employee_id,
+      employee_name: req.currentEmployee.employee_name,
+      eq_group_code: 'e3',
+      modified_by: req.currentEmployee.employee_name,
+      modified_at: new Date().toISOString()
+    };
+    
+    console.log('처리할 수정 데이터:', JSON.stringify(requestData, null, 2));
+    
+    // ★ 핵심: lineType을 명시적으로 대문자로 전달
+    const normalizedLineType = lineType.toUpperCase();
+    const result = await lineService.updateIntegratedLine(lineCode, normalizedLineType, requestData);
+    
+    console.log('수정 성공 결과:', JSON.stringify(result, null, 2));
+    
+    res.json({
+      success: true,
+      data: result,
+      message: result.message,
+      updated_line: lineCode,
+      updated_type: normalizedLineType,
+      updated_type_text: normalizedLineType === 'INNER' ? '내포장' : '외포장',
+      updated_types: result.updated_types || [normalizedLineType],
+      updated_types_text: result.updated_types_text || [normalizedLineType === 'INNER' ? '내포장' : '외포장'],
+      update_count: result.update_count || 1,
+      eq_group_code: 'e3',
+      operation: 'INDIVIDUAL_UPDATE'
+    });
+    
+  } catch (err) {
+    console.error('개별 라인 수정 실패:', err);
+    
+    if (err.message.includes('찾을 수 없습니다')) {
+      res.status(404).json({
+        success: false,
+        message: err.message,
+        error: 'LINE_NOT_FOUND',
+        line_code: req.params.lineCode,
+        line_type: req.params.lineType
+      });
+    } else if (err.message.includes('유효하지 않은')) {
+      res.status(400).json({
+        success: false,
+        message: err.message,
+        error: 'VALIDATION_ERROR',
+        line_code: req.params.lineCode,
+        line_type: req.params.lineType
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: `라인 수정에 실패했습니다: ${err.message}`,
+        error: err.message,
+        line_code: req.params.lineCode,
+        line_type: req.params.lineType
+      });
+    }
+  }
+});
+
+router.get('/:lineCode/debug', async (req, res) => {
+  try {
+    const { lineCode } = req.params;
+    console.log('디버깅용 라인 정보 조회:', lineCode);
+    
+    const masterDetails = await lineService.getLineMasterByLineCode(lineCode);
+    
+    res.json({
+      success: true,
+      line_code: lineCode,
+      masters: masterDetails,
+      total_types: masterDetails.length,
+      available_types: masterDetails.map(m => ({
+        type: m.line_type,
+        type_text: m.line_type === 'INNER' ? '내포장' : '외포장',
+        master_id: m.line_masterid,
+        line_name: m.line_name
+      })),
+      message: '라인 정보 조회 성공'
+    });
+    
+  } catch (err) {
+    console.error('디버깅용 라인 정보 조회 실패:', err);
+    res.status(500).json({
+      success: false,
+      message: '라인 정보 조회 실패',
+      error: err.message
+    });
   }
 });
 
 // ========== DELETE 라우터들 ==========
 
-// 라인 일괄 삭제 (구체적인 경로 먼저)
-router.delete('/bulk/delete', async (req, res) => {
+// 라인 삭제 (전체 삭제)
+router.delete('/:lineCode', extractEmployeeInfo, async (req, res) => {
   try {
-    const { lineIds } = req.body;
-    console.log('라인 일괄 삭제 API 호출:', lineIds);
+    const { lineCode } = req.params;
+    console.log('라인 전체 삭제 API 호출:', lineCode);
+    console.log('현재 사원:', req.currentEmployee);
     
-    if (!Array.isArray(lineIds) || lineIds.length === 0) {
-      return res.status(400).json({
+    // A-INNER, A-OUTER 형식의 코드 처리
+    let actualLineCode = lineCode;
+    let actualLineType = null;
+    
+    if (lineCode.includes('-')) {
+      const parts = lineCode.split('-');
+      actualLineCode = parts[0];
+      actualLineType = parts[1];
+      console.log('라인 코드 파싱:', lineCode, '->', actualLineCode, actualLineType);
+    }
+    
+    // 라인 존재 여부 확인
+    const existingMasters = await lineService.getLineMasterByLineCode(actualLineCode);
+    if (!existingMasters || existingMasters.length === 0) {
+      return res.status(404).json({
         success: false,
-        message: '삭제할 라인 ID를 선택해주세요.'
+        message: `라인을 찾을 수 없습니다: ${actualLineCode}`,
+        error: 'LINE_NOT_FOUND'
       });
     }
     
-    // A-INNER, A-OUTER 형식의 ID들을 실제 라인 코드로 변환
-    const actualLineIds = lineIds.map(lineId => {
-      if (lineId.includes('-')) {
-        return lineId.split('-')[0]; // "A-INNER" -> "A"
-      }
-      return lineId;
-    });
+    console.log('삭제할 라인 정보:', existingMasters);
     
-    // 중복 제거 (A-INNER, A-OUTER -> A 하나만)
-    const uniqueLineIds = [...new Set(actualLineIds)];
-    console.log('변환된 라인 ID들:', lineIds, '->', uniqueLineIds);
+    const result = await lineService.deleteIntegratedLine(actualLineCode, actualLineType);
     
-    const result = await lineService.bulkDeleteLines(uniqueLineIds);
+    console.log('삭제 성공 결과:', JSON.stringify(result, null, 2));
     
     res.json({
       success: true,
       data: result,
-      message: result.message
-    });
-    
-  } catch (err) {
-    console.error('라인 일괄 삭제 실패:', err);
-    res.status(500).json({
-      success: false,
-      message: '라인 일괄 삭제에 실패했습니다.',
-      error: err.message
-    });
-  }
-});
-
-// 라인 마스터 삭제
-router.delete('/master/:masterId', async (req, res) => {
-  try {
-    console.log('라인 마스터 삭제 API:', req.params.masterId);
-    const result = await lineService.deleteLineMaster(req.params.masterId);
-    res.json({
-      success: true,
-      data: result,
-      message: '라인 마스터 삭제 성공'
-    });
-  } catch (err) {
-    console.error('라인 마스터 삭제 실패:', err);
-    res.status(500).json({
-      success: false,
-      message: '라인 마스터 삭제 실패',
-      error: err.message
-    });
-  }
-});
-
-// 라인 실적 삭제 - 기존 API 유지
-router.delete('/line/:line_id', async (req, res) => {
-  try {
-    console.log('기존 라인 실적 삭제 API:', req.params.line_id);
-    const result = await lineService.deleteLine(req.params.line_id);
-    res.send(result);
-  } catch (err) {
-    console.error('기존 라인 실적 삭제 실패:', err);
-    res.status(500).send({ isDeleted: false, message: '서버 오류' });
-  }
-});
-
-// 라인 삭제 (동적 경로는 마지막에)
-router.delete('/:lineId', async (req, res) => {
-  try {
-    const { lineId } = req.params;
-    console.log('라인 삭제 API 호출:', lineId);
-    
-    // A-INNER, A-OUTER 형식의 ID 처리
-    let actualLineId = lineId;
-    if (lineId.includes('-')) {
-      // "A-INNER" -> "A"로 변환
-      actualLineId = lineId.split('-')[0];
-      console.log('라인 ID 변환:', lineId, '->', actualLineId);
-    }
-    
-    const result = await lineService.deleteIntegratedLine(actualLineId);
-    
-    res.json({
-      success: true,
-      data: result,
-      message: result.message
+      message: result.message,
+      deleted_line: actualLineCode,
+      deleted_type: actualLineType || 'ALL',
+      deleted_types: result.deleted_types || [],
+      deleted_types_text: result.deleted_types_text || [],
+      delete_count: result.delete_count || 1,
+      deleted_by: req.currentEmployee.employee_name,
+      deleted_at: new Date().toISOString()
     });
     
   } catch (err) {
@@ -919,13 +854,80 @@ router.delete('/:lineId', async (req, res) => {
     if (err.message.includes('찾을 수 없습니다')) {
       res.status(404).json({
         success: false,
-        message: err.message
+        message: err.message,
+        error: 'LINE_NOT_FOUND'
       });
     } else {
       res.status(500).json({
         success: false,
         message: '라인 삭제에 실패했습니다.',
-        error: err.message
+        error: err.message,
+        line_code: req.params.lineCode
+      });
+    }
+  }
+});
+
+// 라인 삭제 (특정 타입만)
+router.delete('/:lineCode/:lineType', extractEmployeeInfo, async (req, res) => {
+  try {
+    const { lineCode, lineType } = req.params;
+    console.log('라인 개별 삭제 API 호출:', lineCode, lineType);
+    console.log('현재 사원:', req.currentEmployee);
+    
+    // 타입 검증
+    if (!['INNER', 'OUTER'].includes(lineType)) {
+      return res.status(400).json({
+        success: false,
+        message: '유효하지 않은 라인 타입입니다. INNER 또는 OUTER만 가능합니다.',
+        error: 'INVALID_LINE_TYPE'
+      });
+    }
+    
+    // 라인 존재 여부 확인
+    const existingMasters = await lineService.getLineMasterByLineCode(lineCode);
+    if (!existingMasters || existingMasters.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: `라인을 찾을 수 없습니다: ${lineCode}`,
+        error: 'LINE_NOT_FOUND'
+      });
+    }
+    
+    console.log('삭제할 라인 정보:', existingMasters);
+    
+    const result = await lineService.deleteIntegratedLine(lineCode, lineType);
+    
+    console.log('삭제 성공 결과:', JSON.stringify(result, null, 2));
+    
+    res.json({
+      success: true,
+      data: result,
+      message: result.message,
+      deleted_line: lineCode,
+      deleted_type: lineType,
+      deleted_types: result.deleted_types || [],
+      deleted_types_text: result.deleted_types_text || [],
+      delete_count: result.delete_count || 1,
+      deleted_by: req.currentEmployee.employee_name,
+      deleted_at: new Date().toISOString()
+    });
+    
+  } catch (err) {
+    console.error('라인 삭제 실패:', err);
+    
+    if (err.message.includes('찾을 수 없습니다')) {
+      res.status(404).json({
+        success: false,
+        message: err.message,
+        error: 'LINE_NOT_FOUND'
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: '라인 삭제에 실패했습니다.',
+        error: err.message,
+        line_code: req.params.lineCode
       });
     }
   }
