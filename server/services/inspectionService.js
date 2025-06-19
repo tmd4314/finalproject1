@@ -1,71 +1,42 @@
 const mariadb = require('../database/mapper.js');
 
-// 검사항목 전체 조회
-const selectAll = async () => {
-  const list = await mariadb.query("selectInspectionList").catch((err) => console.log(err));
+// 선택한 공정에 대한 리스트 전체 조회회
+const selectListByProcessInt = async (processInt) => {
+  // 쿼리에 파라미터 추가
+  const list = await mariadb.query("inspectionListByProcessName", [processInt]).catch((err) => console.log(err));
   return list;
 };
 
-// 제품명만 전체 조회
-const productAll = async () => {
-  const list = await mariadb.query("productNameList").catch((err) => console.log(err));
+// 프로세스 명 조회
+const processNameList = async () => {
+  const list = await mariadb.query("processNameList").catch((err) => console.log(err));
   return list;
 };
 
 // 검사항목 추가
-const insertOne = async (data) => {
+const insertInspection = async (data) => {
   const params = [
-    data.product_code,
-    data.insp_code,
-    data.insp_name,
-    data.insp_value_type,
-    data.insp_ref_value,
-    data.insp_quantita_value,
-    data.insp_qualita_value,
-    data.insp_unit,
-    data.insp_quantita_min,
-    data.insp_quantita_max,
-    data.insp_remark
+    data.processInt,
+    data.inspValueType,
+    data.inspUnit,
+    data.inspValueQty,
+    data.inspQuantitaMin,
+    data.inspQuantitaMax,
+    data.inspRemark
   ];
   console.log("쿼리 파라미터:", params);
   try {
+    // 쿼리 문자열과 파라미터를 넘김
     const result = await mariadb.query("insertInspection", params);
     return result;
   } catch (error) {
-    console.error("insertOne 쿼리 오류:", error);
-    throw error;  // 에러를 상위로 전달
+    console.error("insertInspection 쿼리 오류:", error);
+    throw error;
   }
 };
 
-
-// 검사항목 수정
-const updateOne = async (data) => {
-  const result = await mariadb.query("updateInspection", [
-    data.item_type,
-    data.insp_name,
-    data.insp_stad_val,
-    data.insp_unit,
-    data.insp_judt_type,
-    data.insp_remark,
-    data.insp_code  // WHERE 조건에 사용됨
-  ]).catch((err) => {
-    console.log("Update Error", err);
-  });
-  return result;
-};
-
-//검사항목 삭제
-const deleteInspection = async (data) => {
-  const result = await mariadb.query("deleteInspection", data)
-  .catch(err => console.log(err));
-
-  return result;
-};
-
 module.exports ={
-  selectAll,
-  productAll,
-  insertOne,
-  updateOne,
-  deleteInspection
+  selectListByProcessInt,
+  processNameList,
+  insertInspection,
 };
