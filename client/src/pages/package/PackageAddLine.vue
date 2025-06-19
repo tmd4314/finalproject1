@@ -70,10 +70,9 @@
         
         <select v-model="statusFilter" class="filter-select">
           <option value="">전체 상태</option>
-          <option value="사용가능">사용가능</option>
-          <option value="작업중">작업중</option>
-          <option value="점검중">점검중</option>
-          <option value="정지">정지</option>
+          <option value="가동 중">가동 중</option>
+          <option value="가동대기 중">가동대기 중</option>
+          <option value="가동정지">가동정지</option>
         </select>
         
         <button @click="clearFilters" class="filter-reset-btn">초기화</button>
@@ -179,8 +178,22 @@
               </td>
               <td>{{ line.eq_name || '-' }}</td>
               <td>
-                <span class="status-badge" :class="getStatusClass(line.line_status)">
-                  {{ line.line_status || '사용가능' }}
+                <!-- 상태 변경 가능한 셀렉트박스 (권한 있는 경우) -->
+                <div v-if="authStore.canManageLines" class="status-control">
+                  <select 
+                    :value="line.line_state" 
+                    @change="changeLineStatus(line, $event.target.value)"
+                    class="status-select"
+                    :class="getStatusClass(line.line_status)"
+                  >
+                    <option value="s1">가동 중</option>
+                    <option value="s2">가동대기 중</option>
+                    <option value="s3">가동정지</option>
+                  </select>
+                </div>
+                <!-- 권한 없는 경우 읽기 전용 뱃지 -->
+                <span v-else class="status-badge" :class="getStatusClass(line.line_status)">
+                  {{ line.line_status || '가동대기 중' }}
                 </span>
               </td>
               <td>
@@ -198,9 +211,9 @@
               </td>
               <td>
                 <div class="work-info">
-                  <div v-if="line.work_order_no" class="work-order">작업번호: {{ line.work_order_no }}</div>
+                  <div v-if="line.current_work_number" class="work-order">작업번호: {{ line.current_work_number }}</div>
                   <div v-if="line.work_start_time" class="work-time">시작: {{ formatDateTime(line.work_start_time) }}</div>
-                  <div v-if="!line.work_order_no" class="no-work">미작업</div>
+                  <div v-if="!line.current_work_number" class="no-work">미작업</div>
                 </div>
               </td>
               <!-- 포장 부서 권한이 있는 경우만 작업 버튼 표시 -->
@@ -208,20 +221,6 @@
                 <div class="action-buttons">
                   <button @click="openEditModal(line)" class="btn-edit-single">
                     수정
-                  </button>
-                  <button 
-                    v-if="line.line_status === '사용가능' && !line.work_order_no" 
-                    @click="startLineWork(line)" 
-                    class="btn-start-work"
-                  >
-                    작업시작
-                  </button>
-                  <button 
-                    v-if="line.line_status === '작업중' && line.line_type === 'OUTER'" 
-                    @click="completeOuterWork(line)" 
-                    class="btn-complete-work"
-                  >
-                    작업완료
                   </button>
                 </div>
               </td>
@@ -236,7 +235,7 @@
       <div class="modal-content" @click.stop>
         <div class="modal-header">
           <h3>라인 수정</h3>
-          <button @click="closeEditModal" class="modal-close">닫기</button>
+          <button @click="closeEditModal" class="modal-close">×</button>
         </div>
         
         <div class="modal-body">
@@ -276,10 +275,9 @@
               <div class="form-group">
                 <label>상태</label>
                 <select v-model="editFormData.line_state">
-                  <option value="s2">사용가능</option>
-                  <option value="s3">작업중</option>
-                  <option value="s4">점검중</option>
-                  <option value="s5">정지</option>
+                  <option value="s1">가동 중</option>
+                  <option value="s2">가동대기 중</option>
+                  <option value="s3">가동정지</option>
                 </select>
               </div>
               <div class="form-group">
@@ -342,7 +340,7 @@
       <div class="modal-content" @click.stop>
         <div class="modal-header">
           <h3>라인 등록</h3>
-          <button @click="closeDualModal" class="modal-close">닫기</button>
+          <button @click="closeDualModal" class="modal-close">×</button>
         </div>
         
         <div class="modal-body">
@@ -490,64 +488,12 @@
       </div>
     </div>
 
-    <!-- 작업 시작 모달 -->
-    <div v-if="showWorkStartModal" class="modal-overlay" @click="closeWorkStartModal">
-      <div class="modal-content" @click.stop>
-        <div class="modal-header">
-          <h3>작업 시작</h3>
-          <button @click="closeWorkStartModal" class="modal-close">닫기</button>
-        </div>
-        
-        <div class="modal-body">
-          <div class="work-start-info">
-            <h4>{{ selectedLine?.line_name }} 작업 시작</h4>
-            <p><strong>라인 ID:</strong> {{ selectedLine?.line_id }}</p>
-            <p><strong>라인 타입:</strong> {{ getLineTypeText(selectedLine?.line_type) }}</p>
-            <p><strong>설비명:</strong> {{ selectedLine?.eq_name }}</p>
-          </div>
-
-          <form @submit.prevent="confirmStartWork" class="work-form">
-            <div class="form-group">
-              <label>제품코드 *</label>
-              <select v-model="workStartData.product_code" :class="{ error: workStartErrors.product_code }">
-                <option value="">제품코드 선택</option>
-                <option v-for="product in availableProducts" :key="product.product_code" :value="product.product_code">
-                  {{ product.product_code }} - {{ product.product_name }}
-                </option>
-              </select>
-              <div v-if="workStartErrors.product_code" class="error-message">{{ workStartErrors.product_code }}</div>
-            </div>
-
-            <div v-if="processFlowInfo.length > 0" class="process-flow-info">
-              <h5>공정흐름도 정보</h5>
-              <div v-for="process in processFlowInfo" :key="process.순서" class="process-item">
-                <span class="process-order">{{ process.순서 }}.</span>
-                <span class="process-name">{{ process.공정명 }}</span>
-                <span class="process-type">({{ process.공정유형명 || '포장' }})</span>
-                <span v-if="process.공정시간" class="process-time">{{ process.공정시간 }}</span>
-              </div>
-              <div v-if="processFlowInfo[0]?.공정비고" class="process-remark">
-                <strong>비고:</strong> {{ processFlowInfo[0].공정비고 }}
-              </div>
-            </div>
-          </form>
-        </div>
-        
-        <div class="modal-actions">
-          <button @click="closeWorkStartModal" class="btn-cancel">취소</button>
-          <button @click="confirmStartWork" :disabled="workStarting" class="btn-save">
-            {{ workStarting ? '작업 시작중...' : '작업 시작' }}
-          </button>
-        </div>
-      </div>
-    </div>
-
     <!-- 권한 알림 모달 -->
     <div v-if="showPermissionModal" class="modal-overlay" @click="closePermissionModal">
       <div class="modal-content" @click.stop>
         <div class="modal-header">
           <h3>접근 권한 없음</h3>
-          <button @click="closePermissionModal" class="modal-close">닫기</button>
+          <button @click="closePermissionModal" class="modal-close">×</button>
         </div>
         <div class="modal-body">
           <div class="permission-notice-modal">
@@ -600,7 +546,7 @@ const statusFilter = ref('')
 const typeFilter = ref('')
 const loading = ref(false)
 const saving = ref(false)
-const workStarting = ref(false)
+const statusChanging = ref(false)
 const loadingMessage = ref('데이터를 불러오는 중...')
 
 const currentEmployee = ref(null)
@@ -622,10 +568,8 @@ const selectedLines = ref([])
 // 모달 상태
 const showEditModal = ref(false)
 const showDualModal = ref(false)
-const showWorkStartModal = ref(false)
 const showPermissionModal = ref(false)
 const editingLine = ref(null)
-const selectedLine = ref(null)
 const permissionMessage = ref('')
 
 // 제품코드 목록 추가
@@ -639,10 +583,7 @@ const availableEquipments = ref([])
 const innerEquipments = ref([])
 const outerEquipments = ref([])
 
-// 공정흐름도 정보
-const processFlowInfo = ref([])
-
-// 폼 데이터 - 제품코드 기반
+// 폼 데이터
 const editFormData = ref({
   eq_name: '',
   line_state: 's2',
@@ -654,7 +595,7 @@ const editFormData = ref({
   description: ''
 })
 
-// 수정된 dualFormData 초기화 - 제품코드로 변경
+// dualFormData 초기화
 const dualFormData = ref({
   line_id: '',
   product_code: '',
@@ -669,15 +610,9 @@ const dualFormData = ref({
   description: ''
 })
 
-// 작업 시작 폼 데이터
-const workStartData = ref({
-  product_code: ''
-})
-
 // 유효성 검사 에러
 const editErrors = ref({})
 const dualErrors = ref({})
-const workStartErrors = ref({})
 
 // 사용 가능한 라인 ID 목록
 const availableLineIds = ref([])
@@ -742,15 +677,6 @@ watch([selectedLines, sortedLines], () => {
   }
 }, { deep: true })
 
-// 제품코드 변경 감시 (공정흐름도 조회)
-watch(() => workStartData.value.product_code, async (newProductCode) => {
-  if (newProductCode) {
-    await loadProcessFlow(newProductCode)
-  } else {
-    processFlowInfo.value = []
-  }
-})
-
 // 인증 관련 함수들
 async function handleLogout() {
   try {
@@ -766,7 +692,7 @@ function goToLogin() {
   router.push({ name: 'login' })
 }
 
-// 권한 체크 함수 업데이트
+// 권한 체크 함수
 function checkPackagingPermission(action = '이 작업') {
   if (!authStore.isLoggedIn) {
     permissionMessage.value = '로그인이 필요합니다.'
@@ -786,6 +712,60 @@ function checkPackagingPermission(action = '이 작업') {
 function closePermissionModal() {
   showPermissionModal.value = false
   permissionMessage.value = ''
+}
+
+// 상태 변경 함수
+async function changeLineStatus(line, newStatus) {
+  if (!checkPackagingPermission('상태 변경')) return
+  
+  const statusText = getStatusText(newStatus)
+  const currentStatusText = line.line_status || '알 수 없음'
+  
+  if (!confirm(`${line.line_name}의 상태를 '${currentStatusText}'에서 '${statusText}'로 변경하시겠습니까?`)) {
+    return
+  }
+  
+  statusChanging.value = true
+  
+  try {
+    setApiStatus('info', `${line.line_name} 상태를 변경하는 중...`)
+    
+    const updateData = {
+      line_state: newStatus,
+      line_type: line.line_type,
+      eq_name: line.eq_name,
+      max_capacity: line.max_capacity,
+      current_speed: line.current_speed,
+      product_code: line.product_code,
+      target_qty: line.target_qty,
+      description: line.description,
+      employee_id: line.employee_id
+    }
+    
+    const response = await axios.put(`/lines/${line.line_id}`, updateData)
+    
+    if (response.data.success) {
+      setApiStatus('success', `${line.line_name} 상태가 '${statusText}'로 변경되었습니다.`)
+      await loadLines()
+    } else {
+      throw new Error(response.data.message || '상태 변경에 실패했습니다')
+    }
+  } catch (error) {
+    console.error('상태 변경 실패:', error)
+    setApiStatus('error', error.response?.data?.message || `상태 변경 실패: ${error.message}`)
+    await loadLines()
+  } finally {
+    statusChanging.value = false
+  }
+}
+
+function getStatusText(status) {
+  const statusMap = {
+    's1': '가동 중',
+    's2': '가동대기 중',
+    's3': '가동정지'
+  }
+  return statusMap[status] || '알 수 없음'
 }
 
 // API 함수들
@@ -818,7 +798,6 @@ async function loadCurrentEmployee() {
   }
 }
 
-// 제품코드 목록 로드 함수 추가
 async function loadAvailableProducts() {
   try {
     const response = await axios.get('/lines/available-products')
@@ -831,7 +810,6 @@ async function loadAvailableProducts() {
     }
   } catch (error) {
     console.error('제품코드 목록 로드 실패:', error)
-    // 기본 제품코드 목록 설정
     availableProducts.value = [
       { product_code: 'BJA-DR-10', product_name: '10정 블리스터 포장' },
       { product_code: 'BJA-DR-30', product_name: '30정 블리스터 포장' },
@@ -841,7 +819,6 @@ async function loadAvailableProducts() {
   }
 }
 
-// 담당자 목록 로드 함수 추가
 async function loadAvailableEmployees() {
   try {
     const response = await axios.get('/lines/available-employees')
@@ -854,7 +831,6 @@ async function loadAvailableEmployees() {
     }
   } catch (error) {
     console.error('담당자 목록 로드 실패:', error)
-    // 기본 담당자 목록 설정
     availableEmployees.value = [
       { employee_id: 2, employee_name: '김홍인' },
       { employee_id: 3, employee_name: '김다산' },
@@ -864,7 +840,6 @@ async function loadAvailableEmployees() {
   }
 }
 
-// 설비명 목록 로드 함수 추가
 async function loadAvailableEquipments() {
   try {
     const response = await axios.get('/lines/available-equipments')
@@ -872,7 +847,6 @@ async function loadAvailableEquipments() {
     if (response.data && response.data.success) {
       availableEquipments.value = response.data.data
       
-      // 내포장/외포장별로 분리
       innerEquipments.value = availableEquipments.value.filter(eq => 
         eq.line_type === 'INNER' || eq.eq_type === 'INNER'
       )
@@ -882,7 +856,6 @@ async function loadAvailableEquipments() {
       
       console.log('설비명 목록 로드 성공:', availableEquipments.value.length, '개')
     } else {
-      // 기본 설비명 설정 (API 실패시)
       setDefaultEquipments()
     }
   } catch (error) {
@@ -903,23 +876,6 @@ function setDefaultEquipments() {
     { eq_name: '중형 카톤 포장기', line_type: 'OUTER' },
     { eq_name: '대형 카톤 포장기', line_type: 'OUTER' }
   ]
-}
-
-// 공정흐름도 로드 함수
-async function loadProcessFlow(productCode) {
-  try {
-    const response = await axios.get(`/lines/process-flow/${productCode}`)
-    
-    if (response.data && response.data.success) {
-      processFlowInfo.value = response.data.data
-      console.log('공정흐름도 로드 성공:', processFlowInfo.value.length, '단계')
-    } else {
-      processFlowInfo.value = []
-    }
-  } catch (error) {
-    console.error('공정흐름도 로드 실패:', error)
-    processFlowInfo.value = []
-  }
 }
 
 function setApiStatus(type, message) {
@@ -981,102 +937,6 @@ async function loadAvailableLineIds() {
   }
 }
 
-// 라인 작업 시작 함수
-async function startLineWork(line) {
-  if (!checkPackagingPermission('작업 시작')) return
-  
-  selectedLine.value = line
-  workStartData.value = {
-    product_code: line.product_code || ''
-  }
-  workStartErrors.value = {}
-  showWorkStartModal.value = true
-
-  // 현재 제품코드가 있으면 공정흐름도 로드
-  if (line.product_code) {
-    await loadProcessFlow(line.product_code)
-  }
-}
-
-async function confirmStartWork() {
-  if (!validateWorkStartForm()) return
-  
-  workStarting.value = true
-  workStartErrors.value = {}
-  
-  try {
-    const requestData = {
-      lineId: selectedLine.value.line_id,
-      productCode: workStartData.value.product_code
-    }
-    
-    const response = await axios.post('/lines/start-work', requestData)
-    
-    if (response.data.success) {
-      setApiStatus('success', response.data.message || '작업이 시작되었습니다.')
-      closeWorkStartModal()
-      await loadLines() // 라인 목록 새로고침
-    } else {
-      throw new Error(response.data.message || '작업 시작에 실패했습니다')
-    }
-  } catch (error) {
-    console.error('작업 시작 실패:', error)
-    setApiStatus('error', error.response?.data?.message || `작업 시작 실패: ${error.message}`)
-  } finally {
-    workStarting.value = false
-  }
-}
-
-// 외포장 작업 완료 함수
-async function completeOuterWork(line) {
-  if (!checkPackagingPermission('작업 완료')) return
-  
-  if (!confirm(`${line.line_name} 외포장 작업을 완료하시겠습니까?`)) {
-    return
-  }
-  
-  try {
-    setApiStatus('info', '외포장 작업을 완료하는 중...')
-    
-    const requestData = {
-      lineId: line.line_id,
-      workOrderNo: line.work_order_no,
-      outputQty: line.target_qty || 0
-    }
-    
-    const response = await axios.post('/lines/complete-outer-work', requestData)
-    
-    if (response.data.success) {
-      setApiStatus('success', response.data.message || '외포장 작업이 완료되었습니다.')
-      await loadLines() // 라인 목록 새로고침
-    } else {
-      throw new Error(response.data.message || '작업 완료에 실패했습니다')
-    }
-  } catch (error) {
-    console.error('외포장 작업 완료 실패:', error)
-    setApiStatus('error', error.response?.data?.message || `작업 완료 실패: ${error.message}`)
-  }
-}
-
-function closeWorkStartModal() {
-  showWorkStartModal.value = false
-  selectedLine.value = null
-  workStartData.value = { product_code: '' }
-  processFlowInfo.value = []
-  workStartErrors.value = {}
-}
-
-function validateWorkStartForm() {
-  const newErrors = {}
-  
-  if (!workStartData.value.product_code) {
-    newErrors.product_code = '제품코드를 선택해주세요.'
-  }
-  
-  workStartErrors.value = newErrors
-  return Object.keys(newErrors).length === 0
-}
-
 async function saveLine() {
   if (!checkPackagingPermission('라인 수정')) return
   if (!validateEditForm()) return
@@ -1117,7 +977,7 @@ async function saveLine() {
   }
 }
 
-// 수정된 라인 등록 함수 - 제품코드로 변경
+// 수정된 라인 등록 함수 - dual API 사용
 async function dualRegisterLine() {
   if (!checkPackagingPermission('라인 등록')) return
   if (!validateDualForm()) return
@@ -1126,6 +986,8 @@ async function dualRegisterLine() {
   dualErrors.value = {}
   
   try {
+    setApiStatus('info', '내포장/외포장 라인을 등록하는 중...')
+    
     const requestData = {
       line_id: dualFormData.value.line_id,
       product_code: dualFormData.value.product_code,
@@ -1137,10 +999,10 @@ async function dualRegisterLine() {
       outer_speed: dualFormData.value.outer_speed,
       inner_employee_id: dualFormData.value.inner_employee_id,
       outer_employee_id: dualFormData.value.outer_employee_id,
-      description: dualFormData.value.description,
-      employee_name: authStore.user?.employee_name || currentEmployee.value?.employee_name,
-      employee_id: authStore.user?.employee_id || currentEmployee.value?.employee_id
+      description: dualFormData.value.description
     }
+    
+    console.log('동시 등록 요청 데이터:', requestData)
     
     const response = await axios.post('/lines/dual', requestData)
     
@@ -1155,9 +1017,25 @@ async function dualRegisterLine() {
     } else {
       throw new Error(response.data.message || '동시 등록에 실패했습니다')
     }
+    
   } catch (error) {
     console.error('동시 등록 실패:', error)
-    setApiStatus('error', error.response?.data?.message || `동시 등록 실패: ${error.message}`)
+    
+    // 에러 메시지 개선
+    let errorMessage = '동시 등록에 실패했습니다'
+    
+    if (error.response?.data?.message) {
+      errorMessage = error.response.data.message
+    } else if (error.message) {
+      errorMessage = error.message
+    }
+    
+    // 중복 에러인 경우 특별 처리
+    if (errorMessage.includes('이미 존재하는 라인')) {
+      errorMessage = `${dualFormData.value.line_id}라인이 이미 존재합니다. 다른 라인 ID를 선택해주세요.`
+    }
+    
+    setApiStatus('error', errorMessage)
   } finally {
     saving.value = false
   }
@@ -1168,7 +1046,6 @@ function editSelectedLines() {
   if (selectedLines.value.length === 0) return
   
   if (selectedLines.value.length === 1) {
-    // "A-INNER" 형식에서 라인 찾기
     const selectedValue = selectedLines.value[0]
     const [lineId, lineType] = selectedValue.split('-')
     const line = lines.value.find(l => l.line_id === lineId && l.line_type === lineType)
@@ -1191,7 +1068,6 @@ async function deleteSelectedLines() {
     try {
       setApiStatus('info', '선택된 라인들을 삭제하는 중...')
       
-      // 각 라인을 개별적으로 삭제
       const deletePromises = selectedLines.value.map(lineId => 
         axios.delete(`/lines/${lineId}`)
       )
@@ -1329,7 +1205,6 @@ function openEditModal(line) {
   showEditModal.value = true
 }
 
-// 수정된 모달 열기 함수 - 제품코드로 변경
 async function openDualModal() {
   if (!checkPackagingPermission('라인 등록')) return
   
@@ -1372,7 +1247,6 @@ function closeEditModal() {
   }
 }
 
-// 수정된 모달 닫기 함수 - 제품코드로 변경
 function closeDualModal() {
   showDualModal.value = false
   dualErrors.value = {}
@@ -1418,10 +1292,9 @@ function getLineTypeText(type) {
 
 function getStatusClass(status) {
   const statusMap = {
-    '사용가능': 'available',
-    '작업중': 'working',
-    '점검중': 'maintenance',
-    '정지': 'stopped'
+    '가동 중': 'working',
+    '가동대기 중': 'available',
+    '가동정지': 'stopped'
   }
   return statusMap[status] || 'available'
 }
@@ -1451,251 +1324,199 @@ defineOptions({
 </script>
 
 <style scoped>
-/* 기존 스타일 유지 + 추가 스타일 */
+/* 포장 라인 관리 CSS - 아이콘 제거 버전 */
+
 .package-line-management {
-  min-height: 100vh;
-  background-color: #f8f9fa;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
+/* 인증 헤더 */
 .auth-header {
-  background: #fff;
-  border-bottom: 1px solid #e9ecef;
-  padding: 12px 24px;
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid #e1e5e9;
+  margin-bottom: 20px;
 }
 
-.user-info, .guest-info {
+.user-info {
   display: flex;
   align-items: center;
-  gap: 12px;
-  font-size: 14px;
+  gap: 8px;
+  color: #374151;
+  font-weight: 500;
 }
 
 .department-info {
-  color: #6c757d;
-  font-size: 12px;
-}
-
-.guest-text {
-  color: #6c757d;
-}
-
-.logout-btn, .login-btn {
-  padding: 6px 12px;
-  border: none;
-  border-radius: 4px;
-  background: #dc3545;
-  color: white;
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background-color 0.15s;
-}
-
-.logout-btn:hover {
-  background: #c82333;
-}
-
-.login-btn {
-  background: #007bff;
-}
-
-.login-btn:hover {
-  background: #0056b3;
-}
-
-.page-header {
-  background: white;
-  border-bottom: 1px solid #e9ecef;
-}
-
-.breadcrumb {
-  padding: 12px 24px;
+  color: #6b7280;
   font-size: 14px;
-  color: #6c757d;
-  border-bottom: 1px solid #f8f9fa;
 }
 
-.breadcrumb .active {
-  color: #495057;
+.guest-info .guest-text {
+  color: #ef4444;
+  font-weight: 500;
+}
+
+/* 페이지 헤더 */
+.page-header {
+  margin-bottom: 30px;
 }
 
 .header-content {
-  padding: 20px 24px;
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
+  gap: 20px;
 }
 
 .header-info h1 {
-  font-size: 24px;
-  font-weight: 600;
-  color: #212529;
   margin: 0 0 8px 0;
+  font-size: 28px;
+  font-weight: 700;
+  color: #111827;
 }
 
 .header-info p {
-  color: #6c757d;
   margin: 0;
+  color: #6b7280;
+  font-size: 16px;
 }
 
-.login-required-notice, .permission-notice {
-  padding: 6px 10px;
-  background: #f8f9fa;
-  border: 1px solid #dee2e6;
-  border-radius: 4px;
-  color: #6c757d;
-  font-size: 12px;
-}
-
-.permission-notice {
-  background: #fff3cd;
-  border-color: #ffeaa7;
-  color: #856404;
-}
-
-.btn-register {
-  padding: 8px 16px;
-  background: #28a745;
-  color: white;
+/* 버튼 스타일 */
+.btn-register, .btn-refresh, .btn-edit, .btn-delete, .btn-save, .btn-cancel, .btn-edit-single, .btn-retry {
+  padding: 10px 16px;
   border: none;
-  border-radius: 4px;
-  font-size: 14px;
+  border-radius: 6px;
   font-weight: 500;
+  font-size: 14px;
   cursor: pointer;
-  transition: background-color 0.15s;
+  transition: all 0.2s ease;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
-.btn-register:hover {
-  background: #1e7e34;
+.btn-register, .btn-save {
+  background-color: #3b82f6;
+  color: white;
+}
+
+.btn-register:hover, .btn-save:hover {
+  background-color: #2563eb;
+}
+
+.btn-refresh {
+  background-color: #f3f4f6;
+  color: #374151;
+  border: 1px solid #d1d5db;
+}
+
+.btn-refresh:hover {
+  background-color: #e5e7eb;
+}
+
+.btn-edit, .btn-edit-single {
+  background-color: #f59e0b;
+  color: white;
+}
+
+.btn-edit:hover, .btn-edit-single:hover {
+  background-color: #d97706;
+}
+
+.btn-delete {
+  background-color: #ef4444;
+  color: white;
+}
+
+.btn-delete:hover {
+  background-color: #dc2626;
+}
+
+.btn-cancel {
+  background-color: #6b7280;
+  color: white;
+}
+
+.btn-cancel:hover {
+  background-color: #4b5563;
 }
 
 .btn-retry {
-  padding: 6px 12px;
-  background: #007bff;
+  background-color: #10b981;
   color: white;
-  border: none;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background-color 0.15s;
 }
 
 .btn-retry:hover {
-  background: #0056b3;
+  background-color: #059669;
 }
 
-.btn-edit-single {
-  padding: 4px 8px;
-  background: #007bff;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  font-size: 11px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background-color 0.15s;
-  margin-right: 4px;
+.btn-register:disabled, .btn-save:disabled, .btn-refresh:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
-.btn-edit-single:hover {
-  background: #0056b3;
+/* 권한 안내 */
+.permission-notice, .login-required-notice {
+  padding: 12px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  color: #b45309;
+  background-color: #fef3c7;
+  border: 1px solid #f59e0b;
 }
 
-.btn-start-work {
-  padding: 4px 8px;
-  background: #28a745;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  font-size: 11px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background-color 0.15s;
-  margin-right: 4px;
-}
-
-.btn-start-work:hover {
-  background: #1e7e34;
-}
-
-.btn-complete-work {
-  padding: 4px 8px;
-  background: #fd7e14;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  font-size: 11px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background-color 0.15s;
-}
-
-.btn-complete-work:hover {
-  background: #e8630a;
-}
-
-.action-buttons {
-  display: flex;
-  gap: 4px;
-  flex-wrap: wrap;
-}
-
+/* API 연결 상태 */
 .api-status {
-  margin: 0 24px 16px;
-  padding: 10px 14px;
-  border-radius: 4px;
-  font-size: 12px;
+  padding: 12px 16px;
+  border-radius: 6px;
+  margin-bottom: 20px;
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  justify-content: space-between;
+  font-weight: 500;
 }
 
 .api-status.success {
-  background: #d4edda;
-  color: #155724;
-  border: 1px solid #c3e6cb;
+  background-color: #d1fae5;
+  color: #065f46;
+  border: 1px solid #10b981;
 }
 
 .api-status.error {
-  background: #f8d7da;
-  color: #721c24;
-  border: 1px solid #f5c6cb;
-}
-
-.api-status.warning {
-  background: #fff3cd;
-  color: #856404;
-  border: 1px solid #ffeaa7;
+  background-color: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #ef4444;
 }
 
 .api-status.info {
-  background: #d1ecf1;
-  color: #0c5460;
-  border: 1px solid #bee5eb;
+  background-color: #dbeafe;
+  color: #1e40af;
+  border: 1px solid #3b82f6;
 }
 
 .retry-btn {
-  padding: 4px 8px;
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid currentColor;
+  padding: 6px 12px;
+  font-size: 12px;
+  background-color: #ef4444;
+  color: white;
+  border: none;
   border-radius: 4px;
-  font-size: 11px;
-  font-weight: 500;
   cursor: pointer;
-  transition: background-color 0.15s;
 }
 
-.retry-btn:hover {
-  background: rgba(255, 255, 255, 1);
-}
-
+/* 검색 및 필터 */
 .filter-section {
-  padding: 16px 24px;
+  background-color: #f9fafb;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  border: 1px solid #e5e7eb;
 }
 
 .search-bar {
@@ -1706,32 +1527,30 @@ defineOptions({
 
 .search-input {
   flex: 1;
-  padding: 6px 10px;
-  border: 1px solid #ced4da;
-  border-radius: 4px;
-  font-size: 12px;
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
 }
 
 .search-input:focus {
   outline: none;
-  border-color: #007bff;
-  box-shadow: 0 0 0 1px rgba(0, 123, 255, 0.25);
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
 .search-btn {
-  padding: 6px 12px;
-  background: #007bff;
+  padding: 10px 20px;
+  background-color: #3b82f6;
   color: white;
   border: none;
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
-  font-size: 12px;
   font-weight: 500;
-  transition: background-color 0.15s;
 }
 
 .search-btn:hover {
-  background: #0056b3;
+  background-color: #2563eb;
 }
 
 .filter-row {
@@ -1741,55 +1560,49 @@ defineOptions({
 }
 
 .filter-select {
-  padding: 6px 10px;
-  border: 1px solid #ced4da;
-  border-radius: 4px;
-  font-size: 12px;
-  background: white;
-}
-
-.filter-select:focus {
-  outline: none;
-  border-color: #007bff;
-  box-shadow: 0 0 0 1px rgba(0, 123, 255, 0.25);
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+  background-color: white;
 }
 
 .filter-reset-btn {
-  padding: 6px 12px;
-  background: #6c757d;
+  padding: 8px 16px;
+  background-color: #6b7280;
   color: white;
   border: none;
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
-  font-size: 12px;
-  font-weight: 500;
-  transition: background-color 0.15s;
+  font-size: 14px;
 }
 
 .filter-reset-btn:hover {
-  background: #545b62;
+  background-color: #4b5563;
 }
 
+/* 콘텐츠 섹션 */
 .content-section {
-  margin: 0 24px 24px;
-  background: white;
-  border: 1px solid #e9ecef;
-  border-radius: 4px;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
 }
 
 .section-header {
-  padding: 16px 20px;
-  border-bottom: 1px solid #e9ecef;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  padding: 20px;
+  border-bottom: 1px solid #e5e7eb;
+  background-color: #f9fafb;
 }
 
 .section-header h3 {
   margin: 0;
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 600;
-  color: #495057;
+  color: #111827;
 }
 
 .header-actions {
@@ -1797,193 +1610,17 @@ defineOptions({
   gap: 8px;
 }
 
-.btn-refresh, .btn-edit, .btn-delete {
-  padding: 6px 12px;
-  border: none;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background-color 0.15s;
-}
-
-.btn-refresh {
-  background: #6c757d;
-  color: white;
-}
-
-.btn-refresh:hover:not(:disabled) {
-  background: #545b62;
-}
-
-.btn-refresh:disabled {
-  background: #adb5bd;
-  cursor: not-allowed;
-}
-
-.btn-edit {
-  background: #007bff;
-  color: white;
-}
-
-.btn-edit:hover {
-  background: #0056b3;
-}
-
-.btn-delete {
-  background: #dc3545;
-  color: white;
-}
-
-.btn-delete:hover {
-  background: #c82333;
-}
-
-.table-container {
-  overflow-x: auto;
-}
-
-.data-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.data-table th {
-  background: #f8f9fa;
-  padding: 10px;
-  text-align: left;
-  font-weight: 600;
-  color: #495057;
-  font-size: 12px;
-  border-bottom: 2px solid #e9ecef;
-}
-
-.data-table td {
-  padding: 10px;
-  border-bottom: 1px solid #e9ecef;
-  font-size: 13px;
-}
-
-.data-table tr:hover {
-  background: #f8f9fa;
-}
-
-.checkbox-col {
-  width: 40px;
-  text-align: center;
-}
-
-.line-info {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.line-name {
-  font-weight: 600;
-  color: #495057;
-}
-
-.line-id {
-  font-size: 12px;
-  color: #6c757d;
-}
-
-.status-badge {
-  display: inline-block;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 11px;
-  font-weight: 600;
-  text-align: center;
-  min-width: 60px;
-}
-
-.status-badge.available {
-  background: #cce7ff;
-  color: #0066cc;
-}
-
-.status-badge.working {
-  background: #d4edda;
-  color: #155724;
-}
-
-.status-badge.maintenance {
-  background: #fff3cd;
-  color: #856404;
-}
-
-.status-badge.stopped {
-  background: #f8d7da;
-  color: #721c24;
-}
-
-.capacity-info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.capacity-main {
-  font-weight: 600;
-  color: #495057;
-}
-
-.capacity-sub {
-  font-size: 12px;
-  color: #6c757d;
-}
-
-.product-info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.product-code {
-  font-weight: 500;
-  color: #495057;
-}
-
-.product-name {
-  font-size: 12px;
-  color: #6c757d;
-}
-
-.work-info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.work-order {
-  font-size: 12px;
-  color: #495057;
-  font-weight: 500;
-}
-
-.work-time {
-  font-size: 11px;
-  color: #6c757d;
-}
-
-.no-work {
-  font-size: 12px;
-  color: #adb5bd;
-}
-
+/* 상태 표시 */
 .loading-state, .error-state, .empty-state {
-  padding: 40px 20px;
+  padding: 60px 20px;
   text-align: center;
-  color: #6c757d;
 }
 
 .loading-spinner {
-  width: 32px;
-  height: 32px;
-  border: 3px solid #f3f3f3;
-  border-top: 3px solid #007bff;
+  width: 40px;
+  height: 40px;
+  border: 4px solid #f3f4f6;
+  border-top: 4px solid #3b82f6;
   border-radius: 50%;
   animation: spin 1s linear infinite;
   margin: 0 auto 16px;
@@ -1994,56 +1631,219 @@ defineOptions({
   100% { transform: rotate(360deg); }
 }
 
+.error-state h4 {
+  color: #ef4444;
+  margin-bottom: 8px;
+}
+
+.empty-state h4 {
+  color: #6b7280;
+  margin-bottom: 8px;
+}
+
+/* 테이블 */
+.table-container {
+  overflow-x: auto;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.data-table th {
+  background-color: #f9fafb;
+  padding: 12px;
+  text-align: left;
+  font-weight: 600;
+  color: #374151;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.data-table td {
+  padding: 12px;
+  border-bottom: 1px solid #f3f4f6;
+  vertical-align: top;
+}
+
+.data-table tr:hover {
+  background-color: #f9fafb;
+}
+
+.checkbox-col {
+  width: 50px;
+  text-align: center;
+}
+
+/* 라인 정보 */
+.line-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.line-name {
+  font-weight: 600;
+  color: #111827;
+}
+
+.line-id {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+/* 상태 배지 */
+.status-badge {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  text-align: center;
+  min-width: 80px;
+  display: inline-block;
+}
+
+.status-badge.working {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+
+.status-badge.available {
+  background-color: #dbeafe;
+  color: #1e40af;
+}
+
+.status-badge.stopped {
+  background-color: #fee2e2;
+  color: #991b1b;
+}
+
+.status-control .status-select {
+  padding: 4px 8px;
+  font-size: 12px;
+  border-radius: 4px;
+  border: 1px solid #d1d5db;
+  min-width: 100px;
+}
+
+/* 용량 정보 */
+.capacity-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.capacity-main {
+  font-weight: 600;
+  color: #111827;
+}
+
+.capacity-sub {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+/* 제품 정보 */
+.product-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.product-code {
+  font-weight: 500;
+  color: #111827;
+}
+
+.product-name {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+/* 작업 정보 */
+.work-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.work-order {
+  font-weight: 500;
+  color: #111827;
+}
+
+.work-time {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.no-work {
+  font-size: 12px;
+  color: #9ca3af;
+  font-style: italic;
+}
+
+/* 액션 버튼 */
+.action-buttons {
+  display: flex;
+  gap: 4px;
+}
+
+/* 모달 */
 .modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background-color: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
+  padding: 20px;
 }
 
 .modal-content {
-  background: white;
+  background-color: white;
   border-radius: 8px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
   max-width: 800px;
-  width: 90%;
+  width: 100%;
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 .modal-header {
-  padding: 16px 20px;
-  border-bottom: 1px solid #e9ecef;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  padding: 20px;
+  border-bottom: 1px solid #e5e7eb;
 }
 
 .modal-header h3 {
   margin: 0;
   font-size: 18px;
   font-weight: 600;
+  color: #111827;
 }
 
 .modal-close {
-  background: none;
+  padding: 8px 12px;
+  background-color: #6b7280;
+  color: white;
   border: none;
-  font-size: 14px;
-  cursor: pointer;
-  padding: 4px 8px;
-  color: #6c757d;
   border-radius: 4px;
-}
-
-.modal-close:hover {
-  color: #495057;
-  background: #f8f9fa;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .modal-body {
@@ -2051,132 +1851,19 @@ defineOptions({
 }
 
 .modal-actions {
-  padding: 16px 20px;
-  border-top: 1px solid #e9ecef;
   display: flex;
-  gap: 12px;
   justify-content: flex-end;
-}
-
-.register-info, .work-start-info {
-  margin-bottom: 20px;
-  padding: 16px;
-  background: #f8f9fa;
-  border-radius: 4px;
-}
-
-.register-info h4, .work-start-info h4 {
-  margin: 0 0 8px 0;
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.register-info p, .work-start-info p {
-  margin: 4px 0;
-  font-size: 12px;
-  color: #495057;
-}
-
-.process-flow-info {
-  margin-top: 16px;
-  padding: 12px;
-  background: #f8f9fa;
-  border-radius: 4px;
-}
-
-.process-flow-info h5 {
-  margin: 0 0 8px 0;
-  font-size: 12px;
-  font-weight: 600;
-  color: #495057;
-}
-
-.process-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 4px 0;
-  font-size: 12px;
-}
-
-.process-order {
-  font-weight: 600;
-  color: #007bff;
-}
-
-.process-name {
-  font-weight: 500;
-  color: #495057;
-}
-
-.process-type {
-  color: #6c757d;
-}
-
-.process-time {
-  color: #28a745;
-  font-size: 11px;
-  background: #e8f5e8;
-  padding: 2px 6px;
-  border-radius: 3px;
-}
-
-.process-remark {
-  margin-top: 8px;
-  padding: 8px;
-  background: #fff3cd;
-  border-radius: 4px;
-  font-size: 11px;
-  color: #856404;
-}
-
-.permission-notice-modal {
-  text-align: center;
+  gap: 12px;
   padding: 20px;
+  border-top: 1px solid #e5e7eb;
+  background-color: #f9fafb;
 }
 
-.permission-notice-modal h4 {
-  margin: 0 0 12px 0;
-  font-size: 16px;
-  color: #856404;
-}
-
-.permission-notice-modal p {
-  margin: 0 0 16px 0;
-  color: #6c757d;
-  font-size: 14px;
-}
-
-.available-actions {
-  text-align: left;
-  margin-top: 20px;
-  padding: 16px;
-  background: #f8f9fa;
-  border-radius: 4px;
-}
-
-.available-actions h5 {
-  margin: 0 0 8px 0;
-  font-size: 13px;
-  font-weight: 600;
-  color: #495057;
-}
-
-.available-actions ul {
-  margin: 0;
-  padding-left: 16px;
-  color: #6c757d;
-  font-size: 12px;
-}
-
-.available-actions li {
-  margin: 4px 0;
-}
-
-.line-form, .work-form {
+/* 폼 스타일 */
+.line-form {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 20px;
 }
 
 .form-row {
@@ -2196,94 +1883,112 @@ defineOptions({
 }
 
 .form-group label {
-  font-size: 12px;
-  font-weight: 600;
-  color: #495057;
+  font-weight: 500;
+  color: #374151;
+  font-size: 14px;
 }
 
-.form-group input,
-.form-group select,
-.form-group textarea {
-  padding: 6px 10px;
-  border: 1px solid #ced4da;
-  border-radius: 4px;
-  font-size: 12px;
+.form-group input, .form-group select, .form-group textarea {
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+  transition: border-color 0.2s ease;
 }
 
-.form-group input:focus,
-.form-group select:focus,
-.form-group textarea:focus {
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus {
   outline: none;
-  border-color: #007bff;
-  box-shadow: 0 0 0 1px rgba(0, 123, 255, 0.25);
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
-.form-group input:disabled,
-.form-group select:disabled {
-  background: #e9ecef;
-  color: #6c757d;
+.form-group input:disabled {
+  background-color: #f3f4f6;
+  color: #6b7280;
 }
 
-.form-group input.error,
-.form-group select.error {
-  border-color: #dc3545;
+.form-group input.error, .form-group select.error {
+  border-color: #ef4444;
 }
 
 .error-message {
-  font-size: 11px;
-  color: #dc3545;
-}
-
-.btn-primary, .btn-cancel, .btn-save {
-  padding: 6px 16px;
-  border: none;
-  border-radius: 4px;
+  color: #ef4444;
   font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background-color 0.15s;
+  margin-top: 4px;
 }
 
-.btn-primary {
-  background: #007bff;
-  color: white;
+/* 등록 안내 */
+.register-info {
+  background-color: #f0f9ff;
+  padding: 16px;
+  border-radius: 6px;
+  border: 1px solid #0ea5e9;
+  margin-bottom: 20px;
 }
 
-.btn-primary:hover {
-  background: #0056b3;
+.register-info h4 {
+  margin: 0 0 8px 0;
+  color: #0c4a6e;
+  font-size: 16px;
 }
 
-.btn-cancel {
-  background: #6c757d;
-  color: white;
+.register-info p {
+  margin: 4px 0;
+  color: #0c4a6e;
+  font-size: 14px;
 }
 
-.btn-cancel:hover {
-  background: #545b62;
+/* 권한 안내 모달 */
+.permission-notice-modal {
+  text-align: center;
 }
 
-.btn-save {
-  background: #28a745;
-  color: white;
+.permission-notice-modal h4 {
+  color: #ef4444;
+  margin-bottom: 16px;
 }
 
-.btn-save:hover:not(:disabled) {
-  background: #1e7e34;
+.available-actions {
+  text-align: left;
+  margin-top: 20px;
+  padding: 16px;
+  background-color: #f9fafb;
+  border-radius: 6px;
 }
 
-.btn-save:disabled {
-  background: #adb5bd;
-  cursor: not-allowed;
+.available-actions h5 {
+  margin: 0 0 8px 0;
+  color: #374151;
 }
 
+.available-actions ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.available-actions li {
+  color: #6b7280;
+  margin-bottom: 4px;
+}
+
+/* 반응형 디자인 */
 @media (max-width: 768px) {
-  .form-row {
-    grid-template-columns: 1fr;
+  .package-line-management {
+    padding: 15px;
   }
   
   .header-content {
     flex-direction: column;
+    align-items: stretch;
     gap: 16px;
+  }
+  
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+  
+  .header-actions {
+    flex-wrap: wrap;
   }
   
   .filter-row {
@@ -2291,8 +1996,12 @@ defineOptions({
     align-items: stretch;
   }
   
-  .header-actions {
-    flex-direction: column;
+  .data-table {
+    font-size: 12px;
+  }
+  
+  .data-table th, .data-table td {
+    padding: 8px;
   }
 }
 </style>

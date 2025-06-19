@@ -1,1170 +1,1084 @@
-// server/services/lineService.js
-const mariadb = require('../database/mapper');
+// server/services/lineService.js - dual 등록 함수 추가 버전
 
-// 공통 데이터 변환 유틸
-const convertData = (obj) => obj;
+const mapper = require('../database/mapper.js');
 
-// ========== 라인 마스터 관리 ==========
-
-// 라인 마스터 목록 조회
-const getLineMasterList = async () => {
-  try {
-    console.log('라인 마스터 목록 조회 시작...');
-    const list = await mariadb.query('selectLineMasterList');
-    console.log('라인 마스터 목록 조회 성공:', list.length, '건');
-    return convertData(list);
-  } catch (error) {
-    console.error('라인 마스터 목록 조회 에러:', error);
-    throw new Error('라인 마스터 조회 실패: ' + (error.err?.message || error.message));
+// 라인 코드를 숫자로 변환하는 함수 (A=1, B=2, C=3...)
+const convertLineCodeToNumber = (lineCode) => {
+  if (typeof lineCode === 'string' && lineCode.length === 1) {
+    return lineCode.charCodeAt(0) - 64; // A=1, B=2, C=3...
   }
+  return 1; // 기본값
 };
 
-// 라인 마스터 상세 조회
-const getLineMasterDetail = async (lineMasterId) => {
-  try {
-    const result = await mariadb.query('selectLineMasterDetail', [lineMasterId]);
-    const [data] = result;
-    console.log('라인 마스터 상세 조회 성공:', lineMasterId);
-    return convertData(data);
-  } catch (error) {
-    console.error('라인 마스터 상세 조회 에러:', error);
-    throw new Error('라인 마스터 상세 조회 실패: ' + (error.err?.message || error.message));
-  }
-};
-
-// 라인 코드로 마스터 조회
-const getLineMasterByLineId = async (lineId) => {
-  try {
-    const result = await mariadb.query('selectLineMasterByLineId', [lineId]);
-    const [data] = result;
-    console.log('라인 코드로 마스터 조회 성공:', lineId);
-    return convertData(data);
-  } catch (error) {
-    console.error('라인 코드로 마스터 조회 에러:', error);
-    throw new Error('라인 마스터 조회 실패: ' + (error.err?.message || error.message));
-  }
-};
-
-// 라인 마스터 등록
-const insertLineMaster = async (formData) => {
-  try {
-    const values = [
-      formData.line_name,
-      formData.eq_group_code || 'e3',
-      formData.line_type,
-      formData.result_id || '2001',
-      formData.line_code,
-      formData.max_capacity || 1000,  
-      formData.description || ''
-    ];
-    const result = await mariadb.query('insertLineMaster', values);
-    console.log('라인 마스터 등록 성공:', result.insertId);
-    return { insertId: result.insertId };
-  } catch (error) {
-    console.error('라인 마스터 등록 에러:', error);
-    throw new Error('라인 마스터 등록 실패: ' + (error.err?.message || error.message));
-  }
-};
-
-// 라인 마스터 수정
-const updateLineMaster = async (lineMasterId, formData) => {
-  try {
-    const values = [
-      formData.line_name,
-      formData.eq_group_code || 'e3',
-      formData.line_type,
-      formData.max_capacity || 1000,
-      formData.description || '',
-      lineMasterId
-    ];
-    const result = await mariadb.query('updateLineMaster', values);
-    console.log('라인 마스터 수정 성공:', lineMasterId);
-    return result;
-  } catch (error) {
-    console.error('라인 마스터 수정 에러:', error);
-    throw new Error('라인 마스터 수정 실패: ' + (error.err?.message || error.message));
-  }
-};
-
-// 라인 마스터 삭제
-const deleteLineMaster = async (lineMasterId) => {
-  try {
-    const result = await mariadb.query('deleteLineMaster', [lineMasterId]);
-    console.log('라인 마스터 삭제 성공:', lineMasterId);
-    return result;
-  } catch (error) {
-    console.error('라인 마스터 삭제 에러:', error);
-    throw new Error('라인 마스터 삭제 실패: ' + (error.err?.message || error.message));
-  }
-};
-
-// 라인 코드 중복 체크
-const checkLineIdExists = async (lineId, lineType = null) => {
-  try {
-    let result;
-    if (lineType) {
-      result = await mariadb.query('checkLineIdExistsByType', [lineId, lineType]);
-    } else {
-      result = await mariadb.query('checkLineIdExists', [lineId]);
+// 폴백 데이터 (DB 완전 실패 시에만 사용)
+const emergencyFallback = {
+  lines: [
+    {
+      line_id: 'A', line_name: 'A라인 내포장', line_type: 'INNER',
+      line_state: 's2', line_status: '가동대기 중', employee_name: '미배정',
+      employee_id: null, product_code: '', product_name: '',
+      eq_name: '', current_speed: 0, target_qty: 0,
+      max_capacity: 1000, description: '기본 라인',
+      current_work_number: '', // 작업번호는 빈 값으로 초기화
+      current_process_name: ''
     }
-    const count = result[0].count;
-    console.log('라인 코드 중복 체크:', lineId, lineType || '전체', '- 존재 여부:', count > 0);
-    return count > 0;
+  ],
+  products: [
+    { product_code: 'BJA-DR-30', product_name: '30정 블리스터', product_type: 'BLISTER' },
+    { product_code: 'BJA-BT-100', product_name: '100정 병', product_type: 'BOTTLE' }
+  ],
+  employees: [
+    { employee_id: 2, employee_name: '관리자' },
+    { employee_id: 3, employee_name: '김다산' }
+  ],
+  equipments: [
+    { eq_name: '30정 블리스터 포장기', line_type: 'INNER' },
+    { eq_name: '소형 카톤포장기', line_type: 'OUTER' }
+  ]
+};
+
+// 공통 에러 처리 함수
+const handleDbError = (error, fallbackValue, functionName) => {
+  console.error(`❌ ${functionName} DB 에러:`, error.message);
+  console.log(`📦 ${functionName} 폴백 데이터 사용`);
+  return fallbackValue;
+};
+
+// ========== 데이터베이스 연결 테스트 ==========
+const testDatabaseConnection = async () => {
+  try {
+    console.log('🔍 DB 연결 테스트 시작...');
+    
+    if (!mapper || typeof mapper.query !== 'function') {
+      throw new Error('mapper 객체가 정의되지 않았거나 query 함수가 없습니다.');
+    }
+    
+    const result = await mapper.query('testConnection');
+    console.log('✅ DB 연결 테스트 성공:', result);
+    return true;
   } catch (error) {
-    console.error('라인 코드 중복 체크 에러:', error);
-    throw new Error('라인 코드 중복 체크 실패: ' + (error.err?.message || error.message));
+    console.error('❌ DB 연결 테스트 실패:', error.message);
+    return false;
   }
 };
 
-// 사용 가능한 라인 ID 목록 조회
+const testProductTable = async () => {
+  try {
+    console.log('🔍 제품 테이블 테스트 시작...');
+    const result = await mapper.query('testProductTableExists');
+    console.log('✅ 제품 테이블 존재 확인:', result);
+    return true;
+  } catch (error) {
+    console.error('❌ 제품 테이블 테스트 실패:', error.message);
+    return false;
+  }
+};
+
+// ========== 라인 목록 조회 (작업번호 조회 완전 제거) ==========
+const getLineList = async () => {
+  try {
+    console.log('📋 라인 목록 조회 시작 (DB 연결)');
+    
+    // DB 연결 테스트
+    const dbConnected = await testDatabaseConnection();
+    if (!dbConnected) {
+      console.warn('⚠️ DB 연결 실패 - 폴백 데이터 사용');
+      return emergencyFallback.lines;
+    }
+    
+    // 1차: 통합 쿼리 시도 (작업번호 없이)
+    try {
+      const lineList = await mapper.query('selectLineListWithJoins');
+      
+      if (lineList && Array.isArray(lineList) && lineList.length > 0) {
+        console.log('✅ 통합 쿼리로 라인 목록 조회 성공:', lineList.length, '건');
+        
+        // 작업번호는 항상 빈 값으로 설정
+        const processedLineList = lineList.map(line => ({
+          ...line,
+          current_work_number: '',  // 작업번호 컬럼 삭제됨
+          current_process_name: ''  // 작업번호 컬럼 삭제됨
+        }));
+        
+        return processedLineList;
+      } else {
+        console.warn('⚠️ 통합 쿼리 결과가 빈 배열');
+      }
+    } catch (joinError) {
+      console.warn('⚠️ 통합 쿼리 실패:', joinError.message);
+      
+      // 2차: 안전한 쿼리 시도 (작업번호 없이)
+      try {
+        const safeLineList = await mapper.query('selectLineListSafe');
+        
+        if (safeLineList && Array.isArray(safeLineList) && safeLineList.length > 0) {
+          console.log('✅ 안전한 쿼리로 라인 목록 조회 성공:', safeLineList.length, '건');
+          
+          return safeLineList.map(line => ({
+            ...line,
+            current_work_number: '',
+            current_process_name: ''
+          }));
+        }
+      } catch (safeError) {
+        console.warn('⚠️ 안전한 쿼리도 실패:', safeError.message);
+      }
+    }
+    
+    // 3차: 마스터 테이블만 조회
+    try {
+      const masterList = await mapper.query('selectLineMasterList');
+      
+      if (masterList && Array.isArray(masterList) && masterList.length > 0) {
+        console.log('✅ 마스터 테이블에서 조회 성공:', masterList.length, '건');
+        
+        // 기본 구조로 변환 (작업번호는 빈 값)
+        return masterList.map(master => ({
+          line_id: master.line_code,
+          line_name: master.line_name,
+          line_type: master.line_type || 'INNER',
+          line_state: 's2',
+          line_status: '가동대기 중',
+          employee_name: '미배정',
+          employee_id: null,
+          product_code: master.product_code || '',
+          product_name: master.product_code || '',
+          eq_name: '',
+          current_speed: 0,
+          target_qty: 0,
+          max_capacity: master.max_capacity || 1000,
+          description: master.description || '',
+          current_work_number: '',  // 작업번호 컬럼 삭제됨
+          current_process_name: '', // 작업번호 컬럼 삭제됨
+          work_start_time: '',
+          reg_date: master.reg_date
+        }));
+      }
+    } catch (masterError) {
+      console.error('❌ 마스터 테이블 조회도 실패:', masterError.message);
+    }
+    
+    // 모든 쿼리 실패 시 폴백
+    console.warn('⚠️ 모든 DB 쿼리 실패 - 폴백 데이터 사용');
+    return emergencyFallback.lines;
+    
+  } catch (error) {
+    return handleDbError(error, emergencyFallback.lines, 'getLineList');
+  }
+};
+
+// ========== 기본 데이터 조회 함수들 ==========
+
+const getAvailableProducts = async (lineCode = null) => {
+  try {
+    console.log('📦 제품코드 조회 시작 (DB 연결)');
+    
+    const dbConnected = await testDatabaseConnection();
+    if (!dbConnected) {
+      return emergencyFallback.products;
+    }
+    
+    try {
+      const products = await mapper.query('selectAllProducts');
+      console.log('제품 조회 결과:', products);
+      
+      if (products && Array.isArray(products) && products.length > 0) {
+        console.log('✅ 제품코드 조회 성공:', products.length, '건');
+        
+        return products.map(product => ({
+          ...product,
+          product_type: product.product_code?.includes('DR') ? 'BLISTER' :
+                       product.product_code?.includes('BT') ? 'BOTTLE' : 'TABLET',
+          package_type: product.product_code?.includes('DR') ? 'BLISTER' :
+                       product.product_code?.includes('BT') ? 'BOTTLE' : 'TABLET'
+        }));
+      }
+    } catch (allError) {
+      console.error('⚠️ 전체 제품 조회 실패:', allError);
+      
+      // nested error 처리
+      const actualError = allError.err || allError;
+      
+      console.error('에러 상세:', {
+        message: actualError.message || actualError.sqlMessage || 'Unknown error',
+        stack: actualError.stack,
+        name: actualError.name,
+        code: actualError.code,
+        errno: actualError.errno,
+        sqlState: actualError.sqlState
+      });
+      
+      try {
+        const safeProducts = await mapper.query('selectProductsSafe');
+        console.log('안전한 제품 조회 결과:', safeProducts);
+        
+        if (safeProducts && Array.isArray(safeProducts) && safeProducts.length > 0) {
+          console.log('✅ 안전한 제품코드 조회 성공:', safeProducts.length, '건');
+          return safeProducts.map(product => ({
+            ...product,
+            product_type: 'TABLET',
+            package_type: 'TABLET'
+          }));
+        }
+      } catch (safeError) {
+        console.error('⚠️ 안전한 제품 조회도 실패:', safeError);
+        
+        // nested error 처리
+        const actualError = safeError.err || safeError;
+        
+        console.error('안전한 조회 에러 상세:', {
+          message: actualError.message || actualError.sqlMessage || 'Unknown error',
+          stack: actualError.stack,
+          name: actualError.name,
+          code: actualError.code,
+          errno: actualError.errno,
+          sqlState: actualError.sqlState
+        });
+      }
+    }
+    
+    return emergencyFallback.products;
+    
+  } catch (error) {
+    console.error('❌ 제품 조회 전체 실패:', error);
+    
+    // nested error 처리
+    const actualError = error.err || error;
+    
+    console.error('전체 에러 상세:', {
+      message: actualError.message || actualError.sqlMessage || 'Unknown error',
+      stack: actualError.stack,
+      name: actualError.name,
+      code: actualError.code,
+      errno: actualError.errno,
+      sqlState: actualError.sqlState
+    });
+    return handleDbError(error, emergencyFallback.products, 'getAvailableProducts');
+  }
+};
+
+const getAvailableEmployees = async () => {
+  try {
+    console.log('👥 담당자 조회 시작 (DB 연결)');
+    
+    const dbConnected = await testDatabaseConnection();
+    if (!dbConnected) {
+      return emergencyFallback.employees;
+    }
+    
+    try {
+      const employees = await mapper.query('selectAllEmployees');
+      
+      if (employees && Array.isArray(employees) && employees.length > 0) {
+        console.log('✅ 담당자 조회 성공:', employees.length, '명');
+        return employees;
+      }
+    } catch (allError) {
+      console.warn('⚠️ 담당자 조회 실패:', allError.message);
+      
+      try {
+        const safeEmployees = await mapper.query('selectEmployeesSafe');
+        
+        if (safeEmployees && Array.isArray(safeEmployees) && safeEmployees.length > 0) {
+          console.log('✅ 안전한 담당자 조회 성공:', safeEmployees.length, '명');
+          return safeEmployees;
+        }
+      } catch (safeError) {
+        console.warn('⚠️ 안전한 담당자 조회도 실패:', safeError.message);
+      }
+    }
+    
+    return emergencyFallback.employees;
+    
+  } catch (error) {
+    return handleDbError(error, emergencyFallback.employees, 'getAvailableEmployees');
+  }
+};
+
+const getAvailableEquipments = async (excludeLineId = null) => {
+  try {
+    console.log('🔧 설비명 조회 시작 (DB 연결)');
+    
+    const dbConnected = await testDatabaseConnection();
+    if (!dbConnected) {
+      return emergencyFallback.equipments;
+    }
+    
+    try {
+      const query = excludeLineId ? 'selectUsedEquipmentsExcludeLine' : 'selectUsedEquipments';
+      const params = excludeLineId ? [excludeLineId] : [];
+      
+      const usedEquipments = await mapper.query(query, params);
+      console.log('✅ 사용 중인 설비 조회 성공:', usedEquipments.length, '개');
+      
+      const allEquipments = [
+        { eq_name: '10정 블리스터 포장기', line_type: 'INNER' },
+        { eq_name: '30정 블리스터 포장기', line_type: 'INNER' },
+        { eq_name: '60정 블리스터 포장기', line_type: 'INNER' },
+        { eq_name: '병 모노블럭', line_type: 'INNER' },
+        { eq_name: '소형 카톤포장기', line_type: 'OUTER' },
+        { eq_name: '중형 카톤포장기', line_type: 'OUTER' },
+        { eq_name: '대형 카톤포장기', line_type: 'OUTER' },
+        { eq_name: '병 카톤포장기', line_type: 'OUTER' },
+      ];
+      
+      const usedNames = usedEquipments.map(eq => eq.eq_name);
+      const availableEquipments = allEquipments.filter(eq => 
+        !usedNames.includes(eq.eq_name)
+      );
+      
+      console.log('사용 가능한 설비:', availableEquipments.length, '개');
+      return availableEquipments;
+      
+    } catch (equipError) {
+      console.warn('⚠️ 설비 조회 실패:', equipError.message);
+    }
+    
+    return emergencyFallback.equipments;
+    
+  } catch (error) {
+    return handleDbError(error, emergencyFallback.equipments, 'getAvailableEquipments');
+  }
+};
+
 const getAvailableLineIds = async () => {
   try {
-    console.log('사용 가능한 라인 ID 목록 조회 시작...');
+    console.log('=== 사용 가능한 라인 ID 조회 (DB 연결) ===');
     
-    const usedResult = await mariadb.query('SELECT DISTINCT line_code FROM package_master WHERE line_code IS NOT NULL');
-    const usedIds = usedResult.map(row => row.line_code);
+    const dbConnected = await testDatabaseConnection();
+    if (!dbConnected) {
+      return ['D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M'];
+    }
     
+    const masterList = await mapper.query('selectLineMasterList');
+    const usedIds = masterList.map(master => master.line_code);
+    
+    // A-Z 중 사용되지 않은 ID 반환
     const allIds = Array.from({length: 26}, (_, i) => String.fromCharCode(65 + i));
     const availableIds = allIds.filter(id => !usedIds.includes(id));
     
-    console.log('사용 중인 라인 ID:', usedIds);
-    console.log('사용 가능한 라인 ID 목록:', availableIds);
-    return availableIds;
+    console.log('✅ 사용 가능한 라인 ID:', availableIds.length, '개');
+    return availableIds.slice(0, 10); // 처음 10개만 반환
+    
   } catch (error) {
-    console.error('사용 가능한 라인 ID 조회 에러:', error);
-    const defaultIds = ['F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
-    console.log('기본 라인 ID 목록 반환:', defaultIds);
-    return defaultIds;
+    console.error('❌ 사용 가능한 라인 ID 조회 실패:', error.message);
+    
+    // 에러 시 기본 ID 목록 반환
+    return ['D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M'];
   }
 };
 
-// ========== 프론트엔드용 통합 라인 관리 ==========
-
-// 라인 목록 조회 - 마스터 + 최신 상태 + 제품정보 통합 (중복 제거 포함)
-const getLineList = async () => {
+// ========== 라인 마스터 관리 ==========
+const getLineMasterByLineId = async (lineId) => {
   try {
-    console.log('=== 통합 라인 리스트 조회 시작 ===');
+    console.log('🔍 라인 마스터 조회:', lineId);
     
-    const list = await mariadb.query('selectLineList');
+    const dbConnected = await testDatabaseConnection();
+    if (!dbConnected) {
+      return null;
+    }
     
-    console.log('DB에서 조회된 라인 개수:', list.length);
+    const masterDetail = await mapper.query('selectLineMasterByLineId', [lineId]);
     
-    // 중복 제거: line_id + line_type 조합으로 중복 제거
-    const uniqueLines = [];
-    const seenCombinations = new Set();
-    
-    list.forEach(line => {
-      const key = `${line.line_id}_${line.line_type}`;
-      
-      if (!seenCombinations.has(key)) {
-        seenCombinations.add(key);
-        uniqueLines.push(line);
-      } else {
-        console.log(`중복 제거: ${line.line_id}라인 ${line.line_type}`);
-      }
-    });
-    
-    console.log('중복 제거 후 라인 개수:', uniqueLines.length);
-    
-    // 프론트엔드 형식에 맞게 데이터 변환 (제품정보 포함)
-    const formattedList = uniqueLines.map(line => ({
-      line_id: line.line_id,
-      line_name: line.line_name,
-      line_type: line.line_type,
-      eq_name: line.eq_name || '',
-      line_status: line.line_status, // 공통코드에서 가져온 한글명
-      max_capacity: line.max_capacity || 1000,
-      current_speed: line.current_speed || 0,
-      description: line.description || '',
-      employee_name: line.employee_name || '',
-      employee_id: line.employee_id || null,
-      product_code: line.product_code || '',
-      target_qty: line.target_qty || 0,
-      work_order_no: line.work_order_no || '',
-      work_start_time: line.work_start_time || '',
-      reg_date: line.reg_date,
-      created_at: line.reg_date,
-      updated_at: line.reg_date,
-      // 제품정보 추가
-      product_name: line.product_name || '',
-      product_type: line.product_type || ''
-    }));
-    
-    return convertData(formattedList);
-  } catch (error) {
-    console.error('=== 통합 라인 리스트 조회 에러 ===');
-    console.error('에러:', error);
-    
-    if (error.err) {
-      throw new Error('DB 쿼리 실패: ' + (error.err.message || error.err));
+    if (masterDetail && Array.isArray(masterDetail) && masterDetail.length > 0) {
+      console.log('✅ 라인 마스터 조회 성공:', lineId);
+      return masterDetail[0];
     } else {
-      throw new Error('통합 라인 리스트 조회 실패: ' + error.message);
+      console.warn('⚠️ 해당 라인 마스터 없음:', lineId);
+      return null;
     }
-  }
-};
-
-// 통합 라인 등록 - 마스터 + 상태 동시 생성 (제품코드 기반)
-const insertIntegratedLine = async (formData) => {
-  try {
-    console.log('=== 통합 라인 등록 시작 ===');
-    console.log('등록 데이터:', formData);
-
-    // 1. 라인 ID + 타입 중복 체크
-    const isDuplicate = await checkLineIdExists(formData.line_id, formData.line_type);
-    if (isDuplicate) {
-      throw new Error(`이미 존재하는 라인입니다: ${formData.line_id}라인 ${formData.line_type}`);
-    }
-
-    // 2. 라인명 자동 생성
-    const typeText = formData.line_type === 'INNER' ? '내포장' : '외포장';
-    const line_name = `${formData.line_id}라인 ${typeText}`;
-    
-    // 3. 라인 마스터 등록
-    const masterData = {
-      line_name: line_name,
-      eq_group_code: 'e3',
-      line_type: formData.line_type,
-      result_id: '2001',
-      line_code: formData.line_id,
-      max_capacity: formData.max_capacity || 1000,
-      description: formData.description || ''
-    };
-    
-    const masterResult = await insertLineMaster(masterData);
-    const line_masterid = masterResult.insertId;
-    
-    // 4. 라인 상태 등록 - 로그인 사원 정보 사용 (제품코드 기반)
-    const statusData = {
-      line_masterid: line_masterid,
-      pkg_type: formData.line_type,
-      line_state: 's2', // 기본값: 사용가능
-      product_code: formData.product_code || '',
-      target_qty: 0,
-      eq_name: formData.eq_name || '',
-      current_speed: formData.current_speed || 0,
-      line_code: formData.line_id,
-      employee_id: formData.employee_id || 2
-    };
-    
-    const statusResult = await insertLine(statusData);
-    
-    console.log('통합 라인 등록 성공 - Master ID:', line_masterid, ', Status ID:', statusResult.insertId);
-    
-    return {
-      success: true,
-      insertId: line_masterid,
-      line_id: formData.line_id,
-      line_name: line_name,
-      message: '라인이 성공적으로 등록되었습니다.'
-    };
-    
   } catch (error) {
-    console.error('통합 라인 등록 에러:', error);
-    throw new Error('통합 라인 등록 실패: ' + (error.message || error.err?.message));
+    console.error('❌ 라인 마스터 조회 실패:', error.message);
+    return null;
   }
 };
 
-// 내포장/외포장 라인 동시 등록 (제품코드 기반)
-const insertDualPackagingLine = async (formData) => {
+const getLineMasterDetail = async (masterId) => {
   try {
-    console.log('=== 내포장/외포장 라인 동시 등록 시작 ===');
-    console.log('등록 데이터:', formData);
-
-    const innerExists = await checkLineIdExists(formData.line_id, 'INNER');
-    const outerExists = await checkLineIdExists(formData.line_id, 'OUTER');
-    
-    if (innerExists && outerExists) {
-      throw new Error(`${formData.line_id}라인의 내포장/외포장이 모두 이미 존재합니다.`);
+    const dbConnected = await testDatabaseConnection();
+    if (!dbConnected) {
+      return null;
     }
-
-    const results = [];
-
-    // 내포장 라인 등록
-    if (!innerExists) {
-      const innerData = {
-        ...formData,
-        line_type: 'INNER',
-        eq_name: formData.inner_eq_name,
-        max_capacity: formData.inner_capacity,
-        current_speed: formData.inner_speed,
-        employee_id: formData.inner_employee_id
-      };
-      const innerResult = await insertIntegratedLine(innerData);
-      results.push({ type: 'INNER', ...innerResult });
+    
+    const masterDetail = await mapper.query('selectLineMasterById', [masterId]);
+    
+    if (masterDetail && Array.isArray(masterDetail) && masterDetail.length > 0) {
+      console.log('✅ 라인 마스터 ID 조회 성공:', masterId);
+      return masterDetail[0];
     } else {
-      results.push({ type: 'INNER', message: '이미 존재함', skipped: true });
+      console.warn('⚠️ 해당 라인 마스터 ID 없음:', masterId);
+      return null;
     }
-
-    // 외포장 라인 등록
-    if (!outerExists) {
-      const outerData = {
-        ...formData,
-        line_type: 'OUTER',
-        eq_name: formData.outer_eq_name,
-        max_capacity: formData.outer_capacity,
-        current_speed: formData.outer_speed,
-        employee_id: formData.outer_employee_id
-      };
-      const outerResult = await insertIntegratedLine(outerData);
-      results.push({ type: 'OUTER', ...outerResult });
-    } else {
-      results.push({ type: 'OUTER', message: '이미 존재함', skipped: true });
-    }
-
-    const newCount = results.filter(r => !r.skipped).length;
-    
-    return {
-      success: true,
-      line_id: formData.line_id,
-      results: results,
-      newCount: newCount,
-      message: `${formData.line_id}라인 등록 완료 (신규: ${newCount}개, 기존: ${2-newCount}개)`
-    };
-    
   } catch (error) {
-    console.error('내포장/외포장 라인 동시 등록 에러:', error);
-    throw new Error('라인 동시 등록 실패: ' + (error.message || error.err?.message));
+    console.error('❌ 라인 마스터 ID 조회 실패:', error.message);
+    return null;
   }
 };
 
-// 통합 라인 수정 (제품코드 기반)
-const updateIntegratedLine = async (lineId, formData) => {
+const checkLineIdExists = async (lineId, lineType = null) => {
   try {
-    console.log('=== 통합 라인 수정 시작 ===');
-    console.log('라인 ID:', lineId, '수정 데이터:', formData);
-
-    const existingMaster = await getLineMasterByLineId(lineId);
-    if (!existingMaster) {
-      throw new Error('수정할 라인을 찾을 수 없습니다: ' + lineId);
-    }
-
-    const typeText = formData.line_type === 'INNER' ? '내포장' : '외포장';
-    const line_name = `${lineId}라인 ${typeText}`;
-    
-    // 1. 라인 마스터 수정
-    const masterData = {
-      line_name: line_name,
-      eq_group_code: 'e3',
-      line_type: formData.line_type,
-      max_capacity: formData.max_capacity || 1000,
-      description: formData.description || ''
-    };
-    
-    await updateLineMaster(existingMaster.line_masterid, masterData);
-    
-    // 2. 최신 라인 상태 ID 찾기
-    const latestLineResult = await mariadb.query('selectLatestLineIdByMasterId', [lineId]);
-    
-    if (latestLineResult.length === 0) {
-      throw new Error('업데이트할 라인 상태를 찾을 수 없습니다: ' + lineId);
+    const dbConnected = await testDatabaseConnection();
+    if (!dbConnected) {
+      return false;
     }
     
-    const latestLineId = latestLineResult[0].line_id;
-    console.log('최신 라인 상태 ID:', latestLineId);
+    const query = lineType ? 'checkLineIdAndTypeExists' : 'checkLineIdExists';
+    const params = lineType ? [lineId, lineType] : [lineId];
     
-    // 3. 라인 상태 직접 업데이트 - 제품코드 기반
-    const statusData = {
-      pkg_type: formData.line_type,
-      line_state: formData.line_state || 's2',
-      employee_id: formData.employee_id || 2,
-      eq_name: formData.eq_name || '',
-      current_speed: formData.current_speed || 0,
-      product_code: formData.product_code || '',
-      target_qty: formData.target_qty || 0
-    };
+    const result = await mapper.query(query, params);
+    const exists = result && result[0] && result[0].count > 0;
     
-    await updateLine(latestLineId, statusData);
-    
-    return {
-      success: true,
-      line_id: lineId,
-      line_name: line_name,
-      message: '라인이 성공적으로 수정되었습니다.'
-    };
-    
+    console.log('라인 ID 중복 체크:', lineId, lineType || '', exists ? '존재함' : '사용가능');
+    return exists;
   } catch (error) {
-    console.error('통합 라인 수정 에러:', error);
-    throw new Error('통합 라인 수정 실패: ' + (error.message || error.err?.message));
+    console.error('❌ 라인 ID 중복 체크 실패:', error.message);
+    return false;
   }
 };
 
-// 통합 라인 삭제
-const deleteIntegratedLine = async (lineId) => {
+const getLineMasterList = async () => {
   try {
-    console.log('=== 통합 라인 삭제 시작 ===');
-    console.log('삭제 대상 라인 ID:', lineId);
-
-    const existingMaster = await getLineMasterByLineId(lineId);
-    if (!existingMaster) {
-      throw new Error(`삭제할 라인을 찾을 수 없습니다: ${lineId}라인`);
+    const dbConnected = await testDatabaseConnection();
+    if (!dbConnected) {
+      return [];
     }
-
-    console.log('삭제할 라인 정보:', existingMaster);
-
-    // 1. 라인 상태 데이터 삭제 (package_line)
-    await deleteLineByMasterId(lineId);
-    console.log('라인 상태 데이터 삭제 완료');
-
-    // 2. 라인 마스터 데이터 삭제 (package_master)
-    await deleteLineMaster(existingMaster.line_masterid);
-    console.log('라인 마스터 데이터 삭제 완료');
     
-    return {
-      success: true,
-      line_id: lineId,
-      deleted_master_id: existingMaster.line_masterid,
-      message: `${lineId}라인이 성공적으로 삭제되었습니다.`
-    };
-    
+    const masterList = await mapper.query('selectLineMasterList');
+    console.log('✅ 라인 마스터 목록 조회 성공:', masterList.length, '건');
+    return masterList;
   } catch (error) {
-    console.error('통합 라인 삭제 에러:', error);
-    throw new Error('통합 라인 삭제 실패: ' + (error.message || error.err?.message));
-  }
-};
-
-// 일괄 삭제
-const bulkDeleteLines = async (lineIds) => {
-  try {
-    console.log('=== 라인 일괄 삭제 시작 ===');
-    console.log('삭제 대상 라인 ID들:', lineIds);
-
-    let deletedCount = 0;
-    const errors = [];
-    const successfulDeletes = [];
-
-    for (const lineId of lineIds) {
-      try {
-        const result = await deleteIntegratedLine(lineId);
-        deletedCount++;
-        successfulDeletes.push({
-          line_id: lineId,
-          message: result.message
-        });
-        console.log(`${lineId} 삭제 성공`);
-      } catch (error) {
-        const errorMsg = `${lineId}: ${error.message}`;
-        errors.push(errorMsg);
-        console.error(`${lineId} 삭제 실패:`, error.message);
-      }
-    }
-    
-    return {
-      success: true,
-      deletedCount: deletedCount,
-      totalRequested: lineIds.length,
-      successfulDeletes: successfulDeletes,
-      errors: errors,
-      message: `${deletedCount}개의 라인이 삭제되었습니다. ${errors.length > 0 ? `(실패: ${errors.length}개)` : ''}`
-    };
-    
-  } catch (error) {
-    console.error('일괄 삭제 에러:', error);
-    throw new Error('일괄 삭제 실패: ' + (error.message || error.err?.message));
-  }
-};
-
-// ========== 공정흐름도 및 작업실적 연동 ==========
-
-// 제품코드별 공정흐름도 조회 - 개선된 버전
-const getProcessFlowByProduct = async (productCode) => {
-  try {
-    console.log('제품코드별 공정흐름도 조회 시작:', productCode);
-    
-    // 기존 DB 쿼리 시도
-    try {
-      const processFlow = await mariadb.query('selectProcessFlowByProduct', [
-        productCode, productCode, productCode, productCode
-      ]);
-      
-      if (processFlow && processFlow.length > 0) {
-        console.log('DB 공정흐름도 조회 성공:', processFlow.length, '단계');
-        return convertData(processFlow);
-      }
-    } catch (dbError) {
-      console.warn('DB 공정흐름도 조회 실패:', dbError.message);
-    }
-    
-    // DB 조회 실패 시 기본 공정흐름도 반환
-    const defaultProcessFlow = [
-      { 
-        공정그룹코드: `${productCode}-Process`, 
-        순서: 1, 
-        공정코드: `${productCode}Process1`, 
-        공정유형코드: 'p2', 
-        공정명: '내포장',
-        공정유형명: '포장',
-        공정시간: '30분',
-        공정비고: '정제를 PTP/병에 포장하는 작업'
-      },
-      { 
-        공정그룹코드: `${productCode}-Process`, 
-        순서: 2, 
-        공정코드: `${productCode}Process2`, 
-        공정유형코드: 'p2', 
-        공정명: '내포장완료',
-        공정유형명: '포장',
-        공정시간: '5분',
-        공정비고: '내포장 작업 완료 처리'
-      },
-      { 
-        공정그룹코드: `${productCode}-Process`, 
-        순서: 3, 
-        공정코드: `${productCode}Process3`, 
-        공정유형코드: 'p2', 
-        공정명: '외포장',
-        공정유형명: '포장',
-        공정시간: '20분',
-        공정비고: '내포장된 제품을 박스에 포장하는 작업'
-      },
-      { 
-        공정그룹코드: `${productCode}-Process`, 
-        순서: 4, 
-        공정코드: `${productCode}Process4`, 
-        공정유형코드: 'p2', 
-        공정명: '외포장완료',
-        공정유형명: '포장',
-        공정시간: '5분',
-        공정비고: '외포장 작업 완료 및 검사 대기'
-      }
-    ];
-    
-    console.log('기본 공정흐름도 반환:', defaultProcessFlow.length, '단계');
-    return defaultProcessFlow;
-  } catch (error) {
-    console.error('공정흐름도 조회 전체 실패:', error);
-    
-    // 최소한의 기본 공정흐름도
-    const minimalProcessFlow = [
-      { 
-        공정그룹코드: `${productCode}-Process`, 
-        순서: 1, 
-        공정코드: `${productCode}Process1`, 
-        공정유형코드: 'p2', 
-        공정명: '내포장',
-        공정유형명: '포장',
-        공정시간: '30분',
-        공정비고: '기본 내포장 공정'
-      },
-      { 
-        공정그룹코드: `${productCode}-Process`, 
-        순서: 2, 
-        공정코드: `${productCode}Process2`, 
-        공정유형코드: 'p2', 
-        공정명: '외포장',
-        공정유형명: '포장',
-        공정시간: '20분',
-        공정비고: '기본 외포장 공정'
-      }
-    ];
-    
-    return minimalProcessFlow;
-  }
-};
-
-// 라인 작업 시작 (공정흐름도 기반) - 개선된 버전
-const startLineWork = async (lineId, productCode, currentEmployee) => {
-  try {
-    console.log('=== 라인 작업 시작 ===');
-    console.log('라인 ID:', lineId, '제품코드:', productCode, '사원:', currentEmployee);
-
-    // 1. 제품코드별 공정흐름도 정보 가져오기
-    const processFlow = await getProcessFlowByProduct(productCode);
-    
-    if (processFlow.length === 0) {
-      throw new Error('해당 제품코드의 공정흐름도를 찾을 수 없습니다.');
-    }
-
-    // 2. 내포장 공정 찾기 (순서 기준으로 첫 번째 포장 공정)
-    const innerProcess = processFlow.find(p => p.공정명.includes('내포장') && p.순서 === 1) || processFlow[0];
-    
-    if (!innerProcess) {
-      throw new Error('내포장 공정을 찾을 수 없습니다.');
-    }
-
-    console.log('내포장 공정 정보:', innerProcess);
-
-    // 3. 작업번호 생성 (시간 기반)
-    const timestamp = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14);
-    const processGroupCode = innerProcess.공정그룹코드 || `${productCode}-Process`;
-    const workOrderNo = `WO${timestamp}${lineId}${processGroupCode.slice(-3)}`;
-    console.log('생성된 작업번호:', workOrderNo);
-
-    // 4. 작업실적 처리 시뮬레이션
-    try {
-      await mariadb.query('startInnerPackagingWork', [workOrderNo]);
-      console.log('작업실적 처리 완료');
-    } catch (workError) {
-      console.warn('작업실적 처리 중 에러 (무시하고 계속):', workError.message);
-    }
-
-    // 5. 라인 작업 시작 처리 - package_line 테이블 업데이트
-    await mariadb.query('updateLineWorkStart', [productCode, workOrderNo, lineId]);
-    console.log('라인 작업 시작 업데이트 완료');
-
-    return {
-      success: true,
-      lineId: lineId,
-      productCode: productCode,
-      workOrderNo: workOrderNo,
-      processInfo: innerProcess,
-      processGroupCode: innerProcess.공정그룹코드,
-      processTime: innerProcess.공정시간,
-      processRemark: innerProcess.공정비고,
-      message: '라인 작업이 시작되었습니다.'
-    };
-    
-  } catch (error) {
-    console.error('라인 작업 시작 에러:', error);
-    throw new Error('라인 작업 시작 실패: ' + (error.message || error.err?.message));
-  }
-};
-
-// 내포장 작업 완료 처리 - 새로 추가
-const completeInnerPackagingWork = async (lineId, workOrderNo, outputQty = 0) => {
-  try {
-    console.log('=== 내포장 작업 완료 처리 ===');
-    console.log('라인 ID:', lineId, '작업번호:', workOrderNo, '생산량:', outputQty);
-
-    // 1. 작업실적상세 진행상태를 '완료'로 업데이트 (시뮬레이션)
-    try {
-      await mariadb.query('SELECT ? as message', [`내포장 작업 ${workOrderNo}이 완료되었습니다.`]);
-      console.log('내포장 작업실적 상태 업데이트 완료: 진행 → 완료');
-    } catch (updateError) {
-      console.warn('작업실적 업데이트 중 에러 (무시하고 계속):', updateError.message);
-    }
-
-    // 2. 라인 상태를 '완료'로 업데이트 (s4: 검사중으로 임시 사용)
-    try {
-      const updateQuery = `
-        UPDATE package_line 
-        SET 
-          line_state = 's4',
-          end_time = NOW()
-        WHERE line_id = (
-          SELECT latest_line_id FROM (
-            SELECT pl.line_id as latest_line_id
-            FROM package_line pl 
-            JOIN package_master pm ON pl.line_masterid = pm.line_masterid 
-            WHERE pm.line_code = ?
-              AND pm.line_type = 'INNER'
-            ORDER BY pl.reg_date DESC, pl.line_id DESC
-            LIMIT 1
-          ) AS latest_line
-        )
-      `;
-      
-      await mariadb.query(updateQuery, [lineId]);
-      console.log('내포장 라인 상태 업데이트 완료: 작업중 → 완료');
-    } catch (lineUpdateError) {
-      console.error('라인 상태 업데이트 실패:', lineUpdateError.message);
-    }
-
-    return {
-      success: true,
-      lineId: lineId,
-      workOrderNo: workOrderNo,
-      outputQty: outputQty,
-      message: '내포장 작업이 완료되었습니다. 이제 외포장 작업을 진행할 수 있습니다.'
-    };
-    
-  } catch (error) {
-    console.error('내포장 작업 완료 처리 에러:', error);
-    throw new Error('내포장 작업 완료 처리 실패: ' + (error.message || error.err?.message));
-  }
-};
-
-// 외포장 작업 완료 처리
-const completeOuterPackagingWork = async (lineId, workOrderNo, outputQty = 0) => {
-  try {
-    console.log('=== 외포장 작업 완료 처리 ===');
-    console.log('라인 ID:', lineId, '작업번호:', workOrderNo, '생산량:', outputQty);
-
-    // 1. 작업실적상세 진행상태를 '검사중'으로 업데이트
-    if (workOrderNo) {
-      try {
-        await mariadb.query('completeOuterPackagingWork', [workOrderNo]);
-        console.log('작업실적상세 상태 업데이트 완료: 진행 → 검사중');
-      } catch (updateError) {
-        console.warn('작업실적 업데이트 중 에러 (무시하고 계속):', updateError.message);
-      }
-    }
-
-    // 2. 라인 상태를 '검사중'으로 업데이트
-    await mariadb.query('updateLineWorkComplete', [lineId]);
-    console.log('라인 상태 업데이트 완료: 작업중 → 검사중');
-
-    return {
-      success: true,
-      lineId: lineId,
-      workOrderNo: workOrderNo,
-      outputQty: outputQty,
-      message: '외포장 작업이 완료되어 검사 단계로 이동되었습니다.'
-    };
-    
-  } catch (error) {
-    console.error('외포장 작업 완료 처리 에러:', error);
-    throw new Error('외포장 작업 완료 처리 실패: ' + (error.message || error.err?.message));
-  }
-};
-
-// 내포장 완료된 건 조회
-const getCompletedInnerPackaging = async (lineId) => {
-  try {
-    console.log('내포장 완료된 건 조회:', lineId);
-    const result = await mariadb.query('selectCompletedInnerPackaging', [lineId]);
-    
-    console.log('내포장 완료 조회 결과:', result.length, '건');
-    return result.length > 0 ? result[0] : null;
-  } catch (error) {
-    console.error('내포장 완료된 건 조회 에러:', error);
-    
-    // 에러 시 기본값 반환
-    return {
-      work_id: 'PW001',
-      line_id: lineId,
-      product_code: 'BJA-DR-30',
-      work_order_no: `WO${new Date().toISOString().slice(0, 10).replace(/-/g, '')}001`,
-      input_qty: 1000,
-      output_qty: 950,
-      end_time: new Date().toISOString(),
-      work_status_name: '완료'
-    };
-  }
-};
-
-// ========== 담당자 관리 ==========
-
-// 사용 가능한 담당자 목록 조회
-const getAvailableEmployees = async () => {
-  try {
-    console.log('사용 가능한 담당자 목록 조회 시작...');
-    const employees = await mariadb.query('selectAvailableEmployees');
-    console.log('사용 가능한 담당자 조회 성공:', employees.length, '명');
-    return convertData(employees);
-  } catch (error) {
-    console.error('사용 가능한 담당자 조회 에러:', error);
-    console.warn('담당자 테이블 조회 실패 - 기본 담당자 목록을 반환합니다.');
-    
-    // DB 조회 실패 시 기본 담당자 목록 반환
-    const defaultEmployees = [
-      { employee_id: 2, employee_name: '김홍인' },
-      { employee_id: 3, employee_name: '김다산' },
-      { employee_id: 4, employee_name: '최현석' },
-      { employee_id: 5, employee_name: '이승민' },
-      { employee_id: 6, employee_name: '박현우' },
-      { employee_id: 7, employee_name: '정수진' }
-    ];
-    
-    console.log('기본 담당자 목록 반환:', defaultEmployees.length, '명');
-    return defaultEmployees;
-  }
-};
-
-// ========== 설비명 관리 ==========
-
-// 사용 가능한 설비명 목록 조회 (사용 중인 설비명 제외)
-const getAvailableEquipments = async (excludeLineId = null) => {
-  try {
-    console.log('사용 가능한 설비명 목록 조회 시작...');
-    if (excludeLineId) {
-      console.log('제외할 라인 ID:', excludeLineId);
-    }
-    
-    // 전체 기본 설비명 목록 정의
-    const allEquipments = [
-      { eq_name: '10정 블리스터 포장기', line_type: 'INNER', eq_type: 'INNER' },
-      { eq_name: '30정 블리스터 포장기', line_type: 'INNER', eq_type: 'INNER' },
-      { eq_name: '60정 블리스터 포장기', line_type: 'INNER', eq_type: 'INNER' },
-      { eq_name: '병 모노블럭', line_type: 'INNER', eq_type: 'INNER' },
-      { eq_name: '소형 카톤포장기', line_type: 'OUTER', eq_type: 'OUTER' },
-      { eq_name: '중형 카톤포장기', line_type: 'OUTER', eq_type: 'OUTER' },
-      { eq_name: '대형 카톤포장기', line_type: 'OUTER', eq_type: 'OUTER' },
-      { eq_name: '트레이 수축포장기', line_type: 'OUTER', eq_type: 'OUTER' },
-    ];
-    
-    // 현재 사용 중인 설비명 조회
-    let usedEquipments = [];
-    try {
-      let query = 'selectUsedEquipments';
-      let params = [];
-      
-      // 특정 라인 수정 시 해당 라인의 설비명은 제외하지 않음
-      if (excludeLineId) {
-        query = 'selectUsedEquipmentsExcludeLine';
-        params = [excludeLineId];
-      }
-      
-      const usedResult = await mariadb.query(query, params);
-      usedEquipments = usedResult.map(row => row.eq_name).filter(name => name && name.trim() !== '');
-      console.log('현재 사용 중인 설비명:', usedEquipments);
-    } catch (dbError) {
-      console.warn('사용 중인 설비명 조회 실패:', dbError.message);
-    }
-    
-    // 사용 중이지 않은 설비명만 필터링
-    const availableEquipments = allEquipments.filter(eq => 
-      !usedEquipments.includes(eq.eq_name)
-    );
-    
-    console.log('전체 설비명:', allEquipments.length, '개');
-    console.log('사용 중인 설비명:', usedEquipments.length, '개');
-    console.log('사용 가능한 설비명:', availableEquipments.length, '개');
-    
-    return convertData(availableEquipments);
-    
-  } catch (error) {
-    console.error('설비명 조회 전체 실패:', error);
-    
-    // 에러 시 기본값 반환 (사용 중 여부 체크 없이)
-    const fallbackEquipments = [
-      { eq_name: '기본 블리스터 포장기', line_type: 'INNER', eq_type: 'INNER' },
-      { eq_name: '기본 카톤 포장기', line_type: 'OUTER', eq_type: 'OUTER' }
-    ];
-    
-    return convertData(fallbackEquipments);
-  }
-};
-
-// ========== 제품코드 관리 ==========
-
-// 사용 가능한 제품코드 목록 조회 (라인별 격리 적용) - 개선된 에러 처리
-const getAvailableProducts = async (lineCode = null) => {
-  try {
-    console.log('사용 가능한 제품코드 목록 조회 시작...');
-    console.log('요청 라인 코드:', lineCode);
-    
-    let results;
-    
-    try {
-      if (lineCode) {
-        // 특정 라인의 사용 가능한 제품코드만 조회
-        results = await mariadb.query('selectAvailableProductsForLine', [lineCode]);
-        console.log(`${lineCode}라인 전용 제품코드 조회 성공:`, results.length, '건');
-      } else {
-        // 전체 제품코드 조회 (관리자용)
-        results = await mariadb.query('selectAvailableProducts');
-        console.log('전체 제품코드 조회 성공:', results.length, '건');
-      }
-      
-      if (results && results.length > 0) {
-        return convertData(results);
-      }
-    } catch (dbError) {
-      console.warn('DB 제품코드 조회 실패:', dbError.message);
-    }
-    
-    // DB 조회 실패 시 기본 제품코드 목록 반환
-    const defaultProducts = [
-      { product_code: 'BJA-DR-10', product_name: '10정 블리스터 포장', product_type: 'TABLET', package_type: 'BLISTER' },
-      { product_code: 'BJA-DR-30', product_name: '30정 블리스터 포장', product_type: 'TABLET', package_type: 'BLISTER' },
-      { product_code: 'BJA-DR-60', product_name: '60정 블리스터 포장', product_type: 'TABLET', package_type: 'BLISTER' },
-      { product_code: 'BJA-BT-100', product_name: '100정 병 포장', product_type: 'TABLET', package_type: 'BOTTLE' },
-      { product_code: 'BJA-BT-200', product_name: '200정 병 포장', product_type: 'TABLET', package_type: 'BOTTLE' }
-    ];
-    
-    console.log('기본 제품코드 목록 반환:', defaultProducts.length, '건');
-    return defaultProducts;
-    
-  } catch (error) {
-    console.error('제품코드 조회 전체 실패:', error);
-    
-    // 최소한의 기본 제품코드 목록
-    const minimalProducts = [
-      { product_code: 'BJA-DR-30', product_name: '30정 블리스터 포장', product_type: 'TABLET', package_type: 'BLISTER' },
-      { product_code: 'BJA-BT-100', product_name: '100정 병 포장', product_type: 'TABLET', package_type: 'BOTTLE' }
-    ];
-    
-    return minimalProducts;
-  }
-};
-
-// 특정 제품코드 상세 조회 (라인 사용현황 포함) - 개선된 에러 처리
-const getProductDetail = async (productCode) => {
-  try {
-    let result;
-    
-    try {
-      result = await mariadb.query('selectProductDetail', [
-        productCode, productCode, productCode, productCode, productCode, productCode, productCode, productCode
-      ]);
-      
-      if (result && result.length > 0) {
-        const [data] = result;
-        
-        // 해당 제품코드를 사용 중인 라인 정보도 함께 조회
-        try {
-          const usageInfo = await mariadb.query('checkProductCodeLineUsage', [productCode]);
-          data.currentUsage = usageInfo;
-        } catch (usageError) {
-          console.warn('제품코드 사용현황 조회 실패:', usageError.message);
-          data.currentUsage = [];
-        }
-        
-        console.log('제품코드 상세 조회 성공:', productCode);
-        return convertData(data);
-      }
-    } catch (dbError) {
-      console.warn('DB 제품코드 상세 조회 실패:', dbError.message);
-    }
-    
-    // DB 조회 실패 시 기본값 반환
-    const defaultProductDetail = {
-      product_code: productCode,
-      product_name: productCode.includes('DR') ? 
-        `${productCode.split('-').pop()}정 블리스터 포장` : 
-        `${productCode.split('-').pop()}정 병 포장`,
-      product_type: 'TABLET',
-      package_type: productCode.includes('DR') ? 'BLISTER' : 'BOTTLE',
-      status: 'ACTIVE',
-      currentUsage: []
-    };
-    
-    console.log('기본 제품코드 상세 반환:', productCode);
-    return convertData(defaultProductDetail);
-    
-  } catch (error) {
-    console.error('제품코드 상세 조회 전체 실패:', error);
-    throw new Error('제품코드 상세 조회 실패: ' + error.message);
-  }
-};
-
-// 제품코드 사용 현황 조회 (디버깅/관리용)
-const getProductCodeUsageStats = async () => {
-  try {
-    console.log('제품코드 사용 현황 조회 시작...');
-    const usageStats = await mariadb.query('checkProductCodeUsage');
-    
-    console.log('제품코드 사용 현황 조회 성공:', usageStats.length, '건');
-    return convertData(usageStats);
-  } catch (error) {
-    console.error('제품코드 사용 현황 조회 에러:', error);
-    
-    // 에러 시 빈 배열 반환
-    console.log('기본 사용현황 반환: 빈 목록');
+    console.error('❌ 라인 마스터 목록 조회 실패:', error.message);
     return [];
   }
 };
 
-// 제품코드 할당 가능 여부 검증
-const validateProductCodeAssignment = async (productCode, targetLineCode) => {
+// ========== 라인 CRUD 함수들 (작업번호 제거) ==========
+
+const insertIntegratedLine = async (data) => {
   try {
-    console.log(`제품코드 할당 검증: ${productCode} → ${targetLineCode}라인`);
+    console.log('➕ 통합 라인 등록 시작:', JSON.stringify(data, null, 2));
     
-    // 해당 제품코드를 현재 사용 중인 라인들 조회
-    let currentUsage = [];
+    // 필수 데이터 검증
+    if (!data.line_id) {
+      throw new Error('라인 ID는 필수입니다.');
+    }
+    if (!data.line_type) {
+      throw new Error('라인 타입은 필수입니다.');
+    }
+    
+    // DB 연결 확인
+    const dbConnected = await testDatabaseConnection();
+    if (!dbConnected) {
+      throw new Error('데이터베이스 연결에 실패했습니다.');
+    }
+    
+    // 중복 체크
+    const exists = await checkLineIdExists(data.line_id, data.line_type);
+    if (exists) {
+      throw new Error(`이미 존재하는 라인입니다: ${data.line_id}라인 ${data.line_type}`);
+    }
+    
+    // 라인 마스터 등록 - line_id를 숫자로 변환해서 추가
+    const masterParams = [
+      `${data.line_id}라인 ${data.line_type === 'INNER' ? '내포장' : '외포장'}`,
+      data.eq_group_code || 'EQ001',
+      data.line_type,
+      data.result_id || 1,
+      data.line_id,        // line_code (문자열)
+      convertLineCodeToNumber(data.line_id), // line_id (숫자)
+      data.max_capacity || 1000,
+      data.description || '',
+      data.product_code || ''
+    ];
+    
+    console.log('마스터 등록 파라미터:', masterParams);
+    console.log('line_id 변환:', data.line_id, '->', convertLineCodeToNumber(data.line_id));
+    
+    // 라인 마스터 등록 - 여러 방법 시도
+    let masterResult = null;
+    let insertSuccess = false;
+    
+    // 1차 시도: line_id를 숫자로 변환해서 삽입
     try {
-      currentUsage = await mariadb.query('checkProductCodeLineUsage', [productCode]);
-    } catch (usageError) {
-      console.warn('제품코드 사용현황 조회 실패:', usageError.message);
+      masterResult = await mapper.query('insertLineMaster', masterParams);
+      console.log('마스터 등록 결과 (숫자 line_id):', masterResult);
+      insertSuccess = true;
+    } catch (firstError) {
+      console.warn('1차 시도 실패 (숫자 line_id):', firstError.err?.sqlMessage || firstError.message);
+      
+      // 2차 시도: line_id를 NULL로 삽입
+      try {
+        const nullParams = [
+          `${data.line_id}라인 ${data.line_type === 'INNER' ? '내포장' : '외포장'}`,
+          data.eq_group_code || 'EQ001',
+          data.line_type,
+          data.result_id || 1,
+          data.line_id,        // line_code (문자열)
+          data.max_capacity || 1000,
+          data.description || '',
+          data.product_code || ''
+        ];
+        
+        console.log('2차 시도 파라미터 (NULL line_id):', nullParams);
+        masterResult = await mapper.query('insertLineMasterWithNullId', nullParams);
+        console.log('마스터 등록 결과 (NULL line_id):', masterResult);
+        insertSuccess = true;
+      } catch (secondError) {
+        console.warn('2차 시도 실패 (NULL line_id):', secondError.err?.sqlMessage || secondError.message);
+        
+        // 3차 시도: line_id 컬럼 제외하고 삽입
+        try {
+          const noIdParams = [
+            `${data.line_id}라인 ${data.line_type === 'INNER' ? '내포장' : '외포장'}`,
+            data.eq_group_code || 'EQ001',
+            data.line_type,
+            data.result_id || 1,
+            data.line_id,        // line_code (문자열)
+            data.max_capacity || 1000,
+            data.description || '',
+            data.product_code || ''
+          ];
+          
+          console.log('3차 시도 파라미터 (line_id 제외):', noIdParams);
+          masterResult = await mapper.query('insertLineMasterNoId', noIdParams);
+          console.log('마스터 등록 결과 (line_id 제외):', masterResult);
+          insertSuccess = true;
+        } catch (thirdError) {
+          console.error('3차 시도도 실패 (line_id 제외):', thirdError.err?.sqlMessage || thirdError.message);
+          throw firstError; // 첫 번째 에러를 던짐
+        }
+      }
     }
     
-    if (currentUsage.length === 0) {
-      // 아무도 사용하지 않음 → 할당 가능
-      console.log('제품코드 할당 가능: 현재 미사용');
-      return { canAssign: true, reason: '미사용 제품코드' };
+    if (!insertSuccess) {
+      throw new Error('모든 라인 마스터 등록 방법이 실패했습니다.');
     }
     
-    // 사용 중인 라인들의 라인 코드 확인
-    const usingLineCodes = [...new Set(currentUsage.map(usage => usage.line_code))];
-    
-    if (usingLineCodes.length === 1 && usingLineCodes[0] === targetLineCode) {
-      // 같은 라인 코드에서만 사용 중 → 할당 가능
-      console.log('제품코드 할당 가능: 같은 라인 코드 내 공유');
-      return { 
-        canAssign: true, 
-        reason: `${targetLineCode}라인 내 공유`,
-        currentUsage: currentUsage
-      };
-    } else {
-      // 다른 라인 코드에서 사용 중 → 할당 불가
-      console.log('제품코드 할당 불가: 다른 라인에서 사용 중');
-      return { 
-        canAssign: false, 
-        reason: `${usingLineCodes.join(', ')}라인에서 사용 중`,
-        currentUsage: currentUsage
-      };
+    // insertId 추출 방법 개선
+    let insertId = null;
+    if (masterResult) {
+      if (masterResult.insertId) {
+        insertId = masterResult.insertId;
+      } else if (Array.isArray(masterResult) && masterResult.length > 0) {
+        insertId = masterResult[0].insertId;
+      } else if (masterResult.affectedRows > 0) {
+        // MySQL의 경우 직접 조회해서 최신 ID 가져오기
+        const newMaster = await mapper.query('selectLineMasterByLineId', [data.line_id]);
+        if (newMaster && newMaster.length > 0) {
+          insertId = newMaster[0].line_masterid;
+        }
+      }
     }
     
-  } catch (error) {
-    console.error('제품코드 할당 검증 에러:', error);
-    return { 
-      canAssign: false, 
-      reason: '검증 실패: ' + error.message
+    if (!insertId) {
+      console.error('❌ insertId를 가져올 수 없음:', masterResult);
+      throw new Error('라인 마스터 등록에 실패했습니다. (insertId 없음)');
+    }
+    
+    console.log('✅ 라인 마스터 등록 성공, insertId:', insertId);
+    
+    // 라인 상태 등록 (선택사항) - work_order_no 제거
+    if (data.employee_id) {
+      const lineParams = [
+        insertId,
+        data.line_type === 'INNER' ? 'IP' : 'OP',
+        data.line_state || 's2',
+        data.target_qty || 0,
+        data.eq_name || '',
+        data.current_speed || 0,
+        data.line_id,
+        data.employee_id
+        // work_order_no 파라미터 완전 제거!
+      ];
+      
+      console.log('라인 상태 등록 파라미터:', lineParams);
+      
+      const lineResult = await mapper.query('insertLine', lineParams);
+      console.log('라인 상태 등록 결과:', lineResult);
+      console.log('✅ 라인 상태 등록 성공');
+    }
+    
+    const result = {
+      success: true,
+      insertId: insertId,
+      line_id: data.line_id,
+      line_name: `${data.line_id}라인 ${data.line_type === 'INNER' ? '내포장' : '외포장'}`,
+      message: '라인이 성공적으로 등록되었습니다.'
     };
+    
+    console.log('✅ 라인 등록 완료:', result);
+    return result;
+    
+  } catch (error) {
+    console.error('❌ 통합 라인 등록 실패:', error);
+    
+    // nested error 처리
+    const actualError = error.err || error;
+    
+    console.error('에러 상세:', {
+      message: actualError.message || actualError.sqlMessage || 'Unknown error',
+      stack: actualError.stack,
+      name: actualError.name,
+      code: actualError.code,
+      errno: actualError.errno,
+      sqlState: actualError.sqlState
+    });
+    
+    // SQL 에러 메시지 추출
+    let errorMessage = 'Unknown error';
+    if (actualError.sqlMessage) {
+      errorMessage = actualError.sqlMessage;
+    } else if (actualError.message) {
+      errorMessage = actualError.message;
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+    
+    throw new Error(errorMessage);
   }
 };
 
-// ========== 기존 라인 상태 관리 (하위 호환성) ==========
-
-// 라인 실적 등록 (제품코드 기반)
-const insertLine = async (formData) => {
+// ========== 내포장/외포장 동시 등록 함수 - 새로 추가 ==========
+const dualRegisterLine = async (data) => {
   try {
-    const values = [
-      formData.line_masterid,
-      formData.pkg_type,
-      formData.line_state || 's2',
-      formData.product_code || '',
-      formData.target_qty || 0,
-      formData.eq_name || '',           
-      formData.current_speed || 0,      
-      formData.line_code,
-      formData.employee_id || 2
+    console.log('🔥 내포장/외포장 동시 등록 시작:', JSON.stringify(data, null, 2));
+    
+    // 필수 데이터 검증
+    if (!data.line_id) {
+      throw new Error('라인 ID는 필수입니다.');
+    }
+    if (!data.inner_eq_name) {
+      throw new Error('내포장 설비명은 필수입니다.');
+    }
+    if (!data.outer_eq_name) {
+      throw new Error('외포장 설비명은 필수입니다.');
+    }
+    if (!data.inner_employee_id) {
+      throw new Error('내포장 담당자는 필수입니다.');
+    }
+    if (!data.outer_employee_id) {
+      throw new Error('외포장 담당자는 필수입니다.');
+    }
+    
+    // DB 연결 확인
+    const dbConnected = await testDatabaseConnection();
+    if (!dbConnected) {
+      throw new Error('데이터베이스 연결에 실패했습니다.');
+    }
+    
+    // 중복 체크 (내포장, 외포장 둘 다)
+    const innerExists = await checkLineIdExists(data.line_id, 'INNER');
+    const outerExists = await checkLineIdExists(data.line_id, 'OUTER');
+    
+    if (innerExists || outerExists) {
+      throw new Error(`이미 존재하는 라인입니다: ${data.line_id}라인`);
+    }
+    
+    const results = [];
+    
+    // 1. 내포장 라인 등록
+    try {
+      console.log('📦 내포장 라인 등록 시작...');
+      
+      const innerData = {
+        line_id: data.line_id,
+        line_type: 'INNER',
+        eq_name: data.inner_eq_name,
+        max_capacity: data.inner_capacity || 1000,
+        current_speed: data.inner_speed || 30,
+        employee_id: data.inner_employee_id,
+        product_code: data.product_code || '',
+        description: data.description || '',
+        eq_group_code: 'EQ001',
+        line_state: 's2',
+        target_qty: 0
+      };
+      
+      console.log('내포장 등록 데이터:', innerData);
+      
+      const innerResult = await insertIntegratedLine(innerData);
+      results.push({ type: 'INNER', result: innerResult });
+      console.log('✅ 내포장 라인 등록 성공:', innerResult.insertId);
+      
+    } catch (innerError) {
+      console.error('❌ 내포장 라인 등록 실패:', innerError);
+      
+      // nested error 처리
+      const actualError = innerError.err || innerError;
+      
+      console.error('내포장 에러 상세:', {
+        message: actualError.message || actualError.sqlMessage || 'Unknown error',
+        stack: actualError.stack,
+        name: actualError.name,
+        code: actualError.code,
+        errno: actualError.errno,
+        sqlState: actualError.sqlState
+      });
+      
+      const errorMessage = actualError.sqlMessage || actualError.message || innerError.message || '알 수 없는 오류';
+      throw new Error(`내포장 라인 등록 실패: ${errorMessage}`);
+    }
+    
+    // 2. 외포장 라인 등록
+    try {
+      console.log('📦 외포장 라인 등록 시작...');
+      
+      const outerData = {
+        line_id: data.line_id,
+        line_type: 'OUTER',
+        eq_name: data.outer_eq_name,
+        max_capacity: data.outer_capacity || 800,
+        current_speed: data.outer_speed || 30,
+        employee_id: data.outer_employee_id,
+        product_code: data.product_code || '',
+        description: data.description || '',
+        eq_group_code: 'EQ002',
+        line_state: 's2',
+        target_qty: 0
+      };
+      
+      console.log('외포장 등록 데이터:', outerData);
+      
+      const outerResult = await insertIntegratedLine(outerData);
+      results.push({ type: 'OUTER', result: outerResult });
+      console.log('✅ 외포장 라인 등록 성공:', outerResult.insertId);
+      
+    } catch (outerError) {
+      console.error('❌ 외포장 라인 등록 실패:', outerError);
+      
+      // nested error 처리
+      const actualError = outerError.err || outerError;
+      
+      console.error('외포장 에러 상세:', {
+        message: actualError.message || actualError.sqlMessage || 'Unknown error',
+        stack: actualError.stack,
+        name: actualError.name,
+        code: actualError.code,
+        errno: actualError.errno,
+        sqlState: actualError.sqlState
+      });
+      
+      // 외포장 실패 시 내포장도 롤백 (수동 삭제)
+      try {
+        console.log('🔄 내포장 라인 롤백 시작...');
+        await deleteIntegratedLine(data.line_id);
+        console.log('✅ 내포장 라인 롤백 완료');
+      } catch (rollbackError) {
+        console.error('❌ 롤백 실패:', rollbackError);
+        
+        const rollbackActualError = rollbackError.err || rollbackError;
+        
+        console.error('롤백 에러 상세:', {
+          message: rollbackActualError.message || rollbackActualError.sqlMessage || 'Unknown error',
+          stack: rollbackActualError.stack,
+          name: rollbackActualError.name,
+          code: rollbackActualError.code,
+          errno: rollbackActualError.errno,
+          sqlState: rollbackActualError.sqlState
+        });
+      }
+      
+      const errorMessage = actualError.sqlMessage || actualError.message || outerError.message || '알 수 없는 오류';
+      throw new Error(`외포장 라인 등록 실패: ${errorMessage}`);
+    }
+    
+    // 성공 결과 반환
+    const finalResult = {
+      success: true,
+      line_id: data.line_id,
+      line_name: `${data.line_id}라인`,
+      inner_result: results.find(r => r.type === 'INNER')?.result,
+      outer_result: results.find(r => r.type === 'OUTER')?.result,
+      message: `${data.line_id}라인 내포장/외포장이 성공적으로 등록되었습니다.`,
+      total_registered: results.length
+    };
+    
+    console.log('🎉 내포장/외포장 동시 등록 완료:', finalResult);
+    return finalResult;
+    
+  } catch (error) {
+    console.error('❌ 내포장/외포장 동시 등록 실패:', error);
+    
+    // nested error 처리
+    const actualError = error.err || error;
+    
+    console.error('동시 등록 에러 상세:', {
+      message: actualError.message || actualError.sqlMessage || 'Unknown error',
+      stack: actualError.stack,
+      name: actualError.name,
+      code: actualError.code,
+      errno: actualError.errno,
+      sqlState: actualError.sqlState
+    });
+    
+    const errorMessage = actualError.sqlMessage || actualError.message || error.message || '내포장/외포장 동시 등록 중 알 수 없는 오류가 발생했습니다.';
+    throw new Error(errorMessage);
+  }
+};
+
+const updateIntegratedLine = async (lineId, data) => {
+  try {
+    console.log('✏️ 통합 라인 수정 시작:', lineId, JSON.stringify(data, null, 2));
+    
+    // DB 연결 확인
+    const dbConnected = await testDatabaseConnection();
+    if (!dbConnected) {
+      throw new Error('데이터베이스 연결에 실패했습니다.');
+    }
+    
+    // 마스터 정보 조회
+    const master = await getLineMasterByLineId(lineId);
+    if (!master) {
+      throw new Error(`라인을 찾을 수 없습니다: ${lineId}`);
+    }
+    
+    // 마스터 업데이트
+    const updateParams = [
+      `${lineId}라인 ${data.line_type === 'INNER' ? '내포장' : '외포장'}`,
+      data.eq_group_code || master.eq_group_code,
+      data.line_type || master.line_type,
+      data.max_capacity || master.max_capacity,
+      data.description || master.description,
+      data.product_code || master.product_code,
+      master.line_masterid
     ];
     
-    const result = await mariadb.query('insertLine', values);
-    console.log('라인 실적 등록 성공:', result.insertId);
-    return { insertId: result.insertId };
-  } catch (error) {
-    console.error('라인 실적 등록 에러:', error);
-    throw new Error('라인 실적 등록 실패: ' + (error.err?.message || error.message));
-  }
-};
-
-// 라인 실적 수정 - 직접 line_id로 수정 (제품코드 기반)
-const updateLine = async (lineId, formData) => {
-  try {
-    const values = [
-      formData.pkg_type,
-      formData.line_state || 's2',
-      formData.employee_id || 2,
-      formData.eq_name || '',           
-      formData.current_speed || 0,      
-      formData.product_code || '',
-      formData.target_qty || 0,
-      lineId
-    ];
-    const result = await mariadb.query('updateLine', values);
-    console.log('라인 실적 수정 성공:', lineId);
+    console.log('마스터 수정 파라미터:', updateParams);
+    
+    await mapper.query('updateLineMaster', updateParams);
+    console.log('✅ 라인 마스터 수정 성공');
+    
+    const result = {
+      success: true,
+      line_id: lineId,
+      line_name: `${lineId}라인 ${data.line_type === 'INNER' ? '내포장' : '외포장'}`,
+      message: '라인이 성공적으로 수정되었습니다.'
+    };
+    
+    console.log('✅ 라인 수정 완료:', result);
     return result;
+    
   } catch (error) {
-    console.error('라인 실적 수정 에러:', error);
-    throw new Error('라인 실적 수정 실패: ' + (error.err?.message || error.message));
+    console.error('❌ 통합 라인 수정 실패:', error.message);
+    throw error;
   }
 };
 
-// 마스터 라인 ID 기준 상태 업데이트 (제품코드 기반)
-const updateLineByMasterId = async (masterLineId, formData) => {
+const deleteIntegratedLine = async (lineId) => {
   try {
-    const values = [
-      formData.pkg_type,
-      formData.line_state || 's2',
-      formData.employee_id || 2,
-      formData.eq_name || '',
-      formData.current_speed || 0,
-      formData.product_code || '',
-      formData.target_qty || 0,
-      masterLineId
-    ];
-    const result = await mariadb.query('updateLineByMasterId', values);
-    console.log('마스터 라인 ID 기준 상태 업데이트 성공:', masterLineId);
+    console.log('🗑️ 통합 라인 삭제 시작:', lineId);
+    
+    // DB 연결 확인
+    const dbConnected = await testDatabaseConnection();
+    if (!dbConnected) {
+      throw new Error('데이터베이스 연결에 실패했습니다.');
+    }
+    
+    // 마스터 정보 조회
+    const master = await getLineMasterByLineId(lineId);
+    if (!master) {
+      throw new Error(`라인을 찾을 수 없습니다: ${lineId}`);
+    }
+    
+    // 라인 상태 데이터 삭제 (외래키 제약조건 때문에 먼저 삭제)
+    await mapper.query('deleteLineByMasterId', [master.line_masterid]);
+    console.log('✅ 라인 상태 데이터 삭제 성공');
+    
+    // 마스터 데이터 삭제
+    await mapper.query('deleteLineMaster', [master.line_masterid]);
+    console.log('✅ 라인 마스터 삭제 성공');
+    
+    const result = {
+      success: true,
+      line_id: lineId,
+      deleted_master_id: master.line_masterid,
+      message: `${lineId}라인이 성공적으로 삭제되었습니다.`
+    };
+    
+    console.log('✅ 라인 삭제 완료:', result);
     return result;
+    
   } catch (error) {
-    console.error('마스터 라인 ID 기준 상태 업데이트 에러:', error);
-    throw new Error('라인 상태 업데이트 실패: ' + (error.err?.message || error.message));
+    console.error('❌ 통합 라인 삭제 실패:', error.message);
+    throw error;
   }
 };
 
-// 기타 함수들
-const getLineDetail = async (lineId) => {
-  try {
-    const result = await mariadb.query('selectLineDetail', [lineId]);
-    const [data] = result;
-    return convertData(data);
-  } catch (error) {
-    throw new Error('라인 실적 상세 조회 실패: ' + (error.err?.message || error.message));
-  }
-};
-
-const deleteLine = async (lineId) => {
-  try {
-    const result = await mariadb.query('deleteLine', [lineId]);
-    return result;
-  } catch (error) {
-    throw new Error('라인 실적 삭제 실패: ' + (error.err?.message || error.message));
-  }
-};
-
-const deleteLineByMasterId = async (masterLineId) => {
-  try {
-    const result = await mariadb.query('deleteLineByMasterId', [masterLineId]);
-    return result;
-  } catch (error) {
-    throw new Error('라인 상태 삭제 실패: ' + (error.err?.message || error.message));
-  }
-};
-
-const getLineWithMaster = async (lineId) => {
-  try {
-    const result = await mariadb.query('selectLineWithMaster', [lineId]);
-    const [data] = result;
-    return convertData(data);
-  } catch (error) {
-    throw new Error('라인 상세 조회 실패: ' + (error.err?.message || error.message));
-  }
-};
+// ========== 통계 및 기타 함수들 ==========
 
 const getLineStatusStats = async () => {
   try {
-    const stats = await mariadb.query('selectLineStatusStats');
-    const workingLines = await mariadb.query('selectWorkingLines');
+    const lineList = await getLineList();
+    
+    const statusStats = [
+      { line_state: 's1', line_status: '가동 중', count: 0 },
+      { line_state: 's2', line_status: '가동대기 중', count: 0 },
+      { line_state: 's3', line_status: '가동정지', count: 0 }
+    ];
+    
+    const workingLines = [];
+    
+    lineList.forEach(line => {
+      const stat = statusStats.find(s => s.line_state === line.line_state);
+      if (stat) stat.count++;
+      
+      if (line.line_state === 's1') {
+        workingLines.push(line);
+      }
+    });
     
     return {
-      statusStats: stats,
+      statusStats: statusStats.filter(s => s.count > 0),
       workingLines: workingLines,
-      totalLines: stats.reduce((sum, stat) => sum + stat.count, 0)
+      totalLines: lineList.length
     };
   } catch (error) {
-    throw new Error('라인 상태 통계 조회 실패: ' + (error.err?.message || error.message));
+    console.error('❌ 라인 상태 통계 조회 실패:', error);
+    return {
+      statusStats: [],
+      workingLines: [],
+      totalLines: 0
+    };
+  }
+};
+
+const getLineDetail = async (id) => {
+  try {
+    const dbConnected = await testDatabaseConnection();
+    if (!dbConnected) {
+      return null;
+    }
+    
+    const lineDetail = await mapper.query('selectLineDetail', [id]);
+    return lineDetail && lineDetail.length > 0 ? lineDetail[0] : null;
+  } catch (error) {
+    console.error('❌ 라인 상세 조회 실패:', error.message);
+    return null;
+  }
+};
+
+const insertLine = async (data) => {
+  try {
+    // work_order_no 제거된 파라미터
+    const result = await mapper.query('insertLine', [
+      data.line_masterid, data.pkg_type, data.line_state, data.target_qty,
+      data.eq_name, data.current_speed, data.line_code, data.employee_id
+      // work_order_no 제거!
+    ]);
+    return result;
+  } catch (error) {
+    console.error('❌ 라인 등록 실패:', error.message);
+    throw error;
+  }
+};
+
+const updateLine = async (id, data) => {
+  try {
+    // work_order_no 제거된 파라미터
+    await mapper.query('updateLine', [
+      data.pkg_type, data.line_state, data.employee_id, data.eq_name,
+      data.current_speed, data.target_qty, id
+      // work_order_no 제거!
+    ]);
+    return true;
+  } catch (error) {
+    console.error('❌ 라인 수정 실패:', error.message);
+    throw error;
+  }
+};
+
+const deleteLine = async (id) => {
+  try {
+    await mapper.query('deleteLine', [id]);
+    return true;
+  } catch (error) {
+    console.error('❌ 라인 삭제 실패:', error.message);
+    throw error;
+  }
+};
+
+const deleteLineByMasterId = async (masterId) => {
+  try {
+    await mapper.query('deleteLineByMasterId', [masterId]);
+    return true;
+  } catch (error) {
+    console.error('❌ 마스터 ID로 라인 삭제 실패:', error.message);
+    throw error;
+  }
+};
+
+const getProductDetail = async (code) => {
+  try {
+    const dbConnected = await testDatabaseConnection();
+    if (!dbConnected) {
+      return null;
+    }
+    
+    const product = await mapper.query('selectProductByCode', [code]);
+    return product && product.length > 0 ? product[0] : null;
+  } catch (error) {
+    console.error('❌ 제품 상세 조회 실패:', error.message);
+    return null;
+  }
+};
+
+const getProductCodeUsageStats = async () => {
+  try {
+    const dbConnected = await testDatabaseConnection();
+    if (!dbConnected) {
+      return [];
+    }
+    
+    const usageStats = await mapper.query('selectProductUsageStats');
+    return usageStats || [];
+  } catch (error) {
+    console.error('❌ 제품코드 사용 현황 조회 실패:', error.message);
+    return [];
+  }
+};
+
+const validateProductCodeAssignment = async (code, lineCode) => {
+  try {
+    // 실제 검증 로직 구현
+    return { canAssign: true, reason: '할당 가능' };
+  } catch (error) {
+    console.error('❌ 제품코드 할당 검증 실패:', error.message);
+    return { canAssign: false, reason: '검증 실패' };
   }
 };
 
 module.exports = {
+  // 테스트 함수들
+  testDatabaseConnection,
+  testProductTable,
+
+  // 핵심 함수들
+  getLineList,
+  getAvailableProducts,
+  getAvailableEmployees,
+  getAvailableEquipments,
+  getAvailableLineIds,
+
   // 라인 마스터 관리
   getLineMasterList,
   getLineMasterDetail,
   getLineMasterByLineId,
-  insertLineMaster,
-  updateLineMaster,
-  deleteLineMaster,
   checkLineIdExists,
-  getAvailableLineIds,
 
-  // 프론트엔드 통합 관리
-  getLineList,
+  // 라인 CRUD
   insertIntegratedLine,
-  insertDualPackagingLine,
+  dualRegisterLine,        // 새로 추가된 함수
   updateIntegratedLine,
   deleteIntegratedLine,
-  bulkDeleteLines,
-
-  // 공정흐름도 및 작업실적 연동
-  getProcessFlowByProduct,
-  startLineWork,
-  completeInnerPackagingWork, // 새로 추가
-  completeOuterPackagingWork,
-  getCompletedInnerPackaging,
-
-  // 담당자 관리
-  getAvailableEmployees,
-
-  // 설비명 관리
-  getAvailableEquipments,
-
-  // 제품코드 관리
-  getAvailableProducts,
-  getProductDetail,
-  getProductCodeUsageStats,
-  validateProductCodeAssignment,
-
-  // 기존 라인 상태 관리
   getLineDetail,
   insertLine,
   updateLine,
-  updateLineByMasterId,
   deleteLine,
   deleteLineByMasterId,
-  getLineWithMaster,
 
-  // 통계
+  // 통계 및 기타
   getLineStatusStats,
+  getProductDetail,
+  getProductCodeUsageStats,
+  validateProductCodeAssignment
 };

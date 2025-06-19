@@ -127,7 +127,7 @@
           <div class="progress-step" :class="{ completed: completedSteps.includes('INNER'), active: selectedPackageType === 'INNER' }">
             <div class="step-text">내포장</div>
           </div>
-          <div class="progress-arrow">→</div>
+          <div class="progress-arrow">다음</div>
           <div class="progress-step" :class="{ completed: completedSteps.includes('OUTER'), active: selectedPackageType === 'OUTER' }">
             <div class="step-text">외포장</div>
           </div>
@@ -161,10 +161,9 @@
             <label>라인 상태</label>
             <select v-model="lineStatusFilter" class="filter-select">
               <option value="">전체</option>
-              <option value="AVAILABLE">사용 가능</option>
-              <option value="WORKING">작업 중</option>
-              <option value="MAINTENANCE">점검 중</option>
-              <option value="STOPPED">정지</option>
+              <option value="s1">가동 중</option>
+              <option value="s2">가동대기 중</option>
+              <option value="s3">정지</option>
             </select>
           </div>
           <div class="filter-group">
@@ -199,10 +198,9 @@
         <div v-for="line in filteredLines" :key="line.line_id"
           class="line-card"
           :class="{
-            available: line.line_status === 'AVAILABLE',
-            working: line.line_status === 'WORKING',
-            maintenance: line.line_status === 'MAINTENANCE',
-            stopped: line.line_status === 'STOPPED',
+            available: line.line_state === 's2',
+            working: line.line_state === 's1',
+            stopped: line.line_state === 's3',
             recommended: isRecommendedLine(line)
           }"
         >
@@ -214,8 +212,8 @@
           </div>
           
           <div class="line-status">
-            <span class="status-badge" :class="line.line_status.toLowerCase()">
-              {{ getStatusText(line.line_status) }}
+            <span class="status-badge" :class="line.line_state">
+              {{ getStatusText(line.line_state) }}
             </span>
           </div>
           
@@ -240,7 +238,7 @@
           
           <div class="line-actions">
             <button
-              v-if="line.line_status === 'AVAILABLE'"
+              v-if="line.line_state === 's2'"
               class="action-btn start"
               :class="{ recommended: isRecommendedLine(line) }"
               @click="startPackagingWork(line)"
@@ -248,25 +246,25 @@
               {{ isRecommendedLine(line) ? '작업 시작' : '작업 시작' }}
             </button>
             <button
-              v-else-if="line.line_status === 'WORKING'"
+              v-else-if="line.line_state === 's1'"
               class="action-btn continue"
               @click="continuePackagingWork(line)"
             >
               작업 계속
             </button>
             <button
-              v-else-if="line.line_status === 'MAINTENANCE'"
+              v-else-if="line.line_state === 's3'"
               disabled
-              class="action-btn maintenance"
+              class="action-btn stopped"
             >
-              점검 중
+              정지
             </button>
             <button
               v-else
               disabled
               class="action-btn stopped"
             >
-              정지
+              알 수 없음
             </button>
           </div>
         </div>
@@ -288,7 +286,7 @@
       <div class="modal-content" @click.stop>
         <div class="modal-header">
           <h3>{{ getWorkStartTitle() }}</h3>
-          <button @click="closeStartModal" class="modal-close">×</button>
+          <button @click="closeStartModal" class="modal-close">닫기</button>
         </div>
         <div class="modal-body">
           <div class="line-info">
@@ -306,7 +304,7 @@
                 <div class="step-meta">작업번호: {{ innerWorkNo }} • {{ formatTime(innerCompletionTime) }}</div>
               </div>
             </div>
-            <div class="workflow-arrow"></div>
+            <div class="workflow-arrow">다음 단계</div>
             <div class="workflow-step current">
               <div class="step-details">
                 <strong>외포장 진행</strong>
@@ -378,7 +376,7 @@ const filteredLines = computed(() => {
   
   // 라인 상태 필터
   if (lineStatusFilter.value) {
-    lines = lines.filter(line => line.line_status === lineStatusFilter.value)
+    lines = lines.filter(line => line.line_state === lineStatusFilter.value)
   }
   
   // 검색어 필터
@@ -612,7 +610,7 @@ function clearAllFilters() {
 function isRecommendedLine(line) {
   if (selectedPackageType.value === 'OUTER' && completedSteps.value.includes('INNER')) {
     // 외포장 시 특정 조건의 라인을 추천
-    return line.line_status === 'AVAILABLE' && 
+    return line.line_state === 's2' && 
            line.line_type === 'OUTER' && 
            (line.line_name.includes('A') || line.line_name.includes('1'))
   }
@@ -724,10 +722,9 @@ function getLineTypeText(type) {
 
 function getStatusText(status) {
   const map = {
-    'AVAILABLE': '사용 가능',
-    'WORKING': '작업 중',
-    'MAINTENANCE': '점검 중',
-    'STOPPED': '정지'
+    's1': '가동 중',
+    's2': '가동대기 중',
+    's3': '정지'
   }
   return map[status] || status
 }
