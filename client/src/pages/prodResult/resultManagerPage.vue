@@ -72,11 +72,20 @@
             </svg>
           </va-button>
         </div>
-                <va-input v-model="selectedItem.code_label" label="가동상태" readonly />
+        <va-input v-model="selectedItem.code_label" label="가동상태" readonly />
         <va-input :model-value="formatTime(selectedItem.work_start_time)" label="시작시간" readonly />
         <va-input :model-value="formatTime(selectedItem.work_end_time)" label="종료시간" readonly />
         <va-input v-model.number="selectedItem.pass_qty" label="생산수량" />
-        <va-input v-model="selectedItem.result_remark" label="비고" />
+        <va-select
+          v-model="selectedItem.end_reason_code"
+          :options="endReasonList.map(item => ({
+            code_value: item.code_value,
+            code_label: item.code_label
+          }))"
+          track-by="value"
+          label="작업 종료 사유"
+          placeholder="종료 사유 선택"
+        />
         <va-input v-model="selectedItem.product_qual_qty" label="합격 수량" readonly/>
         <va-input v-model="selectedItem.process_defective_qty" label="불량품 수량" readonly/>
       </div>
@@ -101,7 +110,24 @@
 
     <!-- 자재 내역 -->
     <div v-else-if="activeTab === 'material'">
-      <p>🔧 자재 출고 내역을 여기에 표시합니다.</p>
+      
+      <div v-if="materialMessage" class="va-text-danger va-mb-2">
+        {{ materialMessage }}
+      </div>
+
+      <va-data-table
+        v-else
+        :items="materialList"
+        :columns="[
+          { key: 'material_code', label: '자재코드' },
+          { key: 'material_name', label: '자재명' },
+          { key: 'outbound_qty', label: '출고량' }
+        ]"
+        track-by="material_code"
+      />
+      <div class="va-mb-3">
+        <va-button color="primary" @click="fetchMaterialList">🔍 자재 내역 검색</va-button>
+      </div>
     </div>
 
     <!-- 🔍 제품 검색 팝업 -->
@@ -117,7 +143,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed  } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import axios from 'axios'
 import ProductSearchModal from '../modals/ProductSearchModal.vue'
 import EquipmentSearchModal from '../modals/EquipmentSearchModal.vue'
@@ -143,7 +169,8 @@ interface WorkItem {
   code_label: string
   selected?: boolean
   result_remark?: string
-  eq_type_code: string  // ✅ 추가
+  eq_type_code: string 
+  end_reason_code?: string
   process_defective_qty: string
 }
 
@@ -169,6 +196,7 @@ const emptyItem = (): WorkItem => ({
   eq_type_code: '',
   selected: false,
   result_remark: '',
+  end_reason_code: '',
   process_defective_qty: ''
 })
 
@@ -176,6 +204,8 @@ const allResultList = ref<WorkItem[]>([])
 const workList = ref<WorkItem[]>([])
 const selectedItem = ref<WorkItem>(emptyItem())
 const activeTab = ref<'input' | 'material'>('input')
+const materialList = ref<any[]>([])  // 자재 데이터
+const materialMessage = ref('')      // 안내 메시지
 
 
 const columns = [
@@ -202,6 +232,52 @@ const filters = ref({
   productSpec: '',
   worker: ''
 })
+
+type EndReasonRaw = {
+  code_label?: string
+  code_value?: string
+  label?: string
+  value?: string
+}
+
+const endReasonList = ref<{ code_value: string; code_label: string }[]>([])
+
+const fetchEndReasons = async () => {
+  try {
+    const res = await axios.get('/endEq')
+    const rawList: EndReasonRaw[] = res.data
+    endReasonList.value = rawList.map((item) => ({
+      code_label: item.code_label ?? item.label ?? '',
+      code_value: item.code_value ?? item.value ?? ''
+    }))
+  } catch (err) {
+    console.error('작업종료 사유 코드 불러오기 실패', err)
+  }
+}
+
+
+const fetchMaterialList = async () => {
+  if (!selectedItem.value.result_id || !selectedItem.value.process_code) {
+    materialMessage.value = '⚠️ 공정을 선택해주세요.'
+    materialList.value = []
+    return
+  }
+
+  try {
+    const res = await axios.get(`/materialOutbound/${selectedItem.value.process_code}`)
+    if (res.data.length === 0) {
+      materialMessage.value = '🔍 출고된 자재 내역이 없습니다.'
+      materialList.value = []
+    } else {
+      materialList.value = res.data
+      materialMessage.value = ''
+    }
+  } catch (err) {
+    materialMessage.value = '❌ 자재 내역 조회 실패'
+    materialList.value = []
+    console.error(err)
+  }
+}
 
 const isPackagingProcess = computed(() => {
   return selectedItem.value.process_name === '포장'
@@ -296,7 +372,7 @@ const endWork = async () => {
     })
 
     // ✅ 설비 상태 업데이트
-    await axios.put(`/eqStop/${selectedItem.value.eq_id}`)
+    await axios.put(`/eqStop/${selectedItem.value.eq_id}`, {stop_reason: selectedItem.value.end_reason_code})
     alert('✅ 작업이 종료되었습니다.')
     selectedItem.value = emptyItem()
     fetchResultList()
@@ -409,6 +485,10 @@ const applyEquipment = (equipment: any) => {
   selectedItem.value.code_label = equipment.code_label
   isEquipmentPopupOpen.value = false
 }
+
+onMounted(() => {
+  fetchEndReasons()
+})
 
 </script>
 

@@ -17,6 +17,21 @@ const searchNoResult = async () => {
   return list;
 };
 
+// 공통코드 검색 
+const searchenEq = async () => {
+  let list = await mariadb.query("endEq")
+                            .catch(err => console.log(err));
+  return list;
+};
+
+
+// 작업지시 검색 (모달용)
+const materialOutList = async (processCode) => {
+  let list = await mariadb.query("materialOutList", processCode)
+                            .catch(err => console.log(err));
+  return list;
+};
+
 // 공정흐름도 검색 (모달용)
 const searchProcessCheck = async () => {
   let list = await mariadb.query("selectProcessList")
@@ -169,9 +184,13 @@ const workStop = async (resultDetail, resultRm) => {
   return result
 }
 
-const workStopEq = async(eqId) => {
+const workStopEq = async(eqId, stopReason) => {
 
-  let resInfo = await mariadb.query("updateStopEq", eqId)
+  updateColumns = [ 'stop_reason' ]
+  
+  const data = convertObjToAry(stopReason, updateColumns)
+
+  let resInfo = await mariadb.query("updateStopEq", data, eqId)
   .catch(err => {
     console.error(err);
     return null; // 또는 throw err;
@@ -224,5 +243,7 @@ module.exports = {
   workStop,
   workStopEq,
   resultEnd,
-  updateStatus
+  updateStatus,
+  materialOutList,
+  searchenEq
 };

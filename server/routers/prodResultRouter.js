@@ -18,6 +18,21 @@ router.get('/prodResult', async (req, res) => {
      res.send(resultList);
 });
 
+// [GET]  공통코드 정지 사유 검색 
+router.get('/endEq', async (req, res) => {
+    let resultList = await prodResultService.searchenEq()
+                                           .catch(err => console.log(err));
+     res.send(resultList);
+});
+
+// [GET]  자재 출고 내역 검색 
+router.get('/materialOutbound/:process_code', async (req, res) => {
+    const processCode = req.params.process_code
+    let resultList = await prodResultService.materialOutList(processCode)
+                                           .catch(err => console.log(err));
+     res.send(resultList);
+});
+
 
 // [GET]  설비 검색 
 router.get('/equipment/:eq_type_code', async (req, res) => {
@@ -67,7 +82,8 @@ router.put('/prodEnd/:result_id', async (req, res) => {
 router.put('/eqStatus/:eq_id', async (req, res) => {
   try {
     const eqId = req.params.eq_id;
-    const result = await prodResultService.workEq(eqId);
+    const stopReason = req.body
+    const result = await prodResultService.workEq(stopReason, eqId);
     res.send(result)
   } catch(err) {
     console.error('작업시작 실패: ', err);
