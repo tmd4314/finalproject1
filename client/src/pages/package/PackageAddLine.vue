@@ -70,10 +70,10 @@
         
         <select v-model="statusFilter" class="filter-select">
           <option value="">전체 상태</option>
-          <option value="AVAILABLE">사용가능</option>
-          <option value="WORKING">작업중</option>
-          <option value="MAINTENANCE">점검중</option>
-          <option value="STOPPED">정지</option>
+          <option value="사용가능">사용가능</option>
+          <option value="작업중">작업중</option>
+          <option value="점검중">점검중</option>
+          <option value="정지">정지</option>
         </select>
         
         <button @click="clearFilters" class="filter-reset-btn">초기화</button>
@@ -153,6 +153,7 @@
               <th>생산능력</th>
               <th>담당자</th>
               <th>제품코드</th>
+              <th>작업정보</th>
               <!-- 포장 부서 권한이 있는 경우만 작업 열 표시 -->
               <th v-if="authStore.canManageLines">작업</th>
             </tr>
@@ -178,8 +179,8 @@
               </td>
               <td>{{ line.eq_name || '-' }}</td>
               <td>
-                <span class="status-badge" :class="line.line_status.toLowerCase()">
-                  {{ getStatusText(line.line_status) }}
+                <span class="status-badge" :class="getStatusClass(line.line_status)">
+                  {{ line.line_status || '사용가능' }}
                 </span>
               </td>
               <td>
@@ -192,13 +193,37 @@
               <td>
                 <div class="product-info">
                   <div class="product-code">{{ line.product_code || '-' }}</div>
+                  <div v-if="line.product_name" class="product-name">{{ line.product_name }}</div>
                 </div>
               </td>
-              <!-- 포장 부서 권한이 있는 경우만 수정 버튼 표시 -->
+              <td>
+                <div class="work-info">
+                  <div v-if="line.work_order_no" class="work-order">작업번호: {{ line.work_order_no }}</div>
+                  <div v-if="line.work_start_time" class="work-time">시작: {{ formatDateTime(line.work_start_time) }}</div>
+                  <div v-if="!line.work_order_no" class="no-work">미작업</div>
+                </div>
+              </td>
+              <!-- 포장 부서 권한이 있는 경우만 작업 버튼 표시 -->
               <td v-if="authStore.canManageLines">
-                <button @click="openEditModal(line)" class="btn-edit-single">
-                  수정
-                </button>
+                <div class="action-buttons">
+                  <button @click="openEditModal(line)" class="btn-edit-single">
+                    수정
+                  </button>
+                  <button 
+                    v-if="line.line_status === '사용가능' && !line.work_order_no" 
+                    @click="startLineWork(line)" 
+                    class="btn-start-work"
+                  >
+                    작업시작
+                  </button>
+                  <button 
+                    v-if="line.line_status === '작업중' && line.line_type === 'OUTER'" 
+                    @click="completeOuterWork(line)" 
+                    class="btn-complete-work"
+                  >
+                    작업완료
+                  </button>
+                </div>
               </td>
             </tr>
           </tbody>
@@ -250,11 +275,11 @@
             <div class="form-row">
               <div class="form-group">
                 <label>상태</label>
-                <select v-model="editFormData.line_status">
-                  <option value="AVAILABLE">사용가능</option>
-                  <option value="WORKING">작업중</option>
-                  <option value="MAINTENANCE">점검중</option>
-                  <option value="STOPPED">정지</option>
+                <select v-model="editFormData.line_state">
+                  <option value="s2">사용가능</option>
+                  <option value="s3">작업중</option>
+                  <option value="s4">점검중</option>
+                  <option value="s5">정지</option>
                 </select>
               </div>
               <div class="form-group">
@@ -465,6 +490,58 @@
       </div>
     </div>
 
+    <!-- 작업 시작 모달 -->
+    <div v-if="showWorkStartModal" class="modal-overlay" @click="closeWorkStartModal">
+      <div class="modal-content" @click.stop>
+        <div class="modal-header">
+          <h3>작업 시작</h3>
+          <button @click="closeWorkStartModal" class="modal-close">닫기</button>
+        </div>
+        
+        <div class="modal-body">
+          <div class="work-start-info">
+            <h4>{{ selectedLine?.line_name }} 작업 시작</h4>
+            <p><strong>라인 ID:</strong> {{ selectedLine?.line_id }}</p>
+            <p><strong>라인 타입:</strong> {{ getLineTypeText(selectedLine?.line_type) }}</p>
+            <p><strong>설비명:</strong> {{ selectedLine?.eq_name }}</p>
+          </div>
+
+          <form @submit.prevent="confirmStartWork" class="work-form">
+            <div class="form-group">
+              <label>제품코드 *</label>
+              <select v-model="workStartData.product_code" :class="{ error: workStartErrors.product_code }">
+                <option value="">제품코드 선택</option>
+                <option v-for="product in availableProducts" :key="product.product_code" :value="product.product_code">
+                  {{ product.product_code }} - {{ product.product_name }}
+                </option>
+              </select>
+              <div v-if="workStartErrors.product_code" class="error-message">{{ workStartErrors.product_code }}</div>
+            </div>
+
+            <div v-if="processFlowInfo.length > 0" class="process-flow-info">
+              <h5>공정흐름도 정보</h5>
+              <div v-for="process in processFlowInfo" :key="process.순서" class="process-item">
+                <span class="process-order">{{ process.순서 }}.</span>
+                <span class="process-name">{{ process.공정명 }}</span>
+                <span class="process-type">({{ process.공정유형명 || '포장' }})</span>
+                <span v-if="process.공정시간" class="process-time">{{ process.공정시간 }}</span>
+              </div>
+              <div v-if="processFlowInfo[0]?.공정비고" class="process-remark">
+                <strong>비고:</strong> {{ processFlowInfo[0].공정비고 }}
+              </div>
+            </div>
+          </form>
+        </div>
+        
+        <div class="modal-actions">
+          <button @click="closeWorkStartModal" class="btn-cancel">취소</button>
+          <button @click="confirmStartWork" :disabled="workStarting" class="btn-save">
+            {{ workStarting ? '작업 시작중...' : '작업 시작' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- 권한 알림 모달 -->
     <div v-if="showPermissionModal" class="modal-overlay" @click="closePermissionModal">
       <div class="modal-content" @click.stop>
@@ -523,6 +600,7 @@ const statusFilter = ref('')
 const typeFilter = ref('')
 const loading = ref(false)
 const saving = ref(false)
+const workStarting = ref(false)
 const loadingMessage = ref('데이터를 불러오는 중...')
 
 const currentEmployee = ref(null)
@@ -544,11 +622,13 @@ const selectedLines = ref([])
 // 모달 상태
 const showEditModal = ref(false)
 const showDualModal = ref(false)
+const showWorkStartModal = ref(false)
 const showPermissionModal = ref(false)
 const editingLine = ref(null)
+const selectedLine = ref(null)
 const permissionMessage = ref('')
 
-// 제품코드 목록 추가 (작업결과 대신)
+// 제품코드 목록 추가
 const availableProducts = ref([])
 
 // 담당자 목록 추가
@@ -559,10 +639,13 @@ const availableEquipments = ref([])
 const innerEquipments = ref([])
 const outerEquipments = ref([])
 
-// 폼 데이터 - 작업번호를 제품코드로 변경
+// 공정흐름도 정보
+const processFlowInfo = ref([])
+
+// 폼 데이터 - 제품코드 기반
 const editFormData = ref({
   eq_name: '',
-  line_status: 'AVAILABLE',
+  line_state: 's2',
   max_capacity: 1000,
   current_speed: 30,
   product_code: '',
@@ -586,9 +669,15 @@ const dualFormData = ref({
   description: ''
 })
 
+// 작업 시작 폼 데이터
+const workStartData = ref({
+  product_code: ''
+})
+
 // 유효성 검사 에러
 const editErrors = ref({})
 const dualErrors = ref({})
+const workStartErrors = ref({})
 
 // 사용 가능한 라인 ID 목록
 const availableLineIds = ref([])
@@ -639,7 +728,7 @@ onMounted(async () => {
   await loadCurrentEmployee()
   await loadLines()
   await loadAvailableLineIds()
-  await loadAvailableProducts()  // 제품코드 로드
+  await loadAvailableProducts()
   await loadAvailableEmployees()
   await loadAvailableEquipments()
 })
@@ -652,6 +741,15 @@ watch([selectedLines, sortedLines], () => {
     selectAll.value = selectedLines.value.length === sortedLines.value.length
   }
 }, { deep: true })
+
+// 제품코드 변경 감시 (공정흐름도 조회)
+watch(() => workStartData.value.product_code, async (newProductCode) => {
+  if (newProductCode) {
+    await loadProcessFlow(newProductCode)
+  } else {
+    processFlowInfo.value = []
+  }
+})
 
 // 인증 관련 함수들
 async function handleLogout() {
@@ -720,7 +818,7 @@ async function loadCurrentEmployee() {
   }
 }
 
-// 제품코드 목록 로드 함수 추가 (작업결과 대신)
+// 제품코드 목록 로드 함수 추가
 async function loadAvailableProducts() {
   try {
     const response = await axios.get('/lines/available-products')
@@ -807,6 +905,23 @@ function setDefaultEquipments() {
   ]
 }
 
+// 공정흐름도 로드 함수
+async function loadProcessFlow(productCode) {
+  try {
+    const response = await axios.get(`/lines/process-flow/${productCode}`)
+    
+    if (response.data && response.data.success) {
+      processFlowInfo.value = response.data.data
+      console.log('공정흐름도 로드 성공:', processFlowInfo.value.length, '단계')
+    } else {
+      processFlowInfo.value = []
+    }
+  } catch (error) {
+    console.error('공정흐름도 로드 실패:', error)
+    processFlowInfo.value = []
+  }
+}
+
 function setApiStatus(type, message) {
   apiStatus.value = { type, message }
   
@@ -866,6 +981,102 @@ async function loadAvailableLineIds() {
   }
 }
 
+// 라인 작업 시작 함수
+async function startLineWork(line) {
+  if (!checkPackagingPermission('작업 시작')) return
+  
+  selectedLine.value = line
+  workStartData.value = {
+    product_code: line.product_code || ''
+  }
+  workStartErrors.value = {}
+  showWorkStartModal.value = true
+
+  // 현재 제품코드가 있으면 공정흐름도 로드
+  if (line.product_code) {
+    await loadProcessFlow(line.product_code)
+  }
+}
+
+async function confirmStartWork() {
+  if (!validateWorkStartForm()) return
+  
+  workStarting.value = true
+  workStartErrors.value = {}
+  
+  try {
+    const requestData = {
+      lineId: selectedLine.value.line_id,
+      productCode: workStartData.value.product_code
+    }
+    
+    const response = await axios.post('/lines/start-work', requestData)
+    
+    if (response.data.success) {
+      setApiStatus('success', response.data.message || '작업이 시작되었습니다.')
+      closeWorkStartModal()
+      await loadLines() // 라인 목록 새로고침
+    } else {
+      throw new Error(response.data.message || '작업 시작에 실패했습니다')
+    }
+  } catch (error) {
+    console.error('작업 시작 실패:', error)
+    setApiStatus('error', error.response?.data?.message || `작업 시작 실패: ${error.message}`)
+  } finally {
+    workStarting.value = false
+  }
+}
+
+// 외포장 작업 완료 함수
+async function completeOuterWork(line) {
+  if (!checkPackagingPermission('작업 완료')) return
+  
+  if (!confirm(`${line.line_name} 외포장 작업을 완료하시겠습니까?`)) {
+    return
+  }
+  
+  try {
+    setApiStatus('info', '외포장 작업을 완료하는 중...')
+    
+    const requestData = {
+      lineId: line.line_id,
+      workOrderNo: line.work_order_no,
+      outputQty: line.target_qty || 0
+    }
+    
+    const response = await axios.post('/lines/complete-outer-work', requestData)
+    
+    if (response.data.success) {
+      setApiStatus('success', response.data.message || '외포장 작업이 완료되었습니다.')
+      await loadLines() // 라인 목록 새로고침
+    } else {
+      throw new Error(response.data.message || '작업 완료에 실패했습니다')
+    }
+  } catch (error) {
+    console.error('외포장 작업 완료 실패:', error)
+    setApiStatus('error', error.response?.data?.message || `작업 완료 실패: ${error.message}`)
+  }
+}
+
+function closeWorkStartModal() {
+  showWorkStartModal.value = false
+  selectedLine.value = null
+  workStartData.value = { product_code: '' }
+  processFlowInfo.value = []
+  workStartErrors.value = {}
+}
+
+function validateWorkStartForm() {
+  const newErrors = {}
+  
+  if (!workStartData.value.product_code) {
+    newErrors.product_code = '제품코드를 선택해주세요.'
+  }
+  
+  workStartErrors.value = newErrors
+  return Object.keys(newErrors).length === 0
+}
+
 async function saveLine() {
   if (!checkPackagingPermission('라인 수정')) return
   if (!validateEditForm()) return
@@ -878,10 +1089,10 @@ async function saveLine() {
       line_id: editingLine.value.line_id,
       line_type: editingLine.value.line_type,
       eq_name: editFormData.value.eq_name,
-      line_status: editFormData.value.line_status,
+      line_state: editFormData.value.line_state,
       max_capacity: editFormData.value.max_capacity,
       current_speed: editFormData.value.current_speed,
-      product_code: editFormData.value.product_code,  // 작업번호 대신 제품코드
+      product_code: editFormData.value.product_code,
       target_qty: editFormData.value.target_qty,
       description: editFormData.value.description,
       employee_id: editFormData.value.employee_id,
@@ -906,7 +1117,7 @@ async function saveLine() {
   }
 }
 
-// 수정된 라인 등록 함수 - 작업번호를 제품코드로 변경
+// 수정된 라인 등록 함수 - 제품코드로 변경
 async function dualRegisterLine() {
   if (!checkPackagingPermission('라인 등록')) return
   if (!validateDualForm()) return
@@ -917,7 +1128,7 @@ async function dualRegisterLine() {
   try {
     const requestData = {
       line_id: dualFormData.value.line_id,
-      product_code: dualFormData.value.product_code,  // 작업번호 대신 제품코드
+      product_code: dualFormData.value.product_code,
       inner_eq_name: dualFormData.value.inner_eq_name,
       outer_eq_name: dualFormData.value.outer_eq_name,
       inner_capacity: dualFormData.value.inner_capacity,
@@ -1103,10 +1314,10 @@ function openEditModal(line) {
   
   editFormData.value = {
     eq_name: line.eq_name || '',
-    line_status: line.line_status,
+    line_state: line.line_state || 's2',
     max_capacity: line.max_capacity || 1000,
     current_speed: line.current_speed || 30,
-    product_code: line.product_code || '',  // 작업번호 대신 제품코드
+    product_code: line.product_code || '',
     target_qty: line.target_qty || 0,
     employee_id: line.employee_id || '',
     description: line.description || ''
@@ -1118,13 +1329,13 @@ function openEditModal(line) {
   showEditModal.value = true
 }
 
-// 수정된 모달 열기 함수 - 작업번호를 제품코드로 변경
+// 수정된 모달 열기 함수 - 제품코드로 변경
 async function openDualModal() {
   if (!checkPackagingPermission('라인 등록')) return
   
   dualFormData.value = {
     line_id: '',
-    product_code: '',  // 작업번호 대신 제품코드
+    product_code: '',
     inner_eq_name: '',
     outer_eq_name: '',
     inner_capacity: 1000,
@@ -1140,7 +1351,7 @@ async function openDualModal() {
   
   await loadAvailableLineIds()
   await loadAvailableEmployees()
-  await loadAvailableProducts()  // 작업결과 대신 제품코드 로드
+  await loadAvailableProducts()
   await loadAvailableEquipments()
   showDualModal.value = true
 }
@@ -1151,23 +1362,23 @@ function closeEditModal() {
   editErrors.value = {}
   editFormData.value = {
     eq_name: '',
-    line_status: 'AVAILABLE',
+    line_state: 's2',
     max_capacity: 1000,
     current_speed: 30,
-    product_code: '',  // 작업번호 대신 제품코드
+    product_code: '',
     target_qty: 0,
     employee_id: '',
     description: ''
   }
 }
 
-// 수정된 모달 닫기 함수 - 작업번호를 제품코드로 변경
+// 수정된 모달 닫기 함수 - 제품코드로 변경
 function closeDualModal() {
   showDualModal.value = false
   dualErrors.value = {}
   dualFormData.value = {
     line_id: '',
-    product_code: '',  // 작업번호 대신 제품코드
+    product_code: '',
     inner_eq_name: '',
     outer_eq_name: '',
     inner_capacity: 1000,
@@ -1189,7 +1400,7 @@ function clearFilters() {
 async function refreshData() {
   await loadLines()
   await loadAvailableLineIds()
-  await loadAvailableProducts()  // 작업결과 대신 제품코드 새로고침
+  await loadAvailableProducts()
   await loadAvailableEmployees()
   await loadAvailableEquipments()
 }
@@ -1205,18 +1416,33 @@ function getLineTypeText(type) {
   return type === 'INNER' ? '내포장' : '외포장'
 }
 
-function getStatusText(status) {
+function getStatusClass(status) {
   const statusMap = {
-    'AVAILABLE': '사용가능',
-    'WORKING': '작업중',
-    'MAINTENANCE': '점검중',
-    'STOPPED': '정지'
+    '사용가능': 'available',
+    '작업중': 'working',
+    '점검중': 'maintenance',
+    '정지': 'stopped'
   }
-  return statusMap[status] || status
+  return statusMap[status] || 'available'
 }
 
 function formatNumber(num) {
   return num?.toLocaleString() || '0'
+}
+
+function formatDateTime(dateTime) {
+  if (!dateTime) return ''
+  
+  try {
+    return new Date(dateTime).toLocaleString('ko-KR', {
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  } catch (error) {
+    return dateTime
+  }
 }
 
 defineOptions({
@@ -1225,7 +1451,7 @@ defineOptions({
 </script>
 
 <style scoped>
-/* 기존 스타일 유지 - 아이콘 관련 스타일 제거 */
+/* 기존 스타일 유지 + 추가 스타일 */
 .package-line-management {
   min-height: 100vh;
   background-color: #f8f9fa;
@@ -1373,10 +1599,50 @@ defineOptions({
   font-weight: 500;
   cursor: pointer;
   transition: background-color 0.15s;
+  margin-right: 4px;
 }
 
 .btn-edit-single:hover {
   background: #0056b3;
+}
+
+.btn-start-work {
+  padding: 4px 8px;
+  background: #28a745;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s;
+  margin-right: 4px;
+}
+
+.btn-start-work:hover {
+  background: #1e7e34;
+}
+
+.btn-complete-work {
+  padding: 4px 8px;
+  background: #fd7e14;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.btn-complete-work:hover {
+  background: #e8630a;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
 }
 
 .api-status {
@@ -1680,6 +1946,33 @@ defineOptions({
   color: #495057;
 }
 
+.product-name {
+  font-size: 12px;
+  color: #6c757d;
+}
+
+.work-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.work-order {
+  font-size: 12px;
+  color: #495057;
+  font-weight: 500;
+}
+
+.work-time {
+  font-size: 11px;
+  color: #6c757d;
+}
+
+.no-work {
+  font-size: 12px;
+  color: #adb5bd;
+}
+
 .loading-state, .error-state, .empty-state {
   padding: 40px 20px;
   text-align: center;
@@ -1765,23 +2058,76 @@ defineOptions({
   justify-content: flex-end;
 }
 
-.register-info {
+.register-info, .work-start-info {
   margin-bottom: 20px;
   padding: 16px;
   background: #f8f9fa;
   border-radius: 4px;
 }
 
-.register-info h4 {
+.register-info h4, .work-start-info h4 {
   margin: 0 0 8px 0;
   font-size: 13px;
   font-weight: 600;
 }
 
-.register-info p {
+.register-info p, .work-start-info p {
   margin: 4px 0;
   font-size: 12px;
   color: #495057;
+}
+
+.process-flow-info {
+  margin-top: 16px;
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 4px;
+}
+
+.process-flow-info h5 {
+  margin: 0 0 8px 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #495057;
+}
+
+.process-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0;
+  font-size: 12px;
+}
+
+.process-order {
+  font-weight: 600;
+  color: #007bff;
+}
+
+.process-name {
+  font-weight: 500;
+  color: #495057;
+}
+
+.process-type {
+  color: #6c757d;
+}
+
+.process-time {
+  color: #28a745;
+  font-size: 11px;
+  background: #e8f5e8;
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+.process-remark {
+  margin-top: 8px;
+  padding: 8px;
+  background: #fff3cd;
+  border-radius: 4px;
+  font-size: 11px;
+  color: #856404;
 }
 
 .permission-notice-modal {
@@ -1827,7 +2173,7 @@ defineOptions({
   margin: 4px 0;
 }
 
-.line-form {
+.line-form, .work-form {
   display: flex;
   flex-direction: column;
   gap: 16px;

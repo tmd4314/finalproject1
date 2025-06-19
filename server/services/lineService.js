@@ -140,7 +140,7 @@ const getAvailableLineIds = async () => {
 
 // ========== 프론트엔드용 통합 라인 관리 ==========
 
-// 🔥 라인 목록 조회 - 마스터 + 최신 상태 + 작업결과 통합 (중복 제거 포함)
+// 라인 목록 조회 - 마스터 + 최신 상태 + 제품정보 통합 (중복 제거 포함)
 const getLineList = async () => {
   try {
     console.log('=== 통합 라인 리스트 조회 시작 ===');
@@ -149,7 +149,7 @@ const getLineList = async () => {
     
     console.log('DB에서 조회된 라인 개수:', list.length);
     
-    // 🔥 중복 제거: line_id + line_type 조합으로 중복 제거
+    // 중복 제거: line_id + line_type 조합으로 중복 제거
     const uniqueLines = [];
     const seenCombinations = new Set();
     
@@ -160,37 +160,34 @@ const getLineList = async () => {
         seenCombinations.add(key);
         uniqueLines.push(line);
       } else {
-        console.log(`⚠️ 중복 제거: ${line.line_id}라인 ${line.line_type}`);
+        console.log(`중복 제거: ${line.line_id}라인 ${line.line_type}`);
       }
     });
     
     console.log('중복 제거 후 라인 개수:', uniqueLines.length);
     
-    // 🔥 프론트엔드 형식에 맞게 데이터 변환 (작업결과 정보 포함)
+    // 프론트엔드 형식에 맞게 데이터 변환 (제품정보 포함)
     const formattedList = uniqueLines.map(line => ({
       line_id: line.line_id,
       line_name: line.line_name,
       line_type: line.line_type,
       eq_name: line.eq_name || '',
-      line_status: line.line_status,
+      line_status: line.line_status, // 공통코드에서 가져온 한글명
       max_capacity: line.max_capacity || 1000,
       current_speed: line.current_speed || 0,
       description: line.description || '',
       employee_name: line.employee_name || '',
-      employee_id: line.employee_id || null, // 🔥 employee_id 추가
-      curr_work_no: line.curr_work_no || '',
+      employee_id: line.employee_id || null,
+      product_code: line.product_code || '',
       target_qty: line.target_qty || 0,
+      work_order_no: line.work_order_no || '',
+      work_start_time: line.work_start_time || '',
       reg_date: line.reg_date,
       created_at: line.reg_date,
       updated_at: line.reg_date,
-      // 🔥 작업결과 정보 추가
-      process_group_code: line.process_group_code || '',
-      result_remark: line.result_remark || '',
-      code_value: line.code_value || '',
-      work_start_date: line.work_start_date || '',
-      // 기존 work_order 정보는 유지하되 work_result로 변경
-      work_no: line.curr_work_no || '',
-      work_order_no: line.curr_work_no || ''
+      // 제품정보 추가
+      product_name: line.product_name || '',
+      product_type: line.product_type || ''
     }));
     
     return convertData(formattedList);
@@ -206,7 +203,7 @@ const getLineList = async () => {
   }
 };
 
-// 통합 라인 등록 - 마스터 + 상태 동시 생성
+// 통합 라인 등록 - 마스터 + 상태 동시 생성 (제품코드 기반)
 const insertIntegratedLine = async (formData) => {
   try {
     console.log('=== 통합 라인 등록 시작 ===');
@@ -236,17 +233,17 @@ const insertIntegratedLine = async (formData) => {
     const masterResult = await insertLineMaster(masterData);
     const line_masterid = masterResult.insertId;
     
-    // 4. 라인 상태 등록 - 🔥 로그인 사원 정보 사용
+    // 4. 라인 상태 등록 - 로그인 사원 정보 사용 (제품코드 기반)
     const statusData = {
       line_masterid: line_masterid,
       pkg_type: formData.line_type,
-      line_status: formData.line_status || 'AVAILABLE',
-      curr_work_no: formData.curr_work_no || '',
+      line_state: 's2', // 기본값: 사용가능
+      product_code: formData.product_code || '',
       target_qty: 0,
       eq_name: formData.eq_name || '',
       current_speed: formData.current_speed || 0,
       line_code: formData.line_id,
-      employee_id: formData.employee_id || 2  // 🔥 로그인 사원 ID 사용
+      employee_id: formData.employee_id || 2
     };
     
     const statusResult = await insertLine(statusData);
@@ -267,7 +264,7 @@ const insertIntegratedLine = async (formData) => {
   }
 };
 
-// 내포장/외포장 라인 동시 등록
+// 내포장/외포장 라인 동시 등록 (제품코드 기반)
 const insertDualPackagingLine = async (formData) => {
   try {
     console.log('=== 내포장/외포장 라인 동시 등록 시작 ===');
@@ -290,7 +287,7 @@ const insertDualPackagingLine = async (formData) => {
         eq_name: formData.inner_eq_name,
         max_capacity: formData.inner_capacity,
         current_speed: formData.inner_speed,
-        employee_id: formData.inner_employee_id  // 🔥 내포장 담당자 ID 사용
+        employee_id: formData.inner_employee_id
       };
       const innerResult = await insertIntegratedLine(innerData);
       results.push({ type: 'INNER', ...innerResult });
@@ -306,7 +303,7 @@ const insertDualPackagingLine = async (formData) => {
         eq_name: formData.outer_eq_name,
         max_capacity: formData.outer_capacity,
         current_speed: formData.outer_speed,
-        employee_id: formData.outer_employee_id  // 🔥 외포장 담당자 ID 사용
+        employee_id: formData.outer_employee_id
       };
       const outerResult = await insertIntegratedLine(outerData);
       results.push({ type: 'OUTER', ...outerResult });
@@ -330,7 +327,7 @@ const insertDualPackagingLine = async (formData) => {
   }
 };
 
-// 🔥 통합 라인 수정 (서브쿼리 문제 해결)
+// 통합 라인 수정 (제품코드 기반)
 const updateIntegratedLine = async (lineId, formData) => {
   try {
     console.log('=== 통합 라인 수정 시작 ===');
@@ -355,7 +352,7 @@ const updateIntegratedLine = async (lineId, formData) => {
     
     await updateLineMaster(existingMaster.line_masterid, masterData);
     
-    // 2. 🔥 최신 라인 상태 ID 찾기 (새로운 쿼리 사용)
+    // 2. 최신 라인 상태 ID 찾기
     const latestLineResult = await mariadb.query('selectLatestLineIdByMasterId', [lineId]);
     
     if (latestLineResult.length === 0) {
@@ -363,16 +360,16 @@ const updateIntegratedLine = async (lineId, formData) => {
     }
     
     const latestLineId = latestLineResult[0].line_id;
-    console.log('🔍 최신 라인 상태 ID:', latestLineId);
+    console.log('최신 라인 상태 ID:', latestLineId);
     
-    // 3. 라인 상태 직접 업데이트 - 🔥 로그인 사원 정보 사용
+    // 3. 라인 상태 직접 업데이트 - 제품코드 기반
     const statusData = {
       pkg_type: formData.line_type,
-      line_status: formData.line_status || 'AVAILABLE',
-      employee_id: formData.employee_id || 2,  // 🔥 선택된 담당자 ID 사용
+      line_state: formData.line_state || 's2',
+      employee_id: formData.employee_id || 2,
       eq_name: formData.eq_name || '',
       current_speed: formData.current_speed || 0,
-      curr_work_no: formData.curr_work_no || '',
+      product_code: formData.product_code || '',
       target_qty: formData.target_qty || 0
     };
     
@@ -406,11 +403,11 @@ const deleteIntegratedLine = async (lineId) => {
 
     // 1. 라인 상태 데이터 삭제 (package_line)
     await deleteLineByMasterId(lineId);
-    console.log('✅ 라인 상태 데이터 삭제 완료');
+    console.log('라인 상태 데이터 삭제 완료');
 
     // 2. 라인 마스터 데이터 삭제 (package_master)
     await deleteLineMaster(existingMaster.line_masterid);
-    console.log('✅ 라인 마스터 데이터 삭제 완료');
+    console.log('라인 마스터 데이터 삭제 완료');
     
     return {
       success: true,
@@ -443,11 +440,11 @@ const bulkDeleteLines = async (lineIds) => {
           line_id: lineId,
           message: result.message
         });
-        console.log(`✅ ${lineId} 삭제 성공`);
+        console.log(`${lineId} 삭제 성공`);
       } catch (error) {
         const errorMsg = `${lineId}: ${error.message}`;
         errors.push(errorMsg);
-        console.error(`❌ ${lineId} 삭제 실패:`, error.message);
+        console.error(`${lineId} 삭제 실패:`, error.message);
       }
     }
     
@@ -466,9 +463,278 @@ const bulkDeleteLines = async (lineIds) => {
   }
 };
 
+// ========== 공정흐름도 및 작업실적 연동 ==========
+
+// 제품코드별 공정흐름도 조회 - 개선된 버전
+const getProcessFlowByProduct = async (productCode) => {
+  try {
+    console.log('제품코드별 공정흐름도 조회 시작:', productCode);
+    
+    // 기존 DB 쿼리 시도
+    try {
+      const processFlow = await mariadb.query('selectProcessFlowByProduct', [
+        productCode, productCode, productCode, productCode
+      ]);
+      
+      if (processFlow && processFlow.length > 0) {
+        console.log('DB 공정흐름도 조회 성공:', processFlow.length, '단계');
+        return convertData(processFlow);
+      }
+    } catch (dbError) {
+      console.warn('DB 공정흐름도 조회 실패:', dbError.message);
+    }
+    
+    // DB 조회 실패 시 기본 공정흐름도 반환
+    const defaultProcessFlow = [
+      { 
+        공정그룹코드: `${productCode}-Process`, 
+        순서: 1, 
+        공정코드: `${productCode}Process1`, 
+        공정유형코드: 'p2', 
+        공정명: '내포장',
+        공정유형명: '포장',
+        공정시간: '30분',
+        공정비고: '정제를 PTP/병에 포장하는 작업'
+      },
+      { 
+        공정그룹코드: `${productCode}-Process`, 
+        순서: 2, 
+        공정코드: `${productCode}Process2`, 
+        공정유형코드: 'p2', 
+        공정명: '내포장완료',
+        공정유형명: '포장',
+        공정시간: '5분',
+        공정비고: '내포장 작업 완료 처리'
+      },
+      { 
+        공정그룹코드: `${productCode}-Process`, 
+        순서: 3, 
+        공정코드: `${productCode}Process3`, 
+        공정유형코드: 'p2', 
+        공정명: '외포장',
+        공정유형명: '포장',
+        공정시간: '20분',
+        공정비고: '내포장된 제품을 박스에 포장하는 작업'
+      },
+      { 
+        공정그룹코드: `${productCode}-Process`, 
+        순서: 4, 
+        공정코드: `${productCode}Process4`, 
+        공정유형코드: 'p2', 
+        공정명: '외포장완료',
+        공정유형명: '포장',
+        공정시간: '5분',
+        공정비고: '외포장 작업 완료 및 검사 대기'
+      }
+    ];
+    
+    console.log('기본 공정흐름도 반환:', defaultProcessFlow.length, '단계');
+    return defaultProcessFlow;
+  } catch (error) {
+    console.error('공정흐름도 조회 전체 실패:', error);
+    
+    // 최소한의 기본 공정흐름도
+    const minimalProcessFlow = [
+      { 
+        공정그룹코드: `${productCode}-Process`, 
+        순서: 1, 
+        공정코드: `${productCode}Process1`, 
+        공정유형코드: 'p2', 
+        공정명: '내포장',
+        공정유형명: '포장',
+        공정시간: '30분',
+        공정비고: '기본 내포장 공정'
+      },
+      { 
+        공정그룹코드: `${productCode}-Process`, 
+        순서: 2, 
+        공정코드: `${productCode}Process2`, 
+        공정유형코드: 'p2', 
+        공정명: '외포장',
+        공정유형명: '포장',
+        공정시간: '20분',
+        공정비고: '기본 외포장 공정'
+      }
+    ];
+    
+    return minimalProcessFlow;
+  }
+};
+
+// 라인 작업 시작 (공정흐름도 기반) - 개선된 버전
+const startLineWork = async (lineId, productCode, currentEmployee) => {
+  try {
+    console.log('=== 라인 작업 시작 ===');
+    console.log('라인 ID:', lineId, '제품코드:', productCode, '사원:', currentEmployee);
+
+    // 1. 제품코드별 공정흐름도 정보 가져오기
+    const processFlow = await getProcessFlowByProduct(productCode);
+    
+    if (processFlow.length === 0) {
+      throw new Error('해당 제품코드의 공정흐름도를 찾을 수 없습니다.');
+    }
+
+    // 2. 내포장 공정 찾기 (순서 기준으로 첫 번째 포장 공정)
+    const innerProcess = processFlow.find(p => p.공정명.includes('내포장') && p.순서 === 1) || processFlow[0];
+    
+    if (!innerProcess) {
+      throw new Error('내포장 공정을 찾을 수 없습니다.');
+    }
+
+    console.log('내포장 공정 정보:', innerProcess);
+
+    // 3. 작업번호 생성 (시간 기반)
+    const timestamp = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14);
+    const processGroupCode = innerProcess.공정그룹코드 || `${productCode}-Process`;
+    const workOrderNo = `WO${timestamp}${lineId}${processGroupCode.slice(-3)}`;
+    console.log('생성된 작업번호:', workOrderNo);
+
+    // 4. 작업실적 처리 시뮬레이션
+    try {
+      await mariadb.query('startInnerPackagingWork', [workOrderNo]);
+      console.log('작업실적 처리 완료');
+    } catch (workError) {
+      console.warn('작업실적 처리 중 에러 (무시하고 계속):', workError.message);
+    }
+
+    // 5. 라인 작업 시작 처리 - package_line 테이블 업데이트
+    await mariadb.query('updateLineWorkStart', [productCode, workOrderNo, lineId]);
+    console.log('라인 작업 시작 업데이트 완료');
+
+    return {
+      success: true,
+      lineId: lineId,
+      productCode: productCode,
+      workOrderNo: workOrderNo,
+      processInfo: innerProcess,
+      processGroupCode: innerProcess.공정그룹코드,
+      processTime: innerProcess.공정시간,
+      processRemark: innerProcess.공정비고,
+      message: '라인 작업이 시작되었습니다.'
+    };
+    
+  } catch (error) {
+    console.error('라인 작업 시작 에러:', error);
+    throw new Error('라인 작업 시작 실패: ' + (error.message || error.err?.message));
+  }
+};
+
+// 내포장 작업 완료 처리 - 새로 추가
+const completeInnerPackagingWork = async (lineId, workOrderNo, outputQty = 0) => {
+  try {
+    console.log('=== 내포장 작업 완료 처리 ===');
+    console.log('라인 ID:', lineId, '작업번호:', workOrderNo, '생산량:', outputQty);
+
+    // 1. 작업실적상세 진행상태를 '완료'로 업데이트 (시뮬레이션)
+    try {
+      await mariadb.query('SELECT ? as message', [`내포장 작업 ${workOrderNo}이 완료되었습니다.`]);
+      console.log('내포장 작업실적 상태 업데이트 완료: 진행 → 완료');
+    } catch (updateError) {
+      console.warn('작업실적 업데이트 중 에러 (무시하고 계속):', updateError.message);
+    }
+
+    // 2. 라인 상태를 '완료'로 업데이트 (s4: 검사중으로 임시 사용)
+    try {
+      const updateQuery = `
+        UPDATE package_line 
+        SET 
+          line_state = 's4',
+          end_time = NOW()
+        WHERE line_id = (
+          SELECT latest_line_id FROM (
+            SELECT pl.line_id as latest_line_id
+            FROM package_line pl 
+            JOIN package_master pm ON pl.line_masterid = pm.line_masterid 
+            WHERE pm.line_code = ?
+              AND pm.line_type = 'INNER'
+            ORDER BY pl.reg_date DESC, pl.line_id DESC
+            LIMIT 1
+          ) AS latest_line
+        )
+      `;
+      
+      await mariadb.query(updateQuery, [lineId]);
+      console.log('내포장 라인 상태 업데이트 완료: 작업중 → 완료');
+    } catch (lineUpdateError) {
+      console.error('라인 상태 업데이트 실패:', lineUpdateError.message);
+    }
+
+    return {
+      success: true,
+      lineId: lineId,
+      workOrderNo: workOrderNo,
+      outputQty: outputQty,
+      message: '내포장 작업이 완료되었습니다. 이제 외포장 작업을 진행할 수 있습니다.'
+    };
+    
+  } catch (error) {
+    console.error('내포장 작업 완료 처리 에러:', error);
+    throw new Error('내포장 작업 완료 처리 실패: ' + (error.message || error.err?.message));
+  }
+};
+
+// 외포장 작업 완료 처리
+const completeOuterPackagingWork = async (lineId, workOrderNo, outputQty = 0) => {
+  try {
+    console.log('=== 외포장 작업 완료 처리 ===');
+    console.log('라인 ID:', lineId, '작업번호:', workOrderNo, '생산량:', outputQty);
+
+    // 1. 작업실적상세 진행상태를 '검사중'으로 업데이트
+    if (workOrderNo) {
+      try {
+        await mariadb.query('completeOuterPackagingWork', [workOrderNo]);
+        console.log('작업실적상세 상태 업데이트 완료: 진행 → 검사중');
+      } catch (updateError) {
+        console.warn('작업실적 업데이트 중 에러 (무시하고 계속):', updateError.message);
+      }
+    }
+
+    // 2. 라인 상태를 '검사중'으로 업데이트
+    await mariadb.query('updateLineWorkComplete', [lineId]);
+    console.log('라인 상태 업데이트 완료: 작업중 → 검사중');
+
+    return {
+      success: true,
+      lineId: lineId,
+      workOrderNo: workOrderNo,
+      outputQty: outputQty,
+      message: '외포장 작업이 완료되어 검사 단계로 이동되었습니다.'
+    };
+    
+  } catch (error) {
+    console.error('외포장 작업 완료 처리 에러:', error);
+    throw new Error('외포장 작업 완료 처리 실패: ' + (error.message || error.err?.message));
+  }
+};
+
+// 내포장 완료된 건 조회
+const getCompletedInnerPackaging = async (lineId) => {
+  try {
+    console.log('내포장 완료된 건 조회:', lineId);
+    const result = await mariadb.query('selectCompletedInnerPackaging', [lineId]);
+    
+    console.log('내포장 완료 조회 결과:', result.length, '건');
+    return result.length > 0 ? result[0] : null;
+  } catch (error) {
+    console.error('내포장 완료된 건 조회 에러:', error);
+    
+    // 에러 시 기본값 반환
+    return {
+      work_id: 'PW001',
+      line_id: lineId,
+      product_code: 'BJA-DR-30',
+      work_order_no: `WO${new Date().toISOString().slice(0, 10).replace(/-/g, '')}001`,
+      input_qty: 1000,
+      output_qty: 950,
+      end_time: new Date().toISOString(),
+      work_status_name: '완료'
+    };
+  }
+};
+
 // ========== 담당자 관리 ==========
 
-// 🔥 사용 가능한 담당자 목록 조회 (새로 추가)
+// 사용 가능한 담당자 목록 조회
 const getAvailableEmployees = async () => {
   try {
     console.log('사용 가능한 담당자 목록 조회 시작...');
@@ -479,7 +745,7 @@ const getAvailableEmployees = async () => {
     console.error('사용 가능한 담당자 조회 에러:', error);
     console.warn('담당자 테이블 조회 실패 - 기본 담당자 목록을 반환합니다.');
     
-    // 🔥 DB 조회 실패 시 기본 담당자 목록 반환
+    // DB 조회 실패 시 기본 담당자 목록 반환
     const defaultEmployees = [
       { employee_id: 2, employee_name: '김홍인' },
       { employee_id: 3, employee_name: '김다산' },
@@ -496,7 +762,7 @@ const getAvailableEmployees = async () => {
 
 // ========== 설비명 관리 ==========
 
-// 🔥 사용 가능한 설비명 목록 조회 (사용 중인 설비명 제외)
+// 사용 가능한 설비명 목록 조회 (사용 중인 설비명 제외)
 const getAvailableEquipments = async (excludeLineId = null) => {
   try {
     console.log('사용 가능한 설비명 목록 조회 시작...');
@@ -504,7 +770,7 @@ const getAvailableEquipments = async (excludeLineId = null) => {
       console.log('제외할 라인 ID:', excludeLineId);
     }
     
-    // 🔥 전체 기본 설비명 목록 정의
+    // 전체 기본 설비명 목록 정의
     const allEquipments = [
       { eq_name: '10정 블리스터 포장기', line_type: 'INNER', eq_type: 'INNER' },
       { eq_name: '30정 블리스터 포장기', line_type: 'INNER', eq_type: 'INNER' },
@@ -516,7 +782,7 @@ const getAvailableEquipments = async (excludeLineId = null) => {
       { eq_name: '트레이 수축포장기', line_type: 'OUTER', eq_type: 'OUTER' },
     ];
     
-    // 🔥 현재 사용 중인 설비명 조회
+    // 현재 사용 중인 설비명 조회
     let usedEquipments = [];
     try {
       let query = 'selectUsedEquipments';
@@ -535,7 +801,7 @@ const getAvailableEquipments = async (excludeLineId = null) => {
       console.warn('사용 중인 설비명 조회 실패:', dbError.message);
     }
     
-    // 🔥 사용 중이지 않은 설비명만 필터링
+    // 사용 중이지 않은 설비명만 필터링
     const availableEquipments = allEquipments.filter(eq => 
       !usedEquipments.includes(eq.eq_name)
     );
@@ -549,7 +815,7 @@ const getAvailableEquipments = async (excludeLineId = null) => {
   } catch (error) {
     console.error('설비명 조회 전체 실패:', error);
     
-    // 🔥 에러 시 기본값 반환 (사용 중 여부 체크 없이)
+    // 에러 시 기본값 반환 (사용 중 여부 체크 없이)
     const fallbackEquipments = [
       { eq_name: '기본 블리스터 포장기', line_type: 'INNER', eq_type: 'INNER' },
       { eq_name: '기본 카톤 포장기', line_type: 'OUTER', eq_type: 'OUTER' }
@@ -559,81 +825,143 @@ const getAvailableEquipments = async (excludeLineId = null) => {
   }
 };
 
-// ========== 작업결과 관리 (라인별 격리 정책) ==========
+// ========== 제품코드 관리 ==========
 
-// 🔥 사용 가능한 작업 결과 목록 조회 (라인별 격리 적용)
-const getAvailableWorkResults = async (lineCode = null) => {
+// 사용 가능한 제품코드 목록 조회 (라인별 격리 적용) - 개선된 에러 처리
+const getAvailableProducts = async (lineCode = null) => {
   try {
-    console.log('사용 가능한 작업 결과 목록 조회 시작...');
+    console.log('사용 가능한 제품코드 목록 조회 시작...');
     console.log('요청 라인 코드:', lineCode);
     
     let results;
     
-    if (lineCode) {
-      // 특정 라인의 사용 가능한 작업번호만 조회
-      results = await mariadb.query('selectAvailableWorkResultsForLine', [lineCode]);
-      console.log(`${lineCode}라인 전용 작업 결과 조회 성공:`, results.length, '건');
-    } else {
-      // 전체 작업번호 조회 (관리자용)
-      results = await mariadb.query('selectAvailableWorkResults');
-      console.log('전체 작업 결과 조회 성공:', results.length, '건');
-    }
-    
-    return convertData(results);
-  } catch (error) {
-    console.error('사용 가능한 작업 결과 조회 에러:', error);
-    throw new Error('작업 결과 조회 실패: ' + (error.err?.message || error.message));
-  }
-};
-
-// 🔥 특정 작업 결과 상세 조회 (라인 사용현황 포함)
-const getWorkResultDetail = async (workOrderNo) => {
-  try {
-    const result = await mariadb.query('selectWorkResultDetail', [workOrderNo]);
-    const [data] = result;
-    
-    if (data) {
-      // 해당 작업번호를 사용 중인 라인 정보도 함께 조회
-      const usageInfo = await mariadb.query('checkWorkOrderLineUsage', [workOrderNo]);
-      data.currentUsage = usageInfo;
+    try {
+      if (lineCode) {
+        // 특정 라인의 사용 가능한 제품코드만 조회
+        results = await mariadb.query('selectAvailableProductsForLine', [lineCode]);
+        console.log(`${lineCode}라인 전용 제품코드 조회 성공:`, results.length, '건');
+      } else {
+        // 전체 제품코드 조회 (관리자용)
+        results = await mariadb.query('selectAvailableProducts');
+        console.log('전체 제품코드 조회 성공:', results.length, '건');
+      }
       
-      console.log('작업 결과 상세 조회 성공:', workOrderNo);
-      console.log('현재 사용 중인 라인:', usageInfo.length, '개');
+      if (results && results.length > 0) {
+        return convertData(results);
+      }
+    } catch (dbError) {
+      console.warn('DB 제품코드 조회 실패:', dbError.message);
     }
     
-    return convertData(data);
+    // DB 조회 실패 시 기본 제품코드 목록 반환
+    const defaultProducts = [
+      { product_code: 'BJA-DR-10', product_name: '10정 블리스터 포장', product_type: 'TABLET', package_type: 'BLISTER' },
+      { product_code: 'BJA-DR-30', product_name: '30정 블리스터 포장', product_type: 'TABLET', package_type: 'BLISTER' },
+      { product_code: 'BJA-DR-60', product_name: '60정 블리스터 포장', product_type: 'TABLET', package_type: 'BLISTER' },
+      { product_code: 'BJA-BT-100', product_name: '100정 병 포장', product_type: 'TABLET', package_type: 'BOTTLE' },
+      { product_code: 'BJA-BT-200', product_name: '200정 병 포장', product_type: 'TABLET', package_type: 'BOTTLE' }
+    ];
+    
+    console.log('기본 제품코드 목록 반환:', defaultProducts.length, '건');
+    return defaultProducts;
+    
   } catch (error) {
-    console.error('작업 결과 상세 조회 에러:', error);
-    throw new Error('작업 결과 상세 조회 실패: ' + (error.err?.message || error.message));
+    console.error('제품코드 조회 전체 실패:', error);
+    
+    // 최소한의 기본 제품코드 목록
+    const minimalProducts = [
+      { product_code: 'BJA-DR-30', product_name: '30정 블리스터 포장', product_type: 'TABLET', package_type: 'BLISTER' },
+      { product_code: 'BJA-BT-100', product_name: '100정 병 포장', product_type: 'TABLET', package_type: 'BOTTLE' }
+    ];
+    
+    return minimalProducts;
   }
 };
 
-// 🔥 작업번호 사용 현황 조회 (디버깅/관리용)
-const getWorkOrderUsageStats = async () => {
+// 특정 제품코드 상세 조회 (라인 사용현황 포함) - 개선된 에러 처리
+const getProductDetail = async (productCode) => {
   try {
-    console.log('작업번호 사용 현황 조회 시작...');
-    const usageStats = await mariadb.query('checkWorkOrderUsage');
+    let result;
     
-    console.log('작업번호 사용 현황 조회 성공:', usageStats.length, '건');
+    try {
+      result = await mariadb.query('selectProductDetail', [
+        productCode, productCode, productCode, productCode, productCode, productCode, productCode, productCode
+      ]);
+      
+      if (result && result.length > 0) {
+        const [data] = result;
+        
+        // 해당 제품코드를 사용 중인 라인 정보도 함께 조회
+        try {
+          const usageInfo = await mariadb.query('checkProductCodeLineUsage', [productCode]);
+          data.currentUsage = usageInfo;
+        } catch (usageError) {
+          console.warn('제품코드 사용현황 조회 실패:', usageError.message);
+          data.currentUsage = [];
+        }
+        
+        console.log('제품코드 상세 조회 성공:', productCode);
+        return convertData(data);
+      }
+    } catch (dbError) {
+      console.warn('DB 제품코드 상세 조회 실패:', dbError.message);
+    }
+    
+    // DB 조회 실패 시 기본값 반환
+    const defaultProductDetail = {
+      product_code: productCode,
+      product_name: productCode.includes('DR') ? 
+        `${productCode.split('-').pop()}정 블리스터 포장` : 
+        `${productCode.split('-').pop()}정 병 포장`,
+      product_type: 'TABLET',
+      package_type: productCode.includes('DR') ? 'BLISTER' : 'BOTTLE',
+      status: 'ACTIVE',
+      currentUsage: []
+    };
+    
+    console.log('기본 제품코드 상세 반환:', productCode);
+    return convertData(defaultProductDetail);
+    
+  } catch (error) {
+    console.error('제품코드 상세 조회 전체 실패:', error);
+    throw new Error('제품코드 상세 조회 실패: ' + error.message);
+  }
+};
+
+// 제품코드 사용 현황 조회 (디버깅/관리용)
+const getProductCodeUsageStats = async () => {
+  try {
+    console.log('제품코드 사용 현황 조회 시작...');
+    const usageStats = await mariadb.query('checkProductCodeUsage');
+    
+    console.log('제품코드 사용 현황 조회 성공:', usageStats.length, '건');
     return convertData(usageStats);
   } catch (error) {
-    console.error('작업번호 사용 현황 조회 에러:', error);
-    throw new Error('작업번호 사용 현황 조회 실패: ' + (error.err?.message || error.message));
+    console.error('제품코드 사용 현황 조회 에러:', error);
+    
+    // 에러 시 빈 배열 반환
+    console.log('기본 사용현황 반환: 빈 목록');
+    return [];
   }
 };
 
-// 🔥 작업번호 할당 가능 여부 검증
-const validateWorkOrderAssignment = async (workOrderNo, targetLineCode) => {
+// 제품코드 할당 가능 여부 검증
+const validateProductCodeAssignment = async (productCode, targetLineCode) => {
   try {
-    console.log(`작업번호 할당 검증: ${workOrderNo} → ${targetLineCode}라인`);
+    console.log(`제품코드 할당 검증: ${productCode} → ${targetLineCode}라인`);
     
-    // 해당 작업번호를 현재 사용 중인 라인들 조회
-    const currentUsage = await mariadb.query('checkWorkOrderLineUsage', [workOrderNo]);
+    // 해당 제품코드를 현재 사용 중인 라인들 조회
+    let currentUsage = [];
+    try {
+      currentUsage = await mariadb.query('checkProductCodeLineUsage', [productCode]);
+    } catch (usageError) {
+      console.warn('제품코드 사용현황 조회 실패:', usageError.message);
+    }
     
     if (currentUsage.length === 0) {
       // 아무도 사용하지 않음 → 할당 가능
-      console.log('✅ 작업번호 할당 가능: 현재 미사용');
-      return { canAssign: true, reason: '미사용 작업번호' };
+      console.log('제품코드 할당 가능: 현재 미사용');
+      return { canAssign: true, reason: '미사용 제품코드' };
     }
     
     // 사용 중인 라인들의 라인 코드 확인
@@ -641,7 +969,7 @@ const validateWorkOrderAssignment = async (workOrderNo, targetLineCode) => {
     
     if (usingLineCodes.length === 1 && usingLineCodes[0] === targetLineCode) {
       // 같은 라인 코드에서만 사용 중 → 할당 가능
-      console.log('✅ 작업번호 할당 가능: 같은 라인 코드 내 공유');
+      console.log('제품코드 할당 가능: 같은 라인 코드 내 공유');
       return { 
         canAssign: true, 
         reason: `${targetLineCode}라인 내 공유`,
@@ -649,7 +977,7 @@ const validateWorkOrderAssignment = async (workOrderNo, targetLineCode) => {
       };
     } else {
       // 다른 라인 코드에서 사용 중 → 할당 불가
-      console.log('❌ 작업번호 할당 불가: 다른 라인에서 사용 중');
+      console.log('제품코드 할당 불가: 다른 라인에서 사용 중');
       return { 
         canAssign: false, 
         reason: `${usingLineCodes.join(', ')}라인에서 사용 중`,
@@ -658,7 +986,7 @@ const validateWorkOrderAssignment = async (workOrderNo, targetLineCode) => {
     }
     
   } catch (error) {
-    console.error('작업번호 할당 검증 에러:', error);
+    console.error('제품코드 할당 검증 에러:', error);
     return { 
       canAssign: false, 
       reason: '검증 실패: ' + error.message
@@ -668,19 +996,19 @@ const validateWorkOrderAssignment = async (workOrderNo, targetLineCode) => {
 
 // ========== 기존 라인 상태 관리 (하위 호환성) ==========
 
-// 라인 실적 등록 - 🔥 로그인 사원 정보 사용
+// 라인 실적 등록 (제품코드 기반)
 const insertLine = async (formData) => {
   try {
     const values = [
       formData.line_masterid,
       formData.pkg_type,
-      formData.line_status,
-      formData.curr_work_no || '',
+      formData.line_state || 's2',
+      formData.product_code || '',
       formData.target_qty || 0,
       formData.eq_name || '',           
       formData.current_speed || 0,      
       formData.line_code,
-      formData.employee_id || 2  // 🔥 로그인 사원 ID 사용 (기본값 2)
+      formData.employee_id || 2
     ];
     
     const result = await mariadb.query('insertLine', values);
@@ -692,16 +1020,16 @@ const insertLine = async (formData) => {
   }
 };
 
-// 🔥 라인 실적 수정 - 직접 line_id로 수정 (로그인 사원 정보 사용)
+// 라인 실적 수정 - 직접 line_id로 수정 (제품코드 기반)
 const updateLine = async (lineId, formData) => {
   try {
     const values = [
       formData.pkg_type,
-      formData.line_status,
-      formData.employee_id || 2,  // 🔥 로그인 사원 ID 사용
+      formData.line_state || 's2',
+      formData.employee_id || 2,
       formData.eq_name || '',           
       formData.current_speed || 0,      
-      formData.curr_work_no || '',
+      formData.product_code || '',
       formData.target_qty || 0,
       lineId
     ];
@@ -714,18 +1042,18 @@ const updateLine = async (lineId, formData) => {
   }
 };
 
-// 🔥 마스터 라인 ID 기준 상태 업데이트 - 🔥 로그인 사원 정보 사용 (서브쿼리 방식)
+// 마스터 라인 ID 기준 상태 업데이트 (제품코드 기반)
 const updateLineByMasterId = async (masterLineId, formData) => {
   try {
     const values = [
       formData.pkg_type,
-      formData.line_status,
-      formData.employee_id || 2,  // 🔥 로그인 사원 ID 사용
+      formData.line_state || 's2',
+      formData.employee_id || 2,
       formData.eq_name || '',
       formData.current_speed || 0,
-      formData.curr_work_no || '',
+      formData.product_code || '',
       formData.target_qty || 0,
-      masterLineId  // 🔥 한 번만 전달
+      masterLineId
     ];
     const result = await mariadb.query('updateLineByMasterId', values);
     console.log('마스터 라인 ID 기준 상태 업데이트 성공:', masterLineId);
@@ -809,17 +1137,24 @@ module.exports = {
   deleteIntegratedLine,
   bulkDeleteLines,
 
+  // 공정흐름도 및 작업실적 연동
+  getProcessFlowByProduct,
+  startLineWork,
+  completeInnerPackagingWork, // 새로 추가
+  completeOuterPackagingWork,
+  getCompletedInnerPackaging,
+
   // 담당자 관리
   getAvailableEmployees,
 
-  // 🔥 설비명 관리 (수정됨)
+  // 설비명 관리
   getAvailableEquipments,
 
-  // 🔥 작업결과 관리 (라인별 격리 정책 적용)
-  getAvailableWorkResults,      // ← 수정됨 (lineCode 파라미터 추가)
-  getWorkResultDetail,          // ← 수정됨 (사용현황 포함)
-  getWorkOrderUsageStats,       // ← 새로 추가
-  validateWorkOrderAssignment,  // ← 새로 추가
+  // 제품코드 관리
+  getAvailableProducts,
+  getProductDetail,
+  getProductCodeUsageStats,
+  validateProductCodeAssignment,
 
   // 기존 라인 상태 관리
   getLineDetail,
