@@ -76,7 +76,7 @@ WHERE pm.plan_id NOT IN (
     AND (? = '' OR pm.plan_id LIKE CONCAT('%', ?, '%'))
 ORDER BY pm.plan_end_dt ASC;`;
 
-// 5. 계획 정보 불러오기
+// 5. 계획 정보 불러오기 (계획 시작일, 종료일 추가)
 const getPlanInfo = `SELECT 
             pm.plan_id,
             pm.employee_name,

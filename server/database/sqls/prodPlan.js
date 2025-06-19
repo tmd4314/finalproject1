@@ -45,7 +45,7 @@ const searchProdPlanOrders = `
   ORDER BY om.order_date DESC, om.order_id DESC
 `;
 
-// 3. 생산계획 검색 (모달용) - employee_name으로 변경
+// 3. 생산계획 검색 (모달용) 
 const searchProdPlanList = `
   SELECT 
     pm.plan_id,
@@ -79,7 +79,7 @@ const searchProdPlanList = `
   ORDER BY pm.plan_reg_dt DESC, pm.plan_id DESC
 `;
 
-// 4. 생산계획 마스터 정보 조회 - employee_name으로 변경
+// 4. 생산계획 마스터 정보 조회 
 const getProdPlanInfo = `
   SELECT 
     pm.plan_id,
@@ -126,7 +126,7 @@ const getProdPlanProducts = `
   ORDER BY pd.plan_detail_id
 `;
 
-// 6. 생산계획 목록 조회 (불러오기용) - employee_name으로 변경
+// 6. 생산계획 목록 조회 (불러오기용) 
 const getProdPlanList = `
   SELECT 
     pm.plan_id,
@@ -211,7 +211,7 @@ const generateProdPlanId = `
   WHERE plan_id LIKE CONCAT('PL', DATE_FORMAT(NOW(), '%Y%m%d'), '%')
 `;
 
-// 10. 생산계획 마스터 저장 (신규/수정 통합) - employee_name으로 변경
+// 10. 생산계획 마스터 저장 (신규/수정 통합) 
 const saveProdPlan = `
   INSERT INTO production_plan_master (
     plan_id, plan_name, order_id, employee_name, plan_reg_dt,
@@ -236,7 +236,7 @@ const insertProdPlanProduct = `
   ) VALUES (?, ?, ?);
 `;
 
-// 12. 생산계획 통합조회 목록 - employee_name으로 변경
+// 12. 생산계획 통합조회 목록 
 const getProdPlanIntegratedList = `
   SELECT 
     pm.plan_id,
