@@ -4,7 +4,7 @@
       <div>
         <!-- 제품 등록 폼 -->
         <div class="product-form">
-          <h3 class="form-title">불량품기준 등록</h3>
+          <h3 class="form-title">불량품검사 등록</h3>
           <va-input v-model="form.name" label="제품명" />
           <va-input v-model="form.code" label="작업지시서번호" />
           <va-input v-model="form.processStage" label="공정단계" />
@@ -20,12 +20,8 @@
           </va-radio-group>
 
           <div class="form-buttons">
-            <va-button @click="registerProduct" color="primary">등록</va-button>
-            <va-button @click="resetForm" color="secondary">초기화</va-button>
-          </div>
-
-          <div class="form-buttons">
-
+            <!-- <va-button @click="registerProduct" color="primary">등록</va-button>
+            <va-button @click="resetForm" color="secondary">초기화</va-button> -->
           </div>
         </div>
       </div>
@@ -46,27 +42,6 @@ const form = ref({
   detail: '',
   judgment: '',
 })
-
-function resetForm() {
-  form.value = {
-    name: '', code: '', processStage: '', faultyType: '', faultyQuantity: '',
-    occurDate: '', detail: '', judgment: ''
-  }
-}
-
-function registerProduct() {
-  if (!form.value.code || !form.value.name) return alert('필수값 누락')
-  alert(`등록된 제품: ${form.value.name} (${form.value.code})`)
-  resetForm()
-}
-
-function updateProduct() {
-  alert('수정 기능은 아직 구현되지 않았습니다.')
-}
-
-function deleteProduct() {
-  alert('삭제 기능은 아직 구현되지 않았습니다.')
-}
 </script>
 
 <style scoped>

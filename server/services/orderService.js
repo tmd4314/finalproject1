@@ -217,11 +217,34 @@ const deleteOrder = async (orderId) => {
 };
 
 
+// 상태 변경 함수
+const updateOrderStatusSimple = async (orderId, newStatus) => {
+    try {
+        const result = await mariadb.query("updateOrderStatus", [newStatus, orderId]);
+        
+        if (!result || result.affectedRows === 0) {
+            throw new Error('주문 상태 변경 실패');
+        }
+
+        return {
+            success: true,
+            message: '주문 상태가 변경되었습니다.'
+        };
+
+    } catch (error) {
+        console.error('주문 상태 변경 실패:', error);
+        throw error;
+    }
+};
+
+
+
 module.exports = {
     findAllOrders,
     findOrderDetail,
     findAllOrdersWithItems,
     addOrderTransaction,
     updateOrder,
-    deleteOrder
+    deleteOrder,
+    updateOrderStatusSimple
 };

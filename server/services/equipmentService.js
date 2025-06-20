@@ -199,6 +199,12 @@ const rawQuery = async (sql, params = []) => {
   return convertData(result);
 };
 
+// 설비 조회 페이지 전용 서비스 추가ㅠㅠ 시간이 없음
+const getEquipmentListForInquiry = async () => {
+  const list = await mariadb.query('selectEquipmentListForInquiry');
+  return convertData(list);
+};
+
 module.exports = {
   insertEquipment,
   getEquipmentList,
@@ -207,5 +213,6 @@ module.exports = {
   equipmentUpdate,
   deleteEquipment,
   deleteMultipleEquipments,
-  rawQuery
+  rawQuery,
+  getEquipmentListForInquiry
 };

@@ -7,7 +7,7 @@
     <div class="flex justify-end mb-6">
       <div class="flex gap-2">
         <VaButton @click="goBack" color="secondary" class="w-32">목록</VaButton>
-        <VaButton color="info" @click="goToFullHistory">전체 이력 조회</VaButton>
+        <VaButton color="info" @click="goToFullHistory">점검 이력 조회</VaButton>
       </div>
     </div>
 
@@ -75,100 +75,6 @@
       </div>
     </div>
 
-    <!-- 탭 이력 -->
-    <VaTabs v-model="activeTab">
-      <VaTab name="downtime">비가동 이력</VaTab>
-      <VaTab name="inspection">점검 이력</VaTab>
-      <VaTab name="cleaning">청소 이력</VaTab>
-    </VaTabs>
-
-    <VaInnerLoading :loading="loading">
-      <div v-if="activeTab === 'downtime'" class="history-table">
-        <div v-if="downtimeHistory.length === 0" class="text-center py-4 text-gray-500">
-          비가동 이력이 없습니다.
-        </div>
-        <table v-else class="va-table w-full">
-          <thead>
-            <tr>
-              <th>발생일시</th>
-              <th>복구일시</th>
-              <th>총비가동시간</th>
-              <th>사유</th>
-              <th>비고</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="(item, index) in downtimeHistory" :key="index">
-              <td>{{ item.발생일시 }}</td>
-              <td>{{ item.복구일시 }}</td>
-              <td>{{ item.총비가동시간 }}분</td>
-              <td>{{ item.사유 }}</td>
-              <td>{{ item.비고 }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <div v-else-if="activeTab === 'inspection'" class="history-table">
-        <div v-if="inspectionHistory.length === 0" class="text-center py-4 text-gray-500">
-          점검 이력이 없습니다.
-        </div>
-        <table v-else class="va-table w-full">
-          <thead>
-            <tr>
-              <th>점검일시</th>
-              <th>점검유형</th>
-              <th>점검항목</th>
-              <th>판정결과</th>
-              <th>비고</th>
-              <th>작업자</th>
-              <th>확인자</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="(item, index) in inspectionHistory" :key="index">
-              <td>{{ item.점검일시 }}</td>
-              <td>{{ item.점검유형 }}</td>
-              <td>{{ item.점검항목 }}</td>
-              <td>{{ item.판정결과 }}</td>
-              <td>{{ item.비고 }}</td>
-              <td>{{ item.작업자 }}</td>
-              <td>{{ item.확인자 }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <div v-else-if="activeTab === 'cleaning'" class="history-table">
-        <div v-if="cleaningHistory.length === 0" class="text-center py-4 text-gray-500">
-          청소 이력이 없습니다.
-        </div>
-        <table v-else class="va-table w-full">
-          <thead>
-            <tr>
-              <th>청소일시</th>
-              <th>청소항목</th>
-              <th>사용약품</th>
-              <th>판정결과</th>
-              <th>비고</th>
-              <th>작업자</th>
-              <th>확인자</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="(item, index) in cleaningHistory" :key="index">
-              <td>{{ item.청소일시 }}</td>
-              <td>{{ item.청소항목 }}</td>
-              <td>{{ item.사용약품 }}</td>
-              <td>{{ item.판정결과 }}</td>
-              <td>{{ item.비고 }}</td>
-              <td>{{ item.작업자 }}</td>
-              <td>{{ item.확인자 }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </VaInnerLoading>
   </div>
 </template>
 
@@ -276,7 +182,7 @@ const goBack = () => {
 }
 
 const goToFullHistory = () => {
-  router.push(`/equipments/${equipmentId}/history`)
+  router.push(`/faq/equipment-history`)
 }
 
 const onImageError = (event: Event) => {

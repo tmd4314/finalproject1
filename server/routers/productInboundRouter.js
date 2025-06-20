@@ -1,4 +1,4 @@
-// server/routers/productInboundRouter.js - 제품 입고 관리 라우터
+// server/routers/productInboundRouter.js - 제품 입고 관리 라우터 (포장공정 완료 조건 추가)
 
 const express = require('express');
 const router = express.Router();
@@ -6,10 +6,11 @@ const productInboundService = require('../services/productInboundService');
 
 // ========== 조회 API ==========
 
-// [GET] /productInbound/waiting-list - 입고 대기 목록 조회 (특정 날짜 검색)
+// [GET] /productInbound/waiting-list - 입고 대기 목록 조회 (포장공정 완료 조건 적용)
 router.get('/waiting-list', async (req, res) => {
   try {
     console.log('=== 입고 대기 목록 조회 API 호출 ===');
+    console.log('포장공정 완료 조건 적용: process_seq = 7, code_value = p5');
     
     const {
       result_id = '',
@@ -29,9 +30,9 @@ router.get('/waiting-list', async (req, res) => {
 
     const result = await productInboundService.getInboundWaitingList(searchParams);
     
-    console.log(`조회 결과: ${result.length}건 (중복 제거 적용)`);
+    console.log(`조회 결과: ${result.length}건 (포장공정 완료 조건 + 중복 제거 적용)`);
     
-    // 중복 제거 상태 체크
+    // 포장공정 완료 조건 결과 분석
     if (result.length > 0) {
       const uniqueKeys = new Set();
       const duplicates = [];
@@ -45,19 +46,29 @@ router.get('/waiting-list', async (req, res) => {
       });
       
       if (duplicates.length > 0) {
-        console.warn('⚠️ 중복 데이터 발견:', duplicates.length, '건');
+        console.warn('⚠️ 포장공정 완료 제품 중 중복 데이터 발견:', duplicates.length, '건');
         console.warn('중복 상세:', duplicates);
       } else {
-        console.log('✅ 중복 제거 성공: 고유 조합', uniqueKeys.size, '건');
+        console.log('✅ 포장공정 완료 제품 중복 제거 성공: 고유 조합', uniqueKeys.size, '건');
       }
+      
+      console.log('포장공정 완료 제품 입고 대기 현황:', {
+        총입고대기건수: result.length,
+        검색조건적용: Object.values(searchParams).some(v => v) ? '적용됨' : '전체조회'
+      });
+    } else {
+      console.log('⚠️ 포장공정이 완료되어 입고 대기 중인 제품이 없습니다.');
+      console.log('확인사항: 1) 포장공정 완료 여부, 2) process_seq=7 데이터 존재 여부, 3) code_value=p5 상태');
     }
     
     res.json(result);
   } catch (err) {
     console.error('입고 대기 목록 조회 API 오류:', err);
+    console.error('포장공정 완료 조건 처리 중 오류 발생 - process 테이블 조인 관련 확인 필요');
     res.status(500).json({ 
-      error: '입고 대기 목록 조회에 실패했습니다.',
-      details: err.message 
+      error: '포장공정 완료된 제품의 입고 대기 목록 조회에 실패했습니다.',
+      details: err.message,
+      suggestion: 'process 테이블과 work_result 테이블 간 조인 조건을 확인해주세요.'
     });
   }
 });
@@ -187,10 +198,11 @@ router.get('/status/:resultId/:productCode', async (req, res) => {
 
 // ========== 처리 API ==========
 
-// [POST] /productInbound/process - 단일 제품 입고 처리 (순차적 LOT 번호 생성)
+// [POST] /productInbound/process - 단일 제품 입고 처리 (포장공정 완료 제품)
 router.post('/process', async (req, res) => {
   try {
     console.log('=== 단일 제품 입고 처리 API 호출 ===');
+    console.log('포장공정 완료 제품 입고 처리 시작');
     console.log('요청 데이터:', req.body);
     
     const {
@@ -229,11 +241,11 @@ router.post('/process', async (req, res) => {
       work_order_no
     };
 
-    console.log('처리할 입고 데이터:', inboundData);
+    console.log('포장공정 완료 제품 입고 처리 데이터:', inboundData);
 
     const result = await productInboundService.processInbound(inboundData);
     
-    console.log('입고 처리 성공:', result);
+    console.log('포장공정 완료 제품 입고 처리 성공:', result);
     
     // 성공 응답에 추가 정보 포함
     const response = {
@@ -243,14 +255,15 @@ router.post('/process', async (req, res) => {
         result_id,
         product_code,
         quantity: qty,
-        generated_lot: result.lot_number
+        generated_lot: result.lot_number,
+        process_condition: '포장공정 완료 제품'
       }
     };
     
     res.status(201).json(response);
     
   } catch (err) {
-    console.error('단일 제품 입고 처리 API 오류:', err);
+    console.error('포장공정 완료 제품 입고 처리 API 오류:', err);
     
     // LOT 번호 중복 에러 처리
     if (err.code === 'DUPLICATE_LOT_NUMBER') {
@@ -286,7 +299,7 @@ router.post('/process', async (req, res) => {
     // 기타 서버 에러
     else {
       res.status(500).json({
-        error: '입고 처리 중 오류가 발생했습니다.',
+        error: '포장공정 완료 제품 입고 처리 중 오류가 발생했습니다.',
         error_code: 'PROCESSING_ERROR',
         details: err.message
       });
@@ -294,10 +307,11 @@ router.post('/process', async (req, res) => {
   }
 });
 
-// [POST] /productInbound/process-multiple - 다중 제품 입고 처리
+// [POST] /productInbound/process-multiple - 다중 제품 입고 처리 (포장공정 완료 제품들)
 router.post('/process-multiple', async (req, res) => {
   try {
     console.log('=== 다중 제품 입고 처리 API 호출 ===');
+    console.log('포장공정 완료 제품들 일괄 입고 처리 시작');
     console.log('요청 데이터:', req.body);
     
     const { products } = req.body;
@@ -346,24 +360,25 @@ router.post('/process-multiple', async (req, res) => {
       });
     }
 
-    console.log(`처리할 제품 수: ${products.length}개`);
+    console.log(`포장공정 완료 제품 처리 수: ${products.length}개`);
 
     const result = await productInboundService.processMultipleInbound(products);
     
-    console.log('다중 입고 처리 완료:', result);
+    console.log('포장공정 완료 제품들 다중 입고 처리 완료:', result);
     
     // 부분 성공인 경우 206 상태 코드 사용
     const statusCode = result.error_count > 0 ? 206 : 201;
     
     // 응답에 추가 정보 포함
     const response = {
-      message: `전체 ${result.total}건 중 ${result.success_count}건 성공, ${result.error_count}건 실패`,
+      message: `포장공정 완료 제품 전체 ${result.total}건 중 ${result.success_count}건 성공, ${result.error_count}건 실패`,
       timestamp: new Date().toISOString(),
       processing_summary: {
         total_requested: products.length,
         success_count: result.success_count,
         error_count: result.error_count,
-        success_rate: `${((result.success_count / result.total) * 100).toFixed(1)}%`
+        success_rate: `${((result.success_count / result.total) * 100).toFixed(1)}%`,
+        process_condition: '포장공정 완료 제품들'
       },
       ...result
     };
@@ -371,9 +386,9 @@ router.post('/process-multiple', async (req, res) => {
     res.status(statusCode).json(response);
 
   } catch (err) {
-    console.error('다중 제품 입고 처리 API 오류:', err);
+    console.error('포장공정 완료 제품들 다중 입고 처리 API 오류:', err);
     res.status(500).json({ 
-      error: '다중 제품 입고 처리 중 오류가 발생했습니다.',
+      error: '포장공정 완료 제품들 다중 입고 처리 중 오류가 발생했습니다.',
       error_code: 'MULTIPLE_PROCESSING_ERROR',
       details: err.message 
     });
@@ -391,12 +406,18 @@ router.get('/test', async (req, res) => {
       success: true,
       message: '제품 입고 관리 API가 정상적으로 작동합니다.',
       timestamp: new Date().toISOString(),
-      version: '2.0',
+      version: '2.1',
       features: {
+        packaging_process_completion_filter: true, // 포장공정 완료 조건 추가
         sequential_lot_generation: true,
         specific_date_search: true,
         duplicate_prevention: true,
         multiple_inbound_processing: true
+      },
+      packaging_conditions: {
+        process_seq: 7,
+        code_value: 'p5',
+        description: '포장공정 완료된 제품만 입고 대기 목록에 표시'
       },
       available_endpoints: [
         'GET /productInbound/waiting-list',

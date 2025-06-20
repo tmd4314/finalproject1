@@ -92,6 +92,7 @@ const dashboardRouter = require('./routers/dashboardRouter.js');
 
 const productOutboundRouter = require('./routers/productOutboundRouter.js');
 
+const equipmentHistoryRouter = require('./routers/equipmentHistoryRouter.js');
 
  // 기본 라우팅
 app.get('/', (req, res)=>{
@@ -104,7 +105,7 @@ app.get('/', (req, res)=>{
  // 라우터 모듈 등록
 
  //홍인
-app.use('/api/orders', orderRouter);
+app.use('/', orderRouter);
 app.use('/', accountRouter);
 app.use('/', employeeRouter);
 
@@ -133,6 +134,7 @@ app.use('/common-codes', commonCodeRouter);
 app.use('/img', express.static('../client/public/img'));
 app.use('/uploads', express.static('./uploads'));
 app.use('/equipment-inspection', equipmentInspectionRouter);
+app.use('/equipment-history', equipmentHistoryRouter);
 
 //현석
 app.use('/lines', lineRouter);

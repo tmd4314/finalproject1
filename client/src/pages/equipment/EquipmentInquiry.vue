@@ -133,13 +133,19 @@
           </template>
           <template #cell(inspection_status)="{ rowData }">
             <span class="text-sm text-secondary">
-              {{ rowData.inspection_status || '점검 이력 없음' }}
+              {{ rowData.inspection_status ? formatDateTime(rowData.inspection_status) : '점검 이력 없음' }}
             </span>
           </template>
-          <template #cell(cleaning_status)="{ rowData }">
-            <span class="text-sm text-secondary">
-              {{ rowData.cleaning_status || '청소 이력 없음' }}
-            </span>
+          <template #cell(inspection_type_name)="{ rowData }">
+            <VaChip 
+              v-if="rowData.inspection_type_name"
+              :color="rowData.inspection_type_code ? getInspectionTypeColor(rowData.inspection_type_code) : 'secondary'" 
+              size="small"
+              flat
+            >
+              {{ rowData.inspection_type_name }}
+            </VaChip>
+            <span v-else class="text-sm text-secondary">-</span>
           </template>
         </VaDataTable>
 
@@ -169,7 +175,8 @@ interface Equipment {
   floor_name?: string
   room_name?: string
   inspection_status?: string
-  cleaning_status?: string
+  inspection_type_code?: string
+  inspection_type_name?: string
   eq_manufacturer?: string
   eq_model?: string
   eq_manufacture_date?: string | null
@@ -225,15 +232,15 @@ const statusOptions = ref<CodeOption[]>([])
 // 검색 디바운스용
 let searchTimeout: any | null = null
 
-// 테이블 컬럼 정의 (제조일자, 등록일자 제외)
+// 테이블 컬럼 정의 (청소상태를 점검유형으로 변경)
 const columns = [
   { key: 'eq_id', label: '설비 번호', sortable: true },
   { key: 'eq_name', label: '설비명', sortable: true },
   { key: 'eq_group_name', label: '분류', sortable: true },
   { key: 'location', label: '위치', sortable: true },
   { key: 'eq_run_name', label: '설비상태', sortable: true },
-  { key: 'inspection_status', label: '점검상태(일자)' },
-  { key: 'cleaning_status', label: '청소상태(일자)' }
+  { key: 'inspection_status', label: '점검상태(일시)' },
+  { key: 'inspection_type_name', label: '점검유형' }
 ]
 
 // 검색 조건이 있는지 확인하는 computed
@@ -289,11 +296,11 @@ watch(filteredEquipments, (newFiltered) => {
   updateDisplayedEquipments()
 })
 
-// 설비 목록 불러오기
+// 설비 목록 불러오기 (새로운 API 엔드포인트 사용)
 const loadEquipments = async (): Promise<void> => {
   loading.value = true
   try {
-    const response = await axios.get('/equipments')
+    const response = await axios.get('/equipments/inquiry')  // *** 새로운 API 사용 ***
     const data: ApiResponse<Equipment[]> = response.data
     if (data.isSuccessed) {
       equipments.value = data.data
@@ -382,6 +389,17 @@ const getStatusColor = (code: string): string => {
   return colors[code] || 'secondary'
 }
 
+// 점검 유형 색상
+const getInspectionTypeColor = (code: string): string => {
+  const colors: Record<string, string> = {
+    'n1': 'info',      // 공정 전
+    'n2': 'success',   // 공정 후
+    'n3': 'primary',   // 정기
+    'n4': 'danger'     // 비상
+  }
+  return colors[code] || 'secondary'
+}
+
 // 위치 텍스트 생성
 const getLocationText = (equipment: Equipment): string => {
   const parts: string[] = []
@@ -391,7 +409,41 @@ const getLocationText = (equipment: Equipment): string => {
   return parts.join(' > ') || '-'
 }
 
-// 날짜 포맷팅 함수
+// 날짜 시간 포맷팅 함수 (간단하게 수정)
+const formatDateTime = (dateTimeValue: any): string => {
+  if (!dateTimeValue || dateTimeValue === '') return '-'
+  
+  try {
+    // DB에서 'YYYY-MM-DD HH:mm' 형태로 오는 경우 처리
+    if (typeof dateTimeValue === 'string') {
+      // 'YYYY-MM-DD HH:mm' 형태를 'YYYY.MM.DD HH:mm'으로 변환
+      if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(dateTimeValue)) {
+        return dateTimeValue.replace('-', '.').replace('-', '.')
+      }
+      // 'YYYY-MM-DD' 형태는 그대로 변환
+      if (/^\d{4}-\d{2}-\d{2}$/.test(dateTimeValue)) {
+        return dateTimeValue.replace(/-/g, '.')
+      }
+    }
+    
+    // 그 외의 경우는 Date 객체로 변환해서 처리
+    const date = new Date(dateTimeValue)
+    if (isNaN(date.getTime())) return '-'
+    
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    const hours = String(date.getHours()).padStart(2, '0')
+    const minutes = String(date.getMinutes()).padStart(2, '0')
+    
+    return `${year}.${month}.${day} ${hours}:${minutes}`
+  } catch (error) {
+    console.error('날짜 포맷팅 오류:', error, 'Input:', dateTimeValue)
+    return '-'
+  }
+}
+
+// 날짜 포맷팅 함수 (엑셀용)
 const formatDate = (dateValue: any): string => {
   // null, undefined, 빈 문자열 체크
   if (!dateValue || dateValue === '') return '-'
@@ -421,8 +473,8 @@ const exportToExcel = async (): Promise<void> => {
         '분류': eq.eq_group_name || eq.eq_group_code,
         '위치': getLocationText(eq),
         '설비상태': eq.eq_run_name || eq.eq_run_code,
-        '점검상태(일자)': eq.inspection_status || '점검 이력 없음',
-        '청소상태(일자)': eq.cleaning_status || '청소 이력 없음',
+        '점검상태(일시)': eq.inspection_status ? formatDateTime(eq.inspection_status) : '점검 이력 없음',
+        '점검유형': eq.inspection_type_name || '-',
         '제조사': eq.eq_manufacturer || '-',
         '모델명': eq.eq_model || '-',
         '제조일자': formatDate(eq.eq_manufacture_date),

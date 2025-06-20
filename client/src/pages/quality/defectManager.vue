@@ -24,7 +24,7 @@
         <tr>
           <th>불량유형코드</th>
           <th>불량명</th>
-          <th>설명</th>
+          <th>비고</th>
         </tr>
       </thead>
       <tbody>

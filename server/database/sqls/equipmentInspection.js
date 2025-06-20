@@ -80,7 +80,8 @@ module.exports = {
       result_code = ?, 
       inspection_remark = ?, 
       confirmer_id = ?, 
-      is_completed = TRUE
+      is_completed = TRUE,
+      status_code = 'p3'
     WHERE inspection_log_id = ?
   `,
 

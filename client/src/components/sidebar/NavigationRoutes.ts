@@ -110,13 +110,6 @@ export default {
         },
       },
       {
-      name: 'equipment-cleaning',
-      displayName: 'menu.설비 청소',
-      meta: {
-        icon: 'broom',
-      },
-      },
-      {
       name: 'equipment-history',
       displayName: 'menu.설비 이력',
       meta: {
@@ -175,20 +168,20 @@ export default {
       },
       children: [
         {
-          name: 'work_order_manager',
-          displayName: 'menu.작업지시 관리',
-        },
-        {
-          name: 'work_order_check',
-          displayName: 'menu.작업지시 조회',
-        },
-        {
           name: 'prod_plan_manager',
           displayName: 'menu.생산계획 관리',
         },
         {
           name: 'prod_plan_check',
           displayName: 'menu.생산계획 조회',
+        },
+        {
+          name: 'work_order_manager',
+          displayName: 'menu.작업지시 관리',
+        },
+        {
+          name: 'work_order_check',
+          displayName: 'menu.작업지시 조회',
         },
         {
           name: 'work_result_manager',

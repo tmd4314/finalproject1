@@ -196,5 +196,89 @@ selectRecentCleaningByEqId: `
   WHERE eq_id = ?
   ORDER BY start_time DESC
 `,
-
+selectEquipmentListForInquiry: `
+  SELECT
+    e.eq_id, 
+    e.eq_name, 
+    e.eq_group_code, 
+    e.eq_type_code, 
+    e.eq_import_code,
+    e.eq_factory_code, 
+    e.eq_floor_code, 
+    e.eq_room_code,
+    e.eq_run_code,
+    e.work_code,
+    e.work_status_code,
+    DATE_FORMAT(e.eq_manufacture_date, '%Y-%m-%d') as eq_manufacture_date,
+    DATE_FORMAT(e.eq_registration_date, '%Y-%m-%d') as eq_registration_date, 
+    e.eq_manufacturer, 
+    e.eq_model,
+    (SELECT code_label FROM common_code WHERE code_value = e.eq_group_code AND code_group = '0E') as eq_group_name,
+    (SELECT code_label FROM common_code WHERE code_value = e.eq_type_code AND code_group = '0T') as eq_type_name,
+    (SELECT code_label FROM common_code WHERE code_value = e.eq_run_code AND code_group = '0S') as eq_run_name,
+    (SELECT code_label FROM common_code WHERE code_value = e.eq_factory_code AND code_group = '0F') as factory_name,
+    (SELECT code_label FROM common_code WHERE code_value = e.eq_floor_code AND code_group = '0L') as floor_name,
+    (SELECT code_label FROM common_code WHERE code_value = e.eq_room_code AND code_group = '0M') as room_name,
+    (SELECT code_label FROM common_code WHERE code_value = e.work_code AND code_group = '0W') as work_type_label,
+    (SELECT code_label FROM common_code WHERE code_value = e.work_status_code AND code_group = '0P') as work_status_label,
+    (SELECT DATE_FORMAT(MAX(eil.start_time), '%Y-%m-%d %H:%i')
+     FROM equipment_inspection_log eil 
+     WHERE eil.eq_id = e.eq_id 
+     AND eil.is_completed = TRUE) as inspection_status,
+    (SELECT eil2.inspection_type_code
+     FROM equipment_inspection_log eil2 
+     WHERE eil2.eq_id = e.eq_id 
+     AND eil2.is_completed = TRUE
+     AND eil2.start_time = (
+       SELECT MAX(eil3.start_time)
+       FROM equipment_inspection_log eil3 
+       WHERE eil3.eq_id = e.eq_id 
+       AND eil3.is_completed = TRUE
+     )) as inspection_type_code,
+    (CASE 
+      WHEN (SELECT eil4.inspection_type_code
+            FROM equipment_inspection_log eil4 
+            WHERE eil4.eq_id = e.eq_id 
+            AND eil4.is_completed = TRUE
+            AND eil4.start_time = (
+              SELECT MAX(eil5.start_time)
+              FROM equipment_inspection_log eil5 
+              WHERE eil5.eq_id = e.eq_id 
+              AND eil5.is_completed = TRUE
+            )) = 'n1' THEN '공정 전'
+      WHEN (SELECT eil4.inspection_type_code
+            FROM equipment_inspection_log eil4 
+            WHERE eil4.eq_id = e.eq_id 
+            AND eil4.is_completed = TRUE
+            AND eil4.start_time = (
+              SELECT MAX(eil5.start_time)
+              FROM equipment_inspection_log eil5 
+              WHERE eil5.eq_id = e.eq_id 
+              AND eil5.is_completed = TRUE
+            )) = 'n2' THEN '공정 후'
+      WHEN (SELECT eil4.inspection_type_code
+            FROM equipment_inspection_log eil4 
+            WHERE eil4.eq_id = e.eq_id 
+            AND eil4.is_completed = TRUE
+            AND eil4.start_time = (
+              SELECT MAX(eil5.start_time)
+              FROM equipment_inspection_log eil5 
+              WHERE eil5.eq_id = e.eq_id 
+              AND eil5.is_completed = TRUE
+            )) = 'n3' THEN '정기'
+      WHEN (SELECT eil4.inspection_type_code
+            FROM equipment_inspection_log eil4 
+            WHERE eil4.eq_id = e.eq_id 
+            AND eil4.is_completed = TRUE
+            AND eil4.start_time = (
+              SELECT MAX(eil5.start_time)
+              FROM equipment_inspection_log eil5 
+              WHERE eil5.eq_id = e.eq_id 
+              AND eil5.is_completed = TRUE
+            )) = 'n4' THEN '비상'
+      ELSE NULL
+    END) as inspection_type_name
+  FROM equipment e
+  ORDER BY e.eq_id DESC
+`,
 };

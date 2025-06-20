@@ -25,7 +25,7 @@ const productInbound = require('./sqls/productInbound.js');
 const dashboard = require('./sqls/dashboard.js');
 const productOutbound = require('./sqls/productOutbound.js');
 const employee = require('./sqls/employee.js');
-
+const equipmentHistory = require('./sqls/equipmentHistory.js');
 
 
 
@@ -57,6 +57,7 @@ const employee = require('./sqls/employee.js');
      ...productInbound,
      ...dashboard,
      ...productOutbound,
-     ...employee
+     ...employee,
+     ...equipmentHistory
  }
 
