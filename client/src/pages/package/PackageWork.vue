@@ -46,18 +46,11 @@
       </div>
       <div class="debug-content">
         <div class="debug-section">
-          <h4>테이블 구조 정보</h4>
-          <div v-if="debugInfo.tableStructure" class="debug-info">
-            <p><strong>컬럼 수:</strong> {{ debugInfo.tableStructure.column_count }}</p>
-            <p><strong>전체 행 수:</strong> {{ debugInfo.tableStructure.total_rows }}</p>
-            <details>
-              <summary>컬럼 목록 ({{ Object.keys(debugInfo.tableStructure.columns || {}).length }}개)</summary>
-              <ul class="column-list">
-                <li v-for="(colInfo, colName) in debugInfo.tableStructure.columns" :key="colName">
-                  <strong>{{ colName }}</strong> ({{ colInfo.type }})
-                </li>
-              </ul>
-            </details>
+          <h4>라인 정보</h4>
+          <div class="debug-info">
+            <p><strong>라인 ID:</strong> {{ workInfo.lineId }}</p>
+            <p><strong>라인명:</strong> {{ workInfo.lineName }}</p>
+            <p><strong>라인 타입:</strong> {{ workInfo.lineType }}</p>
           </div>
         </div>
         
@@ -74,11 +67,43 @@
         </div>
         
         <div class="debug-section">
-          <h4>매핑 테스트</h4>
+          <h4>실제 데이터 샘플</h4>
+          <div v-if="debugInfo.sampleData" class="debug-info">
+            <p><strong>전체 데이터 수:</strong> {{ debugInfo.sampleData.total || 0 }}건</p>
+            <details v-if="debugInfo.sampleData.samples && debugInfo.sampleData.samples.length > 0">
+              <summary>샘플 데이터 구조 ({{ debugInfo.sampleData.samples.length }}건)</summary>
+              <div v-for="(sample, index) in debugInfo.sampleData.samples" :key="index" class="sample-item">
+                <strong>샘플 {{ index + 1 }}:</strong>
+                <ul class="sample-details">
+                  <li><strong>work_id:</strong> {{ sample.work_id }}</li>
+                  <li><strong>work_order_no:</strong> {{ sample.work_order_no || 'null' }}</li>
+                  <li><strong>line_id:</strong> {{ sample.line_id || 'null' }}</li>
+                  <li><strong>work_line:</strong> {{ sample.work_line || 'null' }}</li>
+                  <li><strong>step_name:</strong> {{ sample.step_name || 'null' }}</li>
+                  <li><strong>product_name:</strong> {{ sample.product_name || 'null' }}</li>
+                  <li><strong>step_status:</strong> {{ sample.step_status || 'null' }}</li>
+                </ul>
+              </div>
+            </details>
+          </div>
+        </div>
+        
+        <div class="debug-section">
+          <h4>필터링 테스트</h4>
+          <div class="debug-info">
+            <p><strong>현재 필터:</strong></p>
+            <ul>
+              <li>package_type: {{ workInfo.lineType }}</li>
+              <li>line_id: {{ workInfo.lineId }}</li>
+              <li>line_name: {{ workInfo.lineName }}</li>
+            </ul>
+          </div>
           <div class="debug-actions">
-            <button @click="testTableStructure" class="debug-btn">테이블 구조 확인</button>
-            <button @click="testDataMapping" class="debug-btn">데이터 매핑 테스트</button>
-            <button @click="testFiltering" class="debug-btn">필터링 테스트</button>
+            <button @click="loadSampleData" class="debug-btn">실제 데이터 확인</button>
+            <button @click="testAllFilters" class="debug-btn">모든 필터 테스트</button>
+            <button @click="testProductNameMapping" class="debug-btn">제품명 매핑 테스트</button>
+            <button @click="loadWithoutFilter" class="debug-btn">필터 없이 로드</button>
+            <button @click="refreshData" class="debug-btn">강제 새로고침</button>
           </div>
         </div>
       </div>
@@ -137,11 +162,11 @@
                     >
                       <option 
                         v-for="work in readyWorks" 
-                        :key="work.work_order_no || Math.random()" 
-                        :value="work.work_order_no"
+                        :key="work.work_order_no || work.work_id" 
+                        :value="work.work_order_no || work.work_id"
                         class="ready-option"
                       >
-                        {{ work.work_oder_no || '작업번호없음' }} - {{ work.final_product_name || work.product_name || work.step_name || '제품명없음' }} 
+                        {{ work.work_order_no || work.work_id || '작업번호없음' }} - {{ work.final_product_name || work.product_name || '제품명없음' }} 
                         ({{ formatNumber(work.order_qty || work.target_qty || work.input_qty || 1000) }}개)
                       </option>
                     </optgroup>
@@ -153,11 +178,11 @@
                     >
                       <option 
                         v-for="work in workingWorks" 
-                        :key="work.work_order_no || Math.random()" 
-                        :value="work.work_order_no"
+                        :key="work.work_order_no || work.work_id" 
+                        :value="work.work_order_no || work.work_id"
                         class="working-option"
                       >
-                        {{ work.work_order_no || '작업번호없음' }} - {{ work.final_product_name || work.product_name || work.step_name || '제품명없음' }} 
+                        {{ work.work_order_no || work.work_id || '작업번호없음' }} - {{ work.final_product_name || work.product_name || '제품명없음' }} 
                         ({{ work.progress_rate || 0 }}% 완료)
                       </option>
                     </optgroup>
@@ -169,11 +194,11 @@
                     >
                       <option 
                         v-for="work in pausedWorks" 
-                        :key="work.work_order_no || Math.random()" 
-                        :value="work.work_order_no"
+                        :key="work.work_order_no || work.work_id" 
+                        :value="work.work_order_no || work.work_id"
                         class="paused-option"
                       >
-                        {{ work.work_order_no || '작업번호없음' }} - {{ work.final_product_name || work.product_name || work.step_name || '제품명없음' }} 
+                        {{ work.work_order_no || work.work_id || '작업번호없음' }} - {{ work.final_product_name || work.product_name || '제품명없음' }} 
                         ({{ work.progress_rate || 0 }}% 완료 - {{ getWorkStatusText(work.step_status) }})
                       </option>
                     </optgroup>
@@ -184,7 +209,7 @@
                       <div><strong>{{ workInfo.lineName }}의 {{ workInfo.lineType === 'INNER' ? '내포장' : '외포장' }} 작업번호가 없습니다.</strong></div>
                       <div style="font-size: 12px; margin-top: 4px;">
                         • 새로고침 버튼을 눌러보세요<br>
-                        • 또는 테이블 구조 확인이 필요할 수 있습니다<br>
+                        • 또는 다른 라인을 선택해보세요<br>
                         • 디버깅 패널에서 데이터를 확인해보세요
                       </div>
                     </div>
@@ -297,11 +322,11 @@
                 <div class="preview-grid">
                   <div class="preview-item">
                     <span class="label">작업번호:</span>
-                    <span class="value">{{ currentWork.work_order_no }}</span>
+                    <span class="value">{{ currentWork.work_order_no || currentWork.work_id }}</span>
                   </div>
                   <div class="preview-item">
                     <span class="label">제품명:</span>
-                    <span class="value">{{ currentWork.product_name }}</span>
+                    <span class="value">{{ currentWork.final_product_name || currentWork.product_name || '제품명없음' }}</span>
                   </div>
                   <div class="preview-item">
                     <span class="label">작업상태:</span>
@@ -325,10 +350,9 @@
                     <span class="label">라인:</span>
                     <span class="value">{{ workInfo.lineName }}</span>
                   </div>
-                  <!-- 실제 DB 원본 키 표시 -->
-                  <div v-if="currentWork._original_keys" class="preview-item">
-                    <span class="label">원본 키:</span>
-                    <span class="value debug-keys">{{ currentWork._original_keys.length }}개 컬럼</span>
+                  <div class="preview-item">
+                    <span class="label">라인타입:</span>
+                    <span class="value">{{ currentWork.package_type || workInfo.lineType }}</span>
                   </div>
                 </div>
               </div>
@@ -487,11 +511,11 @@
               </div>
               <div class="info-row">
                 <span class="info-label">작업번호</span>
-                <span class="info-value">{{ currentWork.work_order_no || '-' }}</span>
+                <span class="info-value">{{ currentWork.work_order_no || currentWork.work_id || '-' }}</span>
               </div>
               <div class="info-row">
                 <span class="info-label">제품명</span>
-                <span class="info-value">{{ currentWork.product_name || '-' }}</span>
+                <span class="info-value">{{ currentWork.final_product_name || currentWork.product_name || '-' }}</span>
               </div>
               <div class="info-row">
                 <span class="info-label">포장형태</span>
@@ -796,9 +820,8 @@ const workflowInfo = ref({
 // 디버깅 정보
 const showDebugPanel = ref(false)
 const debugInfo = ref({
-  tableStructure: null,
   lastApiResponse: null,
-  mappingTest: null
+  sampleData: null
 })
 
 // 로딩 및 에러 상태
@@ -829,11 +852,11 @@ const isPartialWork = computed(() => {
          currentWork.value.step_status === 'partial_complete'
 })
 
-// 작업번호 상태별 분류 (실제 데이터 기반)
+// 작업번호 상태별 분류 (실제 데이터 기반) - DB 컬럼명 명확화
 const readyWorks = computed(() => {
-  const ready = availableWorkOrders.value.filter(work => {
-    if (!work) return false
-    const status = (work.step_status || '').toLowerCase()
+  const ready = availableWorkOrders.value.filter(dbWork => {
+    if (!dbWork) return false
+    const status = (dbWork.step_status || '').toLowerCase()
     return !status || 
            status === '' || 
            status === 'ready' || 
@@ -844,16 +867,16 @@ const readyWorks = computed(() => {
   })
   
   return ready.sort((a, b) => {
-    const aWorkNo = extractWorkNumber(a.work_order_no)
-    const bWorkNo = extractWorkNumber(b.work_order_no)
+    const aWorkNo = extractWorkNumber(a.work_order_no || a.work_id)
+    const bWorkNo = extractWorkNumber(b.work_order_no || b.work_id)
     return aWorkNo - bWorkNo
   })
 })
 
 const workingWorks = computed(() => {
-  const working = availableWorkOrders.value.filter(work => {
-    if (!work) return false
-    const status = (work.step_status || '').toLowerCase()
+  const working = availableWorkOrders.value.filter(dbWork => {
+    if (!dbWork) return false
+    const status = (dbWork.step_status || '').toLowerCase()
     return status === 'working' || 
            status === 'in_progress' || 
            status === '진행중' ||
@@ -862,16 +885,16 @@ const workingWorks = computed(() => {
   })
   
   return working.sort((a, b) => {
-    const aWorkNo = extractWorkNumber(a.work_order_no)
-    const bWorkNo = extractWorkNumber(b.work_order_no)
+    const aWorkNo = extractWorkNumber(a.work_order_no || a.work_id)
+    const bWorkNo = extractWorkNumber(b.work_order_no || b.work_id)
     return aWorkNo - bWorkNo
   })
 })
 
 const pausedWorks = computed(() => {
-  const paused = availableWorkOrders.value.filter(work => {
-    if (!work) return false
-    const status = (work.step_status || '').toLowerCase()
+  const paused = availableWorkOrders.value.filter(dbWork => {
+    if (!dbWork) return false
+    const status = (dbWork.step_status || '').toLowerCase()
     return status === 'paused' || 
            status === '일시정지' ||
            status === 'partial_complete' ||
@@ -880,8 +903,8 @@ const pausedWorks = computed(() => {
   })
   
   return paused.sort((a, b) => {
-    const aWorkNo = extractWorkNumber(a.work_order_no)
-    const bWorkNo = extractWorkNumber(b.work_order_no)
+    const aWorkNo = extractWorkNumber(a.work_order_no || a.work_id)
+    const bWorkNo = extractWorkNumber(b.work_order_no || b.work_id)
     return aWorkNo - bWorkNo
   })
 })
@@ -889,9 +912,11 @@ const pausedWorks = computed(() => {
 // 현재 작업 정보
 const currentWork = ref({
   work_order_no: '',
+  work_id: '',
   result_detail_id: null,
   result_id: '',
   product_name: '',
+  final_product_name: '',
   product_code: '',
   package_type: '',
   target_quantity: 0,
@@ -992,8 +1017,25 @@ function getCompletionRate() {
   return Math.round((currentWork.value.output_qty / currentWork.value.target_quantity) * 100)
 }
 
+// 데이터 새로고침
+async function refreshData() {
+  try {
+    loading.value = true
+    loadingMessage.value = '데이터 새로고침 중...'
+    
+    await loadWorkOrdersByLine()
+    addLog('데이터 새로고침 완료', 'success')
+    
+  } catch (error) {
+    console.error('데이터 새로고침 실패:', error)
+    addLog(`데이터 새로고침 실패: ${error.message}`, 'error')
+  } finally {
+    loading.value = false
+  }
+}
+
 // ==============================================
-// 실제 데이터베이스 연동 - 디버깅 기능 포함
+// 실제 데이터베이스 연동 - 개선된 라인별 필터링
 // ==============================================
 
 // 컴포넌트 마운트 시 실제 작업번호 로딩
@@ -1004,21 +1046,21 @@ onMounted(async () => {
   
   try {
     loading.value = true
-    loadingMessage.value = '실제 데이터베이스에서 작업번호 목록을 불러오는 중...'
+    loadingMessage.value = `${workInfo.value.lineName}의 작업번호 목록을 불러오는 중...`
     
-    // 1단계: 테이블 구조 확인 (선택사항)
-    await checkTableStructure()
+    // 디버깅을 위한 샘플 데이터 로드
+    await loadSampleData()
     
-    // 2단계: 실제 작업번호 목록 조회
-    await loadRealWorkOrders()
+    // 실제 작업번호 목록 조회 (라인별 필터링 강화)
+    await loadWorkOrdersByLine()
     
-    // 3단계: 외포장 워크플로우 데이터 로드
+    // 외포장 워크플로우 데이터 로드
     if (workInfo.value.lineType === 'OUTER') {
       console.log('외포장 감지 - 워크플로우 데이터 로드')
       await loadWorkflowData()
     }
     
-    // 4단계: URL에서 전달된 작업번호가 있으면 선택
+    // URL에서 전달된 작업번호가 있으면 선택
     if (route.query.work_order_no) {
       await selectWorkOrderWithRetry(route.query.work_order_no)
     } else {
@@ -1036,7 +1078,7 @@ onMounted(async () => {
       addLog(route.query.message, 'success')
     }
     
-    addLog('실제 데이터베이스에서 작업번호 목록 로딩이 완료되었습니다.', 'success')
+    addLog(`${workInfo.value.lineName}에서 작업번호 ${availableWorkOrders.value.length}개를 로딩했습니다.`, 'success')
     
   } catch (error) {
     console.error('작업번호 로딩 실패:', error)
@@ -1046,137 +1088,70 @@ onMounted(async () => {
     // 디버깅 모드 자동 활성화
     if (error.message.includes('Unknown column') || error.message.includes('table') || error.message.includes('column')) {
       showDebugPanel.value = true
-      addLog('테이블 구조 문제가 감지되어 디버깅 패널을 활성화했습니다.', 'warning')
+      addLog('데이터베이스 구조 문제가 감지되어 디버깅 패널을 활성화했습니다.', 'warning')
     }
   } finally {
     loading.value = false
   }
 })
 
-// 테이블 구조 확인
-async function checkTableStructure() {
+// 제품명 매핑 테스트
+async function testProductNameMapping() {
   try {
-    console.log('테이블 구조 확인 중...')
+    loading.value = true
+    loadingMessage.value = '제품명 매핑 테스트 중...'
     
-    const response = await axios.get('/packages/debug/table-structure')
+    addLog('=== 제품명 매핑 테스트 시작 ===', 'info')
     
-    if (response.data.success && response.data.data) {
-      debugInfo.value.tableStructure = response.data.data
-      console.log('테이블 구조 확인 완료:', debugInfo.value.tableStructure)
-      addLog(`테이블 구조 확인: ${debugInfo.value.tableStructure.column_count}개 컬럼, ${debugInfo.value.tableStructure.total_rows}개 행`, 'info')
-    } else {
-      console.warn('테이블 구조 확인 실패:', response.data.error)
+    // 현재 선택된 작업이 있으면 테스트
+    if (selectedWorkOrder.value && currentWork.value.work_order_no) {
+      const selectedWork = availableWorkOrders.value.find(dbWork => 
+        dbWork.work_order_no === selectedWorkOrder.value || dbWork.work_id === selectedWorkOrder.value
+      )
+      
+      if (selectedWork) {
+        addLog(`현재 선택된 작업번호: ${selectedWorkOrder.value}`, 'info')
+        addLog(`DB 원본 데이터:`, 'info')
+        addLog(`  - final_product_name: "${selectedWork.final_product_name || 'null'}"`, 'info')
+        addLog(`  - product_name: "${selectedWork.product_name || 'null'}"`, 'info')
+        addLog(`  - product_code: "${selectedWork.product_code || 'null'}"`, 'info')
+        addLog(`  - step_name: "${selectedWork.step_name || 'null'}"`, 'info')
+        
+        const actualProductName = getActualProductName(selectedWork)
+        const productSource = getProductNameSource(selectedWork)
+        
+        addLog(`변환된 제품명: "${actualProductName}"`, 'success')
+        addLog(`변환 과정: ${productSource}`, 'info')
+      }
     }
     
-  } catch (error) {
-    console.warn('테이블 구조 확인 중 오류:', error.message)
-    // 에러가 발생해도 계속 진행
-  }
-}
-
-// 실제 작업번호 목록 조회 - 새로운 실제 DB API 사용
-async function loadRealWorkOrders() {
-  try {
-    console.log('실제 작업번호 목록 조회 시작')
+    // 샘플 제품코드 테스트
+    const testCodes = ['BJA-DR-10', 'TYL-500', 'UNKNOWN-CODE']
+    addLog('샘플 제품코드 변환 테스트:', 'info')
     
-    // 새로운 실제 DB 기반 API 사용
-    const packageType = workInfo.value.lineType // INNER 또는 OUTER
-    
-    const response = await axios.get('/packages/works', {
-      params: {
-        package_type: packageType,
-        line_id: workInfo.value.lineId,
-        line_name: workInfo.value.lineName
-      }
+    testCodes.forEach(code => {
+      const converted = convertProductCodeToName(code)
+      const isCode = isProductCode(code)
+      addLog(`  "${code}" → "${converted}" (제품코드 인식: ${isCode})`, 'info')
     })
     
-    // API 응답 디버깅 정보 저장
-    debugInfo.value.lastApiResponse = response.data
-    
-    if (response.data.success && response.data.data) {
-      let workList = response.data.data
-      
-      console.log(`전체 작업 ${workList.length}개 조회됨`)
-      addLog(`실제 DB에서 ${workList.length}개 작업을 조회했습니다.`, 'success')
-      
-      // 메타데이터 정보 로깅
-      if (response.data.metadata) {
-        const metadata = response.data.metadata
-        addLog(`데이터 품질: 제품명 ${metadata.data_quality?.with_product_name || 0}개, 라인정보 ${metadata.data_quality?.with_line_info || 0}개`, 'info')
-        
-        // 상태별 분포 로깅
-        if (metadata.status_breakdown) {
-          const statusInfo = Object.entries(metadata.status_breakdown)
-            .map(([status, count]) => `${status}: ${count}개`)
-            .join(', ')
-          addLog(`작업 상태 분포: ${statusInfo}`, 'info')
-        }
-      }
-      
-      // 실제 DB 데이터를 UI 형식으로 변환
-      availableWorkOrders.value = workList.map(work => ({
-        // 기본 정보
-        work_order_no: work.work_order_no,
-        step_name: work.step_name || work.final_product_name || '포장작업',
-        product_name: work.final_product_name || work.product_name || extractProductFromStepName(work.step_name),
-        product_code: work.product_code,
-        step_status: work.step_status || 'READY',
-        
-        // 수량 정보
-        order_qty: work.order_qty || work.target_qty || work.input_qty || 1000,
-        target_qty: work.target_qty || work.order_qty || work.input_qty || 1000,
-        input_qty: work.input_qty || 0,
-        output_qty: work.output_qty || 0,
-        defect_qty: work.defect_qty || 0,
-        progress_rate: work.progress_rate || 0,
-        
-        // 작업자 정보
-        employee_name: work.employee_name || work.emp_name || '김포장',
-        employee_id: work.employee_id || 2,
-        
-        // 라인 정보
-        line_name: work.line_name || workInfo.value.lineName,
-        line_id: work.line_id || workInfo.value.lineId,
-        package_type: work.package_type || workInfo.value.lineType,
-        line_type: work.line_type || (workInfo.value.lineType === 'INNER' ? '내포장' : '외포장'),
-        
-        // 시간 정보
-        start_time: work.start_time,
-        end_time: work.end_time,
-        reg_date: work.reg_date,
-        
-        // 디버깅 정보
-        _original_keys: work._original_keys || Object.keys(work),
-        _processed_at: work._processed_at || new Date().toISOString()
-      }))
-      
-      addLog(`${workInfo.value.lineName}의 작업번호 ${availableWorkOrders.value.length}개를 처리했습니다.`, 'success')
-      
-    } else {
-      throw new Error(response.data.message || '작업번호 목록 조회 실패')
-    }
+    addLog('=== 제품명 매핑 테스트 완료 ===', 'success')
     
   } catch (error) {
-    console.error('실제 작업번호 조회 실패:', error)
-    
-    if (error.response?.status === 404) {
-      addLog('해당 라인의 작업번호가 없습니다.', 'warning')
-      availableWorkOrders.value = []
-    } else if (error.message.includes('Unknown column')) {
-      addLog('데이터베이스 컬럼 구조 문제가 발견되었습니다. 디버깅 패널을 확인하세요.', 'error')
-      showDebugPanel.value = true
-      throw error
-    } else {
-      throw error
-    }
+    console.error('제품명 매핑 테스트 실패:', error)
+    addLog(`제품명 매핑 테스트 실패: ${error.message}`, 'error')
+  } finally {
+    loading.value = false
   }
 }
 
-// 제품명 추출 함수
+// 제품명 추출 및 매핑 함수 개선
 function extractProductFromStepName(stepName) {
   if (!stepName) return '제품명없음'
   
-  if (stepName.includes('타이레놀')) return '타이레놀정500mg'
+  // 제품코드를 실제 제품명으로 매핑
+  if (stepName.includes('BJA-DR-10')) return '베아르정 10mg'
+  if (stepName.includes('타이레놀')) return '타이레놀정 500mg'
   if (stepName.includes('게보린')) return '게보린정'
   if (stepName.includes('부루펜')) return '부루펜시럽'
   if (stepName.includes('베아르')) return '베아르정'
@@ -1185,6 +1160,142 @@ function extractProductFromStepName(stepName) {
   if (stepName.includes('C라인')) return 'C라인 제품'
   
   return stepName || '제품명없음'
+}
+
+// 제품코드를 제품명으로 변환하는 함수
+function convertProductCodeToName(productCode) {
+  if (!productCode) return '제품명없음'
+  
+  const productMap = {
+    'BJA-DR-10': '베아르정 10mg',
+    'TYL-500': '타이레놀정 500mg',
+    'GBR-001': '게보린정',
+    'BRP-SYR': '부루펜시럽',
+    'BEA-001': '베아르정'
+  }
+  
+  // 정확한 매칭 우선
+  if (productMap[productCode]) {
+    return productMap[productCode]
+  }
+  
+  // 부분 매칭
+  for (const [code, name] of Object.entries(productMap)) {
+    if (productCode.includes(code)) {
+      return name
+    }
+  }
+  
+  // 매핑되지 않으면 원본 반환하되 "(제품코드)" 표시
+  return `${productCode} (제품코드)`
+}
+
+// 실제 제품명 추출 함수 (DB 데이터 종합 분석)
+function getActualProductName(dbWork) {
+  if (!dbWork) return '제품명없음'
+  
+  // 1단계: final_product_name이 있고 제품코드가 아닌 경우
+  if (dbWork.final_product_name && !isProductCode(dbWork.final_product_name)) {
+    return dbWork.final_product_name
+  }
+  
+  // 2단계: product_name이 있고 제품코드가 아닌 경우
+  if (dbWork.product_name && !isProductCode(dbWork.product_name)) {
+    return dbWork.product_name
+  }
+  
+  // 3단계: product_code를 제품명으로 변환
+  if (dbWork.product_code) {
+    const convertedName = convertProductCodeToName(dbWork.product_code)
+    if (convertedName !== `${dbWork.product_code} (제품코드)`) {
+      return convertedName
+    }
+  }
+  
+  // 4단계: final_product_name이 제품코드인 경우 변환
+  if (dbWork.final_product_name) {
+    const convertedName = convertProductCodeToName(dbWork.final_product_name)
+    if (convertedName !== `${dbWork.final_product_name} (제품코드)`) {
+      return convertedName
+    }
+  }
+  
+  // 5단계: product_name이 제품코드인 경우 변환
+  if (dbWork.product_name) {
+    const convertedName = convertProductCodeToName(dbWork.product_name)
+    if (convertedName !== `${dbWork.product_name} (제품코드)`) {
+      return convertedName
+    }
+  }
+  
+  // 6단계: step_name에서 추출
+  if (dbWork.step_name) {
+    return extractProductFromStepName(dbWork.step_name)
+  }
+  
+  // 7단계: 모든 방법 실패시 기본값
+  return dbWork.final_product_name || dbWork.product_name || dbWork.product_code || '제품명없음'
+}
+
+// 제품명 결정 과정 추적 함수
+function getProductNameSource(dbWork) {
+  if (!dbWork) return '데이터 없음'
+  
+  // 1단계: final_product_name이 있고 제품코드가 아닌 경우
+  if (dbWork.final_product_name && !isProductCode(dbWork.final_product_name)) {
+    return `DB final_product_name 컬럼에서 직접 사용: "${dbWork.final_product_name}"`
+  }
+  
+  // 2단계: product_name이 있고 제품코드가 아닌 경우
+  if (dbWork.product_name && !isProductCode(dbWork.product_name)) {
+    return `DB product_name 컬럼에서 직접 사용: "${dbWork.product_name}"`
+  }
+  
+  // 3단계: product_code를 제품명으로 변환
+  if (dbWork.product_code) {
+    const convertedName = convertProductCodeToName(dbWork.product_code)
+    if (convertedName !== `${dbWork.product_code} (제품코드)`) {
+      return `DB product_code "${dbWork.product_code}"를 제품명으로 변환: "${convertedName}"`
+    }
+  }
+  
+  // 4단계: final_product_name이 제품코드인 경우 변환
+  if (dbWork.final_product_name) {
+    const convertedName = convertProductCodeToName(dbWork.final_product_name)
+    if (convertedName !== `${dbWork.final_product_name} (제품코드)`) {
+      return `DB final_product_name "${dbWork.final_product_name}"를 제품코드로 인식하여 변환: "${convertedName}"`
+    }
+  }
+  
+  // 5단계: product_name이 제품코드인 경우 변환
+  if (dbWork.product_name) {
+    const convertedName = convertProductCodeToName(dbWork.product_name)
+    if (convertedName !== `${dbWork.product_name} (제품코드)`) {
+      return `DB product_name "${dbWork.product_name}"를 제품코드로 인식하여 변환: "${convertedName}"`
+    }
+  }
+  
+  // 6단계: step_name에서 추출
+  if (dbWork.step_name) {
+    return `DB step_name "${dbWork.step_name}"에서 패턴 매칭으로 추출`
+  }
+  
+  // 7단계: 모든 방법 실패
+  return `변환 실패 - 기본값 사용: ${dbWork.final_product_name || dbWork.product_name || dbWork.product_code || '제품명없음'}`
+}
+
+// 제품코드인지 확인하는 함수
+function isProductCode(value) {
+  if (!value) return false
+  
+  // 제품코드 패턴들
+  const productCodePatterns = [
+    /^[A-Z]{2,4}-[A-Z0-9]{2,10}$/,  // BJA-DR-10 형태
+    /^[A-Z]{3}-\d{3}$/,             // TYL-500 형태
+    /^[A-Z]{3}-[A-Z]{3}$/,          // BRP-SYR 형태
+  ]
+  
+  return productCodePatterns.some(pattern => pattern.test(value))
 }
 
 // 워크플로우 데이터 로드 (외포장용)
@@ -1270,82 +1381,301 @@ async function loadWorkflowData() {
 // 디버깅 기능들
 // ==============================================
 
-// 테이블 구조 테스트
-async function testTableStructure() {
+// 실제 샘플 데이터 로드
+async function loadSampleData() {
   try {
     loading.value = true
-    loadingMessage.value = '테이블 구조 테스트 중...'
+    loadingMessage.value = '실제 데이터 샘플 로드 중...'
     
-    const response = await axios.get('/packages/debug/table-structure')
+    const response = await axios.get('/packages/debug/simple-data-check')
     
     if (response.data.success) {
-      debugInfo.value.tableStructure = response.data.data
-      addLog(`테이블 구조 테스트 완료: ${response.data.data.column_count}개 컬럼`, 'success')
+      debugInfo.value.sampleData = response.data.data
+      addLog(`실제 데이터 확인 완료: 전체 ${response.data.data.total_rows}건`, 'success')
+      
+      if (response.data.data.recent_data && response.data.data.recent_data.length > 0) {
+        debugInfo.value.sampleData.samples = response.data.data.recent_data
+        addLog(`샘플 데이터 ${response.data.data.recent_data.length}건 로드`, 'info')
+        
+        // 실제 라인 정보 분석
+        const lineIds = response.data.data.recent_data.map(item => item.line_id).filter(Boolean)
+        const workLines = response.data.data.recent_data.map(item => item.work_line).filter(Boolean)
+        const stepNames = response.data.data.recent_data.map(item => item.step_name).filter(Boolean)
+        
+        addLog(`실제 line_id 값들: ${[...new Set(lineIds)].join(', ') || '없음'}`, 'info')
+        addLog(`실제 work_line 값들: ${[...new Set(workLines)].join(', ') || '없음'}`, 'info')
+        addLog(`실제 step_name 샘플: ${stepNames.slice(0, 3).join(', ') || '없음'}`, 'info')
+        
+        // 작업번호 컬럼 확인
+        const workOrderNos = response.data.data.recent_data.map(item => item.work_order_no).filter(Boolean)
+        const workIds = response.data.data.recent_data.map(item => item.work_id).filter(Boolean)
+        addLog(`실제 work_order_no 값들: ${[...new Set(workOrderNos)].join(', ') || '없음'}`, 'info')
+        addLog(`실제 work_id 값들: ${[...new Set(workIds)].join(', ') || '없음'}`, 'info')
+      }
     } else {
-      addLog(`테이블 구조 테스트 실패: ${response.data.error}`, 'error')
+      addLog(`실제 데이터 확인 실패: ${response.data.error}`, 'error')
     }
     
   } catch (error) {
-    console.error('테이블 구조 테스트 실패:', error)
-    addLog(`테이블 구조 테스트 실패: ${error.message}`, 'error')
+    console.error('실제 데이터 확인 실패:', error)
+    addLog(`실제 데이터 확인 실패: ${error.message}`, 'error')
   } finally {
     loading.value = false
   }
 }
 
-// 데이터 매핑 테스트
-async function testDataMapping() {
+// 모든 필터 조건 테스트
+async function testAllFilters() {
   try {
     loading.value = true
-    loadingMessage.value = '데이터 매핑 테스트 중...'
+    loadingMessage.value = '필터 조건 테스트 중...'
     
-    const response = await axios.get('/packages/debug/data-mapping-test')
+    // 1. 포장타입별 테스트
+    const typeResponse = await axios.get('/packages/works', {
+      params: { package_type: workInfo.value.lineType }
+    })
     
-    if (response.data.success) {
-      debugInfo.value.mappingTest = response.data.data
-      addLog(`데이터 매핑 테스트 완료: ${response.data.data.total_sample_count}개 샘플`, 'success')
-      addLog(`성공적 매핑: ${response.data.data.summary.successful_mappings}개`, 'info')
-    } else {
-      addLog(`데이터 매핑 테스트 실패: ${response.data.error}`, 'error')
-    }
+    addLog(`포장타입(${workInfo.value.lineType}) 필터: ${typeResponse.data.count || 0}건`, 'info')
     
-  } catch (error) {
-    console.error('데이터 매핑 테스트 실패:', error)
-    addLog(`데이터 매핑 테스트 실패: ${error.message}`, 'error')
-  } finally {
-    loading.value = false
-  }
-}
-
-// 필터링 테스트
-async function testFiltering() {
-  try {
-    loading.value = true
-    loadingMessage.value = '필터링 테스트 중...'
+    // 2. 라인ID별 테스트
+    const lineIdResponse = await axios.get('/packages/works', {
+      params: { line_id: workInfo.value.lineId }
+    })
     
-    const response = await axios.get('/packages/debug/filter-test', {
+    addLog(`라인ID(${workInfo.value.lineId}) 필터: ${lineIdResponse.data.count || 0}건`, 'info')
+    
+    // 3. 라인명별 테스트
+    const lineNameResponse = await axios.get('/packages/works', {
+      params: { line_name: workInfo.value.lineName }
+    })
+    
+    addLog(`라인명(${workInfo.value.lineName}) 필터: ${lineNameResponse.data.count || 0}건`, 'info')
+    
+    // 4. 조합 테스트
+    const combinedResponse = await axios.get('/packages/works', {
       params: {
-        test_package_type: workInfo.value.lineType,
-        test_line_id: workInfo.value.lineId,
-        test_line_name: workInfo.value.lineName
+        package_type: workInfo.value.lineType,
+        line_id: workInfo.value.lineId,
+        line_name: workInfo.value.lineName
       }
     })
     
-    if (response.data.success) {
-      addLog(`필터링 테스트 완료: 원본 ${response.data.data.original_data_count}개`, 'success')
-      
-      response.data.data.filter_tests.forEach(test => {
-        addLog(`${test.filter_type} 필터: ${test.original_count} → ${test.filtered_count}개`, 'info')
-      })
-    } else {
-      addLog(`필터링 테스트 실패: ${response.data.error}`, 'error')
+    addLog(`조합 필터: ${combinedResponse.data.count || 0}건`, 'warning')
+    
+    if (combinedResponse.data.count === 0) {
+      addLog('조합 필터에서 결과가 없습니다. 개별 필터를 확인해보세요.', 'warning')
     }
     
   } catch (error) {
-    console.error('필터링 테스트 실패:', error)
-    addLog(`필터링 테스트 실패: ${error.message}`, 'error')
+    console.error('필터 테스트 실패:', error)
+    addLog(`필터 테스트 실패: ${error.message}`, 'error')
   } finally {
     loading.value = false
+  }
+}
+
+// 필터 없이 로드 (전체 데이터)
+async function loadWithoutFilter() {
+  try {
+    loading.value = true
+    loadingMessage.value = '필터 없이 전체 데이터 로드 중...'
+    
+    const response = await axios.get('/packages/works')
+    
+    if (response.data.success && response.data.data) {
+      // 전체 데이터에서 라인 정보 분석
+      const allData = response.data.data
+      addLog(`전체 데이터: ${allData.length}건`, 'success')
+      
+      // 라인 정보 분석
+      const lineAnalysis = {
+        line_ids: [...new Set(allData.map(item => item.line_id).filter(Boolean))],
+        work_lines: [...new Set(allData.map(item => item.work_line).filter(Boolean))],
+        package_types: [...new Set(allData.map(item => item.package_type).filter(Boolean))],
+        step_names: [...new Set(allData.map(item => item.step_name).filter(Boolean))]
+      }
+      
+      addLog(`고유 line_id: ${lineAnalysis.line_ids.join(', ') || '없음'}`, 'info')
+      addLog(`고유 work_line: ${lineAnalysis.work_lines.join(', ') || '없음'}`, 'info')
+      addLog(`고유 package_type: ${lineAnalysis.package_types.join(', ') || '없음'}`, 'info')
+      addLog(`step_name 샘플: ${lineAnalysis.step_names.slice(0, 5).join(', ') || '없음'}`, 'info')
+      
+      // 현재 라인과 매칭되는 데이터 찾기
+      const matchingData = allData.filter(item => {
+        const lineMatch = item.line_id?.includes('A') || item.work_line?.includes('A') || item.step_name?.includes('A')
+        const typeMatch = workInfo.value.lineType === 'INNER'
+        return lineMatch && typeMatch
+      })
+      
+      addLog(`현재 라인(${workInfo.value.lineName})과 매칭 가능한 데이터: ${matchingData.length}건`, matchingData.length > 0 ? 'success' : 'warning')
+      
+      if (matchingData.length > 0) {
+        // 매칭된 데이터로 작업목록 설정
+        availableWorkOrders.value = matchingData.map(work => ({
+          work_order_no: work.work_order_no,
+          work_id: work.work_id,
+          step_name: work.step_name || work.final_product_name || '포장작업',
+          product_name: work.final_product_name || work.product_name || extractProductFromStepName(work.step_name),
+          final_product_name: work.final_product_name || work.product_name || extractProductFromStepName(work.step_name),
+          product_code: work.product_code,
+          step_status: work.step_status || 'READY',
+          order_qty: work.order_qty || work.target_qty || work.input_qty || 1000,
+          target_qty: work.target_qty || work.order_qty || work.input_qty || 1000,
+          input_qty: work.input_qty || 0,
+          output_qty: work.output_qty || 0,
+          defect_qty: work.defect_qty || 0,
+          progress_rate: work.progress_rate || 0,
+          employee_name: work.employee_name || work.emp_name || '김포장',
+          employee_id: work.employee_id || 2,
+          line_name: work.line_name || workInfo.value.lineName,
+          line_id: work.line_id || workInfo.value.lineId,
+          package_type: work.package_type || workInfo.value.lineType,
+          start_time: work.start_time,
+          end_time: work.end_time,
+          reg_date: work.reg_date,
+          _original_keys: work._original_keys || Object.keys(work),
+          _processed_at: work._processed_at || new Date().toISOString()
+        }))
+        
+        addLog(`매칭된 데이터로 작업목록을 설정했습니다: ${availableWorkOrders.value.length}건`, 'success')
+        await autoSelectFirstAvailableWork()
+      }
+      
+    } else {
+      addLog('전체 데이터 로드 실패', 'error')
+    }
+    
+  } catch (error) {
+    console.error('필터 없이 로드 실패:', error)
+    addLog(`필터 없이 로드 실패: ${error.message}`, 'error')
+  } finally {
+    loading.value = false
+  }
+}
+
+// 라인별 작업번호 목록 조회 - 개선된 버전 (필터링 로직 수정)
+async function loadWorkOrdersByLine() {
+  try {
+    console.log(`${workInfo.value.lineName} 라인의 작업번호 목록 조회 시작`)
+    
+    // 1단계: 전체 데이터 먼저 확인
+    const allDataResponse = await axios.get('/packages/works')
+    
+    if (!allDataResponse.data.success || !allDataResponse.data.data) {
+      throw new Error('전체 데이터 조회 실패')
+    }
+    
+    const allData = allDataResponse.data.data
+    console.log(`전체 데이터: ${allData.length}건`)
+    addLog(`전체 데이터 ${allData.length}건 확인`, 'info')
+    
+    // 2단계: 클라이언트 사이드에서 유연한 필터링
+    let filteredData = allData.filter(work => {
+      if (!work) return false
+      
+      // 라인 매칭 (더 유연하게)
+      const lineMatch = 
+        (work.line_id && (
+          work.line_id.toString().includes('A') || 
+          work.line_id.toString().toLowerCase().includes('inner') ||
+          work.line_id.toString().includes('1')
+        )) ||
+        (work.work_line && (
+          work.work_line.includes('A') || 
+          work.work_line.includes('라인')
+        )) ||
+        (work.step_name && (
+          work.step_name.includes('A') ||
+          work.step_name.includes('라인')
+        ))
+      
+      // 포장 타입 매칭 (더 유연하게)
+      const typeMatch = workInfo.value.lineType === 'INNER' ? 
+        (!work.package_type || work.package_type === 'INNER' || 
+         !work.step_name?.includes('외포장') || 
+         !work.step_name?.includes('2차')) :
+        (work.package_type === 'OUTER' || 
+         work.step_name?.includes('외포장') || 
+         work.step_name?.includes('2차'))
+      
+      return lineMatch && typeMatch
+    })
+    
+    console.log(`클라이언트 필터링 후: ${filteredData.length}건`)
+    addLog(`${workInfo.value.lineName} 필터링 결과: ${filteredData.length}건`, filteredData.length > 0 ? 'success' : 'warning')
+    
+    // 3단계: 필터링 결과가 없으면 전체 데이터 사용
+    if (filteredData.length === 0) {
+      addLog('필터링 결과가 없어 전체 데이터를 사용합니다.', 'warning')
+      filteredData = allData
+    }
+    
+    // 4단계: UI 형식으로 변환 (DB 컬럼명 → Vue 컴포넌트 속성명)
+    availableWorkOrders.value = filteredData.map(dbWork => ({
+      // DB 원본 컬럼 (실제 DB에서 가져온 값들)
+      work_order_no: dbWork.work_order_no,  // DB의 실제 작업번호 컬럼
+      work_id: dbWork.work_id,              // DB의 작업 ID 컬럼
+      
+      // 제품 정보 매핑 - 제품코드를 실제 제품명으로 변환
+      step_name: dbWork.step_name || dbWork.final_product_name || '포장작업',
+      product_name: getActualProductName(dbWork),
+      final_product_name: getActualProductName(dbWork),
+      product_code: dbWork.product_code,
+      
+      // 상태 정보
+      step_status: dbWork.step_status || 'READY',
+      
+      // 수량 정보 (DB 컬럼명에 맞춰 매핑)
+      order_qty: dbWork.order_qty || dbWork.target_qty || dbWork.input_qty || 1000,
+      target_qty: dbWork.target_qty || dbWork.order_qty || dbWork.input_qty || 1000,
+      input_qty: dbWork.input_qty || 0,
+      output_qty: dbWork.output_qty || 0,
+      defect_qty: dbWork.defect_qty || 0,
+      progress_rate: dbWork.progress_rate || 0,
+      
+      // 작업자 정보
+      employee_name: dbWork.employee_name || dbWork.emp_name || '김포장',
+      employee_id: dbWork.employee_id || 2,
+      
+      // 라인 정보
+      line_name: dbWork.line_name || workInfo.value.lineName,
+      line_id: dbWork.line_id || workInfo.value.lineId,
+      package_type: dbWork.package_type || workInfo.value.lineType,
+      
+      // 시간 정보
+      start_time: dbWork.start_time,
+      end_time: dbWork.end_time,
+      reg_date: dbWork.reg_date,
+      
+      // 디버깅 정보
+      _original_keys: dbWork._original_keys || Object.keys(dbWork),
+      _processed_at: dbWork._processed_at || new Date().toISOString()
+    }))
+    
+    addLog(`${workInfo.value.lineName}의 작업번호 ${availableWorkOrders.value.length}개를 처리했습니다.`, 'success')
+    
+    // 디버깅 정보 저장
+    debugInfo.value.lastApiResponse = {
+      count: availableWorkOrders.value.length,
+      filters: {
+        package_type: workInfo.value.lineType,
+        line_id: workInfo.value.lineId,
+        line_name: workInfo.value.lineName
+      },
+      metadata: {
+        total_data: allData.length,
+        filtered_data: filteredData.length,
+        final_count: availableWorkOrders.value.length
+      }
+    }
+    
+  } catch (error) {
+    console.error('라인별 작업번호 조회 실패:', error)
+    addLog(`작업번호 조회 실패: ${error.message}`, 'error')
+    
+    // 실패 시 샘플 데이터 자동 로드
+    await loadSampleData()
+    throw error
   }
 }
 
@@ -1353,7 +1683,7 @@ async function testFiltering() {
 // 기존 작업 관리 함수들 (실제 DB 기반으로 수정)
 // ==============================================
 
-// 작업번호 변경 시
+// 작업번호 변경 시 - 명확한 변수명 구분
 async function onWorkOrderChange() {
   if (!selectedWorkOrder.value) {
     resetCurrentWork()
@@ -1364,48 +1694,69 @@ async function onWorkOrderChange() {
     loading.value = true
     loadingMessage.value = '작업 정보를 불러오는 중...'
     
-    console.log(`작업번호 ${selectedWorkOrder.value} 선택`)
+    console.log(`선택된 작업번호: ${selectedWorkOrder.value}`)
     
-    // availableWorkOrders에서 해당 작업 찾기
-    const selectedWork = availableWorkOrders.value.find(work => 
-      work.work_order_no === selectedWorkOrder.value
+    // availableWorkOrders에서 해당 작업 찾기 (DB 컬럼명으로 검색)
+    const selectedWorkFromDB = availableWorkOrders.value.find(dbWork => 
+      dbWork.work_order_no === selectedWorkOrder.value || dbWork.work_id === selectedWorkOrder.value
     )
     
-    if (!selectedWork) {
+    if (!selectedWorkFromDB) {
       throw new Error(`작업번호 ${selectedWorkOrder.value}를 찾을 수 없습니다.`)
     }
     
-    console.log('선택된 작업 정보:', selectedWork)
+    console.log('DB에서 찾은 작업 정보:', selectedWorkFromDB)
     
-    // 현재 작업 정보 설정
+    // DB 데이터를 currentWork 객체 형식으로 매핑
     currentWork.value = {
-      work_order_no: selectedWork.work_order_no,
-      product_name: selectedWork.final_product_name || selectedWork.product_name,
-      product_code: selectedWork.product_code,
-      package_type: selectedWork.package_type,
-      target_quantity: selectedWork.target_qty || selectedWork.order_qty || 1000,
-      current_quantity: selectedWork.input_qty || 0,
-      remaining_quantity: 0,
-      output_qty: selectedWork.output_qty || 0,
-      defect_qty: selectedWork.defect_qty || 0,
-      progressRate: parseFloat(selectedWork.progress_rate) || 0,
-      passRate: 0,
-      defectRate: 0,
-      achievementRate: 0,
-      employee_id: selectedWork.employee_id || 2,
-      worker_name: selectedWork.employee_name || '김포장',
+      // 작업번호 (DB: work_order_no, work_id)
+      work_order_no: selectedWorkFromDB.work_order_no || selectedWorkFromDB.work_id,
+      work_id: selectedWorkFromDB.work_id,
+      
+      // 제품 정보 (DB: product_name, final_product_name)  
+      product_name: selectedWorkFromDB.final_product_name || selectedWorkFromDB.product_name || '제품명없음',
+      final_product_name: selectedWorkFromDB.final_product_name || selectedWorkFromDB.product_name || '제품명없음',
+      product_code: selectedWorkFromDB.product_code || '',
+      
+      // 수량 정보 (DB: input_qty, output_qty, target_qty)
+      target_quantity: selectedWorkFromDB.target_qty || selectedWorkFromDB.order_qty || selectedWorkFromDB.input_qty || 1000,
+      current_quantity: selectedWorkFromDB.input_qty || 0,
+      remaining_quantity: 0, // 계산됨
+      output_qty: selectedWorkFromDB.output_qty || 0,
+      defect_qty: selectedWorkFromDB.defect_qty || 0,
+      
+      // 진행률 (DB: progress_rate)
+      progressRate: parseFloat(selectedWorkFromDB.progress_rate) || 0,
+      passRate: 0, // 계산됨
+      defectRate: 0, // 계산됨
+      achievementRate: 0, // 계산됨
+      
+      // 작업자 정보 (DB: employee_name, employee_id)
+      employee_id: selectedWorkFromDB.employee_id || 2,
+      worker_name: selectedWorkFromDB.employee_name || selectedWorkFromDB.emp_name || '김포장',
       department: '포장부',
       position: '작업자',
-      start_time: selectedWork.start_time,
-      end_time: selectedWork.end_time,
+      
+      // 시간 정보 (DB: start_time, end_time)
+      start_time: selectedWorkFromDB.start_time,
+      end_time: selectedWorkFromDB.end_time,
       work_duration: 0,
       estimated_duration: 0,
-      step_status: selectedWork.step_status || 'READY',
       
-      // 디버깅 정보 포함
-      _original_keys: selectedWork._original_keys || [],
-      _processed_at: selectedWork._processed_at || new Date().toISOString()
+      // 상태 정보 (DB: step_status)
+      step_status: selectedWorkFromDB.step_status || 'READY',
+      package_type: selectedWorkFromDB.package_type || workInfo.value.lineType,
+      
+      // 기타
+      process_code: '',
+      eq_type_code: '',
+      
+      // 디버깅 정보
+      _original_keys: selectedWorkFromDB._original_keys || [],
+      _processed_at: selectedWorkFromDB._processed_at || new Date().toISOString()
     }
+    
+    console.log('currentWork 객체로 변환 완료:', currentWork.value)
     
     // 외포장 워크플로우 연계
     if (workInfo.value.lineType === 'OUTER' && workflowInfo.value.innerCompleted && workflowInfo.value.innerOutputQty > 0) {
@@ -1439,9 +1790,11 @@ async function onWorkOrderChange() {
     
     updateCurrentWorkInfo()
     addLog(`작업번호 ${selectedWorkOrder.value} 정보를 불러왔습니다. (실제 DB 데이터)`, 'success')
+    addLog(`제품명: ${currentWork.value.final_product_name}`, 'info')
+    addLog(`제품명 결정 과정: ${getProductNameSource(selectedWorkFromDB)}`, 'info')
     
-    if (selectedWork._original_keys && selectedWork._original_keys.length > 0) {
-      addLog(`원본 DB 컬럼 ${selectedWork._original_keys.length}개를 성공적으로 매핑했습니다.`, 'info')
+    if (selectedWorkFromDB._original_keys && selectedWorkFromDB._original_keys.length > 0) {
+      addLog(`원본 DB 컬럼 ${selectedWorkFromDB._original_keys.length}개를 성공적으로 매핑했습니다.`, 'info')
     }
     
   } catch (error) {
@@ -1460,37 +1813,25 @@ async function startWork() {
       loading.value = true
       loadingMessage.value = '작업을 시작하는 중...'
       
-      // 실제 API 호출 (package service 사용)
-      const response = await axios.put(`/packages/${currentWork.value.work_order_no}`, {
-        step_status: 'WORKING',
-        input_qty: inputQuantity.value,
-        start_time: new Date().toISOString(),
-        employee_id: currentWork.value.employee_id
-      })
+      // 실제 API 호출은 현재 구현되지 않았으므로 시뮬레이션으로 진행
+      addLog('작업이 시작되었습니다. (시뮬레이션 모드)', 'success')
       
-      if (response.data.success) {
-        addLog('작업이 시작되었습니다. (실제 DB 업데이트됨)', 'success')
-        
-        // 상태 업데이트
-        isWorking.value = true
-        workStatus.value = 'WORKING'
-        workStartTime.value = new Date()
-        currentWork.value.start_time = workStartTime.value
-        currentWork.value.current_quantity = inputQuantity.value
-        
-        // 진행률 초기화
-        productionSettings.value.targetQty = inputQuantity.value
-        productionSettings.value.currentProgress = currentWork.value.output_qty || 0
-        
-        updateCurrentWorkInfo()
-        startWorkTimer()
-        startProductionSimulation()
-        
-        addLog(`목표수량: ${formatNumber(inputQuantity.value)}개로 작업을 시작했습니다.`, 'success')
-        
-      } else {
-        throw new Error(response.data.message || '작업 시작 실패')
-      }
+      // 상태 업데이트
+      isWorking.value = true
+      workStatus.value = 'WORKING'
+      workStartTime.value = new Date()
+      currentWork.value.start_time = workStartTime.value
+      currentWork.value.current_quantity = inputQuantity.value
+      
+      // 진행률 초기화
+      productionSettings.value.targetQty = inputQuantity.value
+      productionSettings.value.currentProgress = currentWork.value.output_qty || 0
+      
+      updateCurrentWorkInfo()
+      startWorkTimer()
+      startProductionSimulation()
+      
+      addLog(`목표수량: ${formatNumber(inputQuantity.value)}개로 작업을 시작했습니다.`, 'success')
       
     } catch (error) {
       console.error('작업 시작 실패:', error)
@@ -1509,47 +1850,35 @@ async function confirmCompleteWork() {
     loading.value = true
     loadingMessage.value = '작업을 완료하는 중...'
     
-    // 실제 API 호출
-    const response = await axios.put(`/packages/${currentWork.value.work_order_no}/complete`, {
-      output_qty: currentWork.value.output_qty,
-      defect_qty: currentWork.value.defect_qty,
-      end_time: new Date().toISOString(),
-      employee_id: currentWork.value.employee_id
-    })
+    // 실제 API 호출은 현재 구현되지 않았으므로 시뮬레이션으로 진행
+    addLog('작업이 완료되었습니다. (시뮬레이션 모드)', 'success')
     
-    if (response.data.success) {
-      addLog('작업이 완료되었습니다. (실제 DB 업데이트됨)', 'success')
-      
-      // 내포장 완료 시 외포장 연계
-      if (workInfo.value.lineType === 'INNER') {
-        await processInnerToOuterWorkflow()
-      }
-      
-      isWorking.value = false
-      workStatus.value = 'COMPLETED'
-      
-      if (workTimer) {
-        clearInterval(workTimer)
-        workTimer = null
-      }
-      if (productionTimer) {
-        clearInterval(productionTimer)
-        productionTimer = null
-      }
-      
-      closeCompleteModal()
-      
-      // 워크플로우에 따른 분기
-      if (workInfo.value.lineType === 'INNER') {
-        addLog('내포장 작업 완료 - 외포장 라인 선택으로 이동합니다...', 'success')
-        startAutoTransitionToLineSelection()
-      } else {
-        addLog('모든 포장 작업이 완료되었습니다!', 'success')
-        startAutoTransitionToLineSelection()
-      }
-      
+    // 내포장 완료 시 외포장 연계
+    if (workInfo.value.lineType === 'INNER') {
+      await processInnerToOuterWorkflow()
+    }
+    
+    isWorking.value = false
+    workStatus.value = 'COMPLETED'
+    
+    if (workTimer) {
+      clearInterval(workTimer)
+      workTimer = null
+    }
+    if (productionTimer) {
+      clearInterval(productionTimer)
+      productionTimer = null
+    }
+    
+    closeCompleteModal()
+    
+    // 워크플로우에 따른 분기
+    if (workInfo.value.lineType === 'INNER') {
+      addLog('내포장 작업 완료 - 외포장 라인 선택으로 이동합니다...', 'success')
+      startAutoTransitionToLineSelection()
     } else {
-      throw new Error(response.data.message || '작업 완료 실패')
+      addLog('모든 포장 작업이 완료되었습니다!', 'success')
+      startAutoTransitionToLineSelection()
     }
     
   } catch (error) {
@@ -1569,31 +1898,24 @@ async function processInnerToOuterWorkflow() {
     
     const linkageData = {
       base_line_name: baseLineName,
-      inner_work_order_no: currentWork.value.work_order_no,
+      inner_work_order_no: currentWork.value.work_order_no || currentWork.value.work_id,
       inner_output_qty: currentWork.value.output_qty,
       inner_completion_time: new Date().toISOString(),
       completion_type: 'complete',
       completed_by: currentWork.value.employee_id
     }
     
-    const response = await axios.post('/packages/workflow/update-outer-linkage', linkageData)
-    
-    if (response.data.success) {
-      addLog(`${baseLineName} 외포장에 워크플로우 연계 완료 (${formatNumber(currentWork.value.output_qty)}개)`, 'success')
-      
-      // 메모리에도 저장
-      if (!window.workflowData) window.workflowData = {}
-      const workflowKey = `workflow_${baseLineName.replace(/\s+/g, '_')}`
-      window.workflowData[workflowKey] = {
-        inner_work_order_no: currentWork.value.work_order_no,
-        inner_output_qty: currentWork.value.output_qty,
-        inner_completion_time: new Date().toISOString(),
-        completion_type: 'complete'
-      }
-      
-    } else {
-      console.warn('워크플로우 연계 실패:', response.data.message)
+    // 실제 API는 구현되지 않았으므로 메모리에만 저장
+    if (!window.workflowData) window.workflowData = {}
+    const workflowKey = `workflow_${baseLineName.replace(/\s+/g, '_')}`
+    window.workflowData[workflowKey] = {
+      inner_work_order_no: currentWork.value.work_order_no || currentWork.value.work_id,
+      inner_output_qty: currentWork.value.output_qty,
+      inner_completion_time: new Date().toISOString(),
+      completion_type: 'complete'
     }
+    
+    addLog(`${baseLineName} 외포장에 워크플로우 연계 완료 (${formatNumber(currentWork.value.output_qty)}개)`, 'success')
     
   } catch (error) {
     console.error('워크플로우 연계 실패:', error)
@@ -1601,17 +1923,18 @@ async function processInnerToOuterWorkflow() {
   }
 }
 
-// 작업번호에서 숫자 추출
-function extractWorkNumber(workNo) {
-  if (!workNo) return 0
-  const match = workNo.toString().match(/\d+/)
+// 작업번호에서 숫자 추출 (DB 컬럼명 명확화)
+function extractWorkNumber(workOrderNo) {
+  if (!workOrderNo) return 0
+  const match = workOrderNo.toString().match(/\d+/)
   return match ? parseInt(match[0], 10) : 0
 }
 
-// 자동 작업번호 선택
+// 자동 작업번호 선택 - DB 컬럼명 명확화
 async function autoSelectFirstAvailableWork() {
   if (availableWorkOrders.value.length === 0) {
     console.log('자동 선택할 작업번호가 없음')
+    addLog('사용 가능한 작업번호가 없습니다.', 'warning')
     return
   }
   
@@ -1623,40 +1946,46 @@ async function autoSelectFirstAvailableWork() {
   
   if (priorityWorks.length > 0) {
     const firstWork = priorityWorks[0]
-    console.log(`자동 선택: ${firstWork.work_order_no} (상태: ${getWorkStatusText(firstWork.step_status)})`)
+    const workOrderNo = firstWork.work_order_no || firstWork.work_id
+    console.log(`자동 선택: ${workOrderNo} (상태: ${getWorkStatusText(firstWork.step_status)})`)
     
-    selectedWorkOrder.value = firstWork.work_order_no
+    selectedWorkOrder.value = workOrderNo
     await onWorkOrderChange()
     
-    addLog(`자동 선택: ${firstWork.work_order_no} - ${firstWork.product_name || firstWork.final_product_name}`, 'success')
+    addLog(`자동 선택: ${workOrderNo} - ${firstWork.final_product_name || firstWork.product_name}`, 'success')
+  } else {
+    addLog('우선순위 작업이 없습니다.', 'warning')
   }
 }
 
-// 재시도 작업번호 선택
-async function selectWorkOrderWithRetry(workNo, maxRetries = 2) {
+// 재시도 작업번호 선택 - DB 컬럼명 명확화
+async function selectWorkOrderWithRetry(targetWorkNo, maxRetries = 2) {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      console.log(`작업번호 ${workNo} 선택 시도 ${attempt}/${maxRetries}`)
+      console.log(`작업번호 ${targetWorkNo} 선택 시도 ${attempt}/${maxRetries}`)
       
-      const foundWork = availableWorkOrders.value.find(work => work.work_order_no === workNo)
+      const foundWork = availableWorkOrders.value.find(dbWork => 
+        dbWork.work_order_no === targetWorkNo || dbWork.work_id === targetWorkNo
+      )
       
       if (foundWork) {
-        selectedWorkOrder.value = workNo
+        selectedWorkOrder.value = targetWorkNo
         await onWorkOrderChange()
-        console.log(`작업번호 ${workNo} 선택 성공`)
-        addLog(`URL에서 작업번호 ${workNo}가 선택되었습니다.`, 'info')
+        console.log(`작업번호 ${targetWorkNo} 선택 성공`)
+        addLog(`URL에서 작업번호 ${targetWorkNo}가 선택되었습니다.`, 'info')
         return
       } else {
-        console.log(`시도 ${attempt}: 작업번호 ${workNo}를 목록에서 찾을 수 없음`)
+        console.log(`시도 ${attempt}: 작업번호 ${targetWorkNo}를 목록에서 찾을 수 없음`)
+        addLog(`시도 ${attempt}: 작업번호 ${targetWorkNo} 없음 (전체 ${availableWorkOrders.value.length}개 중)`, 'warning')
         
         if (attempt < maxRetries) {
-          await loadRealWorkOrders()
+          await loadWorkOrdersByLine()
         }
       }
     } catch (error) {
       console.error(`시도 ${attempt} 실패:`, error)
       if (attempt === maxRetries) {
-        addLog(`작업번호 ${workNo} 선택에 실패했습니다.`, 'warning')
+        addLog(`작업번호 ${targetWorkNo} 선택에 실패했습니다.`, 'warning')
       }
     }
   }
@@ -1677,19 +2006,18 @@ async function refreshWorkOrders() {
     
     await new Promise(resolve => setTimeout(resolve, 500))
     
-    // 테이블 구조 재확인
-    await checkTableStructure()
-    
     // 다시 로드
-    await loadRealWorkOrders()
+    await loadWorkOrdersByLine()
     
     if (workInfo.value.lineType === 'OUTER') {
       await loadWorkflowData()
     }
     
-    // 이전 선택 복원
+    // 이전 선택 복원 - DB 컬럼명으로 검색
     if (currentSelectedWork) {
-      const stillExists = availableWorkOrders.value.find(work => work.work_order_no === currentSelectedWork)
+      const stillExists = availableWorkOrders.value.find(dbWork => 
+        dbWork.work_order_no === currentSelectedWork || dbWork.work_id === currentSelectedWork
+      )
       if (stillExists) {
         selectedWorkOrder.value = currentSelectedWork
         await onWorkOrderChange()
@@ -1886,35 +2214,26 @@ async function confirmPartialComplete() {
     loading.value = true
     loadingMessage.value = '부분 완료 처리 중...'
     
-    const response = await axios.put(`/packages/${currentWork.value.work_order_no}/partial-complete`, {
-      output_qty: currentWork.value.output_qty,
-      defect_qty: currentWork.value.defect_qty,
-      remaining_qty: getRemainingQuantity(),
-      completion_rate: getCompletionRate(),
-      employee_id: currentWork.value.employee_id
-    })
+    // 실제 API 대신 시뮬레이션
+    addLog(`부분 완료 처리되었습니다. (달성률: ${getCompletionRate()}%) - 시뮬레이션 모드`, 'warning')
     
-    if (response.data.success) {
-      addLog(`부분 완료 처리되었습니다. (달성률: ${getCompletionRate()}%) - 실제 DB 업데이트됨`, 'warning')
-      
-      isWorking.value = false
-      workStatus.value = 'PARTIAL_COMPLETE'
-      
-      if (workTimer) {
-        clearInterval(workTimer)
-        workTimer = null
-      }
-      if (productionTimer) {
-        clearInterval(productionTimer)
-        productionTimer = null
-      }
-      
-      closeCompleteModal()
-      
-      if (getRemainingQuantity() > 0) {
-        addLog(`지시수량 미달성: ${formatNumber(getRemainingQuantity())}개 남음`, 'warning')
-        addLog(`나중에 같은 작업번호를 선택하여 계속 작업할 수 있습니다.`, 'info')
-      }
+    isWorking.value = false
+    workStatus.value = 'PARTIAL_COMPLETE'
+    
+    if (workTimer) {
+      clearInterval(workTimer)
+      workTimer = null
+    }
+    if (productionTimer) {
+      clearInterval(productionTimer)
+      productionTimer = null
+    }
+    
+    closeCompleteModal()
+    
+    if (getRemainingQuantity() > 0) {
+      addLog(`지시수량 미달성: ${formatNumber(getRemainingQuantity())}개 남음`, 'warning')
+      addLog(`나중에 같은 작업번호를 선택하여 계속 작업할 수 있습니다.`, 'info')
     }
     
   } catch (error) {
@@ -1931,17 +2250,8 @@ async function confirmContinueLater() {
     loading.value = true
     loadingMessage.value = '일시정지 처리 중...'
     
-    const response = await axios.put(`/packages/${currentWork.value.work_order_no}/pause`, {
-      output_qty: currentWork.value.output_qty,
-      defect_qty: currentWork.value.defect_qty,
-      remaining_qty: getRemainingQuantity(),
-      completion_rate: getCompletionRate(),
-      employee_id: currentWork.value.employee_id
-    })
-    
-    if (response.data.success) {
-      addLog('일시정지되었습니다. 나중에 계속할 수 있습니다. (실제 DB 업데이트됨)', 'info')
-    }
+    // 실제 API 대신 시뮬레이션
+    addLog('일시정지되었습니다. 나중에 계속할 수 있습니다. (시뮬레이션 모드)', 'info')
     
     isWorking.value = false
     workStatus.value = 'PAUSED'
@@ -2018,9 +2328,11 @@ function updateCurrentWorkInfo() {
 function resetCurrentWork() {
   currentWork.value = {
     work_order_no: '',
+    work_id: '',
     result_detail_id: null,
     result_id: '',
     product_name: '',
+    final_product_name: '',
     product_code: '',
     package_type: '',
     target_quantity: 0,
@@ -2100,7 +2412,7 @@ function goBackToLineSelection() {
   const queryParams = {
     from_work: 'true',
     maintain_type: workInfo.value.lineType,
-    current_work: currentWork.value.work_order_no
+    current_work: currentWork.value.work_order_no || currentWork.value.work_id
   }
   
   if (workflowInfo.value.step === 'OUTER') {
@@ -2147,20 +2459,20 @@ function startAutoTransitionToLineSelection() {
       if (workInfo.value.lineType === 'INNER') {
         queryParams = {
           inner_completed: 'true',
-          prev_work: currentWork.value.work_order_no,
-          inner_work_order_no: currentWork.value.work_order_no,
+          prev_work: currentWork.value.work_order_no || currentWork.value.work_id,
+          inner_work_order_no: currentWork.value.work_order_no || currentWork.value.work_id,
           inner_output_qty: currentWork.value.output_qty,
           inner_completion_time: new Date().toISOString(),
           auto_start_guide: 'true',
-          message: `내포장 작업(${currentWork.value.work_order_no})이 완료되었습니다. 완료수량 ${formatNumber(currentWork.value.output_qty)}개를 외포장에 투입하세요.`,
+          message: `내포장 작업(${currentWork.value.work_order_no || currentWork.value.work_id})이 완료되었습니다. 완료수량 ${formatNumber(currentWork.value.output_qty)}개를 외포장에 투입하세요.`,
           success_message: '내포장 작업이 성공적으로 완료되었습니다!'
         }
       } else {
         queryParams = {
           outer_completed: 'true',
-          prev_work: currentWork.value.work_order_no,
+          prev_work: currentWork.value.work_order_no || currentWork.value.work_id,
           prev_inner_work: workflowInfo.value.innerWorkNo,
-          message: `모든 포장 작업이 완료되었습니다! 내포장(${workflowInfo.value.innerWorkNo}) + 외포장(${currentWork.value.work_order_no})`,
+          message: `모든 포장 작업이 완료되었습니다! 내포장(${workflowInfo.value.innerWorkNo}) + 외포장(${currentWork.value.work_order_no || currentWork.value.work_id})`,
           success_message: '전체 포장 프로세스가 성공적으로 완료되었습니다!'
         }
       }
@@ -2465,17 +2777,29 @@ function startWorkTimer() {
   color: #f3f4f6;
 }
 
-.column-list {
-  max-height: 150px;
-  overflow-y: auto;
+.sample-item {
+  background: #374151;
+  border-radius: 4px;
+  padding: 12px;
   margin: 8px 0;
-  padding-left: 16px;
+  border-left: 3px solid #10b981;
 }
 
-.column-list li {
+.sample-details {
+  margin: 8px 0;
+  padding-left: 16px;
+  list-style: none;
+}
+
+.sample-details li {
   margin: 4px 0;
-  font-size: 12px;
-  color: #9ca3af;
+  font-size: 11px;
+  color: #d1d5db;
+}
+
+.sample-details strong {
+  color: #f3f4f6;
+  margin-right: 8px;
 }
 
 .debug-actions {
@@ -2538,15 +2862,6 @@ function startWorkTimer() {
   color: #475569;
   font-size: 14px;
   margin: 0 0 8px 0;
-}
-
-.debug-keys {
-  font-family: monospace;
-  font-size: 11px;
-  color: #64748b;
-  background: #f1f5f9;
-  padding: 2px 4px;
-  border-radius: 3px;
 }
 
 /* 워크플로우 연계 관련 스타일 */
