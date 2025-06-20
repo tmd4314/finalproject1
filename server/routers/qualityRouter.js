@@ -1,6 +1,4 @@
-const express = require('express');
-const router = express.Router();
-const workOrderService = require('../services/qualityService.js');
+
 
 // 제품명 목록 조회
 router.get('/productList', async (req, res) => {

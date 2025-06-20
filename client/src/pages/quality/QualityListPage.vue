@@ -38,7 +38,7 @@
         </div>
         <div class="input-row">
           <va-input
-            v-if="finalResult === '불합'"
+            v-if="finalResultVisible"
             v-model="form.qualRemark"
             label="불합 판정 상세 사유"
             placeholder="불합 사유를 입력하세요"
@@ -111,11 +111,19 @@ const inspectionStandardList = ref<
     insp_result: string;
   }[]
 >([])
-
+// 이거 지워도 되는건지 확인
 const finalResult = computed(() => {
   return inspectionStandardList.value.some(item => item.insp_result !== '합')
     ? '불합'
     : '합';
+});
+
+const finalResultVisible = computed(() => {
+  return inspectionStandardList.value.some(item => {
+    return item.insp_measured_value !== undefined &&
+           item.insp_measured_value !== null &&
+           item.insp_result === '불합';
+  });
 });
 
 // 제품명 옵션 리스트
@@ -247,11 +255,10 @@ const submitForm = async () => {
     return;
   }
 
-  // 불합일 경우 불합 사유가 비어있으면 return
-  if (finalResult.value === '불합' && !form.value.qualRemark) {
-    alert('불합 사유를 입력해주세요.');
-    return;
-  }
+    if (finalResultVisible.value && !form.value.qualRemark) {
+      alert('불합 사유를 입력해주세요.');
+      return;
+    }
 
   try {
     const res = await axios.post('/qualitys/registerTest', {
@@ -261,7 +268,7 @@ const submitForm = async () => {
       qual_result: finalResult.value,
       process_name: resultInfo.value.processName,
       pass_qty: finalResult.value === '합' ? resultInfo.value.passQty : 0,
-      qual_remark: finalResult.value === '불합' ? form.value.qualRemark : null
+      qual_remark: finalResultVisible.value ? form.value.qualRemark : null
     });
 
     if (res.data.success) {
