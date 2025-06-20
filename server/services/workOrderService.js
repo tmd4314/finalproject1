@@ -2,6 +2,7 @@
 
 const mariadb = require('../database/mapper.js');
 const { convertObjToAry } = require('../utils/converts.js');
+const { v4: uuidv4 } = require('uuid');
 
 // 제품 검색 (모달용)
 const searchProducts = async (searchTerm = '') => {
@@ -181,11 +182,63 @@ const saveWorkOrderComplete = async (workOrderData) => {
     // 2. 제품 정보 저장
     if (products && products.length > 0) {
       await saveWorkOrderProducts(master.work_order_no, products);
-      await saveWorkResult(master.work_order_no, products);
-      const processCodes = await getProcessCodesByGroup(products[0]?.process_group_code);
-      const resultId = products[0]?.result_id;
-      if (resultId) {
-        await saveWorkResultDetails(resultId, processCodes);
+
+      const now = new Date();
+      const yyyyMMdd = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+
+      for (const product of products) {
+        let attempt = 0;
+        let resultId;
+        let insertSuccess = false;
+
+        while (!insertSuccess && attempt < 10) {
+          const random = Math.floor(100 + Math.random() * 900);
+          resultId = `RE${yyyyMMdd}${random}-${uuidv4().slice(0, 4)}`;
+          product.result_id = resultId;
+
+          try {
+            await mariadb.query('insertResult', [
+              master.work_order_no,
+              product.process_group_code,
+              resultId,
+              product.work_order_date,
+            ]);
+            insertSuccess = true;
+          } catch (err) {
+            if (err.code === 'ER_DUP_ENTRY') {
+              attempt++;
+            } else {
+              throw err;
+            }
+          }
+        }
+
+        if (!insertSuccess) {
+          console.warn(`⚠️ result_id 생성 실패 (중복 10회): ${product.product_code}`);
+          continue;
+        }
+
+        await saveWorkResult(master.work_order_no, [product]);
+
+        const processCodes = await getProcessCodesByGroup(product.process_group_code);
+        if (Array.isArray(processCodes) && processCodes.length > 0) {
+          await saveWorkResultDetails(resultId, processCodes);
+        }
+      }
+      
+      // ✅ 여기서 order_id 조회 및 상태 업데이트
+      const productCode = products[0]?.product_code;
+      if (productCode) {
+        // 1. product_code로 order_id 조회
+        const orderInfo = await mariadb.query("getOrderIdByProductCode", [productCode]);
+        const orderId = orderInfo?.[0]?.order_id;
+
+        if (orderId) {
+          // 2. order_id 기준 상태 업데이트
+          await mariadb.query("updateOrderStatusToProcessing", [orderId]);
+        } else {
+          console.warn("⚠️ order_id를 찾을 수 없어 상태를 업데이트하지 못했습니다.");
+        }
       }
     }
     

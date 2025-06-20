@@ -415,11 +415,6 @@ const saveWorkOrder = async () => {
     return
   }
   
-  const now = new Date()
-  const yyyyMMdd = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`
-  const random = Math.floor(100 + Math.random() * 900)
-  const resultId = `RE${yyyyMMdd}${random}`
-  
   try {
     const payload = {
       master: {
@@ -438,7 +433,6 @@ const saveWorkOrder = async () => {
         work_order_priority: product.work_order_priority || null,
         order_detail_remark: product.order_detail_remark || '',
         process_group_code: product.process_group_code || '',
-        result_id: resultId,
         work_order_date: form.value.order_start_dt
       }))
     }

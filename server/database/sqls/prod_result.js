@@ -142,6 +142,17 @@ const selectEqList =
 `
 ;
 
+const getOrderIdByProductCode = 
+`
+SELECT  od.product_code,
+		    od.order_id
+FROM    order_detail od
+JOIN    order_master om
+  ON    od.order_id = om.order_id
+WHERE   od.product_code = ?
+`
+;
+
 const insertResultDetail =
 `
   INSERT INTO work_result_detail(
@@ -150,6 +161,14 @@ const insertResultDetail =
                             eq_type_code)
   VALUES(?, ?, ?)
 `
+;
+
+const updateOrderStatusToProcessing =
+`
+  UPDATE order_master
+  SET    status = '진행중'
+  WHERE  order_id = ?
+` 
 ;
 
 const updateResultStatus =
@@ -232,5 +251,7 @@ module.exports = {
   updateResultStatus,
   getProcessCodesByGroupQuery,
   materialOutList,
-  endEq
+  endEq,
+  getOrderIdByProductCode,
+  updateOrderStatusToProcessing
 }
