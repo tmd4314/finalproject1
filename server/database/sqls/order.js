@@ -104,5 +104,11 @@ module.exports = {
     deleteOrderMaster: `
     DELETE FROM order_master 
     WHERE order_id = ?
+  `,
+
+    // 주문 상태 변경
+    updateOrderStatus: `
+    UPDATE order_master SET status = ?
+    WHERE  order_id = ?
   `
 };
