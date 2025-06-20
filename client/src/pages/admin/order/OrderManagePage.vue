@@ -47,7 +47,13 @@
               <td>{{ formatDateToYMD(order.orderDate) }}</td>
               <td>{{ formatDateToYMD(order.deliveryDate) }}</td>
               <td>
-                <va-chip :color="getStatusColor(order.status)" size="small">
+                <va-chip 
+                  :color="getStatusColor(order.status)" 
+                  size="small"
+                  :class="{ 'clickable-status': canManageSales }"
+                  @click.stop="canManageSales ? openStatusModal(order) : null"
+                  :title="canManageSales ? '클릭하여 상태 변경' : ''"
+                >
                   {{ order.status }}
                 </va-chip>
               </td>
@@ -228,6 +234,46 @@
         </p>
       </div>
     </div>
+
+    <!-- 주문 상태 변경 모달 -->
+    <va-modal
+      v-model="showStatusModal"
+      title="주문 상태 변경"
+      size="small"
+      hide-default-actions
+    >
+      <div class="status-modal-content">
+        <div class="current-status">
+          <p><strong>주문번호:</strong> {{ selectedOrderForStatus?.orderId }}</p>
+          <p><strong>거래처:</strong> {{ selectedOrderForStatus?.customerName }}</p>
+          <p><strong>현재 상태:</strong> 
+            <va-chip :color="getStatusColor(selectedOrderForStatus?.status)" size="small">
+              {{ selectedOrderForStatus?.status }}
+            </va-chip>
+          </p>
+        </div>
+
+        <div class="form-group">
+          <label>변경할 상태 <span class="required">*</span></label>
+          <va-select
+            v-model="statusForm.newStatus"
+            :options="statusOptions"
+            placeholder="상태를 선택하세요"
+          />
+        </div>
+      </div>
+
+      <template #footer>
+        <div class="modal-footer">
+          <va-button preset="secondary" @click="closeStatusModal">
+            취소
+          </va-button>
+          <va-button @click="updateOrderStatus" :loading="statusLoading">
+            변경
+          </va-button>
+        </div>
+      </template>
+    </va-modal>
   </div>
 </template>
 
@@ -249,6 +295,23 @@ const products = ref<any[]>([])
 const searchText = ref('')
 const editMode = ref(false)
 const selectedOrderId = ref<number | null>(null)
+
+// 상태 모달 관련 데이터
+const showStatusModal = ref(false)
+const selectedOrderForStatus = ref<any | null>(null)
+const statusLoading = ref(false)
+
+const statusForm = ref({
+  newStatus: ''
+})
+
+const statusOptions = ref([
+  '대기',
+  '진행중', 
+  '완료',
+  '지연',
+  '취소'
+])
 
 // 날짜 포맷팅
 const formatDateToYMD = (date: string | Date): string => {
@@ -385,6 +448,57 @@ const computedOrderPrices = computed(() => {
   return form.value.products.map(item => item.unitPrice * item.quantity)
 })
 
+// 상태 모달 함수들
+function openStatusModal(order: GroupedOrder) {
+  if (!canManageSales) {
+    alert('주문 상태 변경 권한이 없습니다.')
+    return
+  }
+
+  selectedOrderForStatus.value = order
+  statusForm.value.newStatus = ''
+  showStatusModal.value = true
+}
+
+function closeStatusModal() {
+  showStatusModal.value = false
+  selectedOrderForStatus.value = null
+}
+
+async function updateOrderStatus() {
+  if (!statusForm.value.newStatus) {
+    alert('변경할 상태를 선택하세요.')
+    return
+  }
+
+  if (statusForm.value.newStatus === selectedOrderForStatus.value?.status) {
+    alert('현재 상태와 동일한 상태로는 변경할 수 없습니다.')
+    return
+  }
+
+  try {
+    statusLoading.value = true
+
+    const statusData = {
+      newStatus: statusForm.value.newStatus
+    }
+
+    await axios.put(`/orders/${selectedOrderForStatus.value!.orderId}/status`, statusData)
+    
+    alert('주문 상태가 변경되었습니다.')
+    closeStatusModal()
+    
+    // 주문 목록 새로고침
+    await fetchOrders()
+
+  } catch (error: any) {
+    console.error('상태 변경 실패:', error)
+    alert(`상태 변경에 실패했습니다.\n${error.response?.data?.message || '알 수 없는 오류'}`)
+  } finally {
+    statusLoading.value = false
+  }
+}
+
 // 초기 데이터 로드
 onMounted(() => {
   console.log('컴포넌트 마운트됨')
@@ -396,7 +510,7 @@ onMounted(() => {
 // API 함수들
 async function fetchOrders() {
   try {
-    const response = await axios.get('http://localhost:3000/api/orders/with-items')
+    const response = await axios.get('/orders/with-items')
     console.log('주문 데이터:', response.data)
     orders.value = response.data || []
   } catch (error) {
@@ -431,7 +545,7 @@ async function fetchOrders() {
 
 async function fetchCustomers() {
   try {
-    const response = await axios.get('http://localhost:3000/account')
+    const response = await axios.get('/account')
     console.log('거래처 데이터:', response.data)
     customers.value = response.data || []
   } catch (error) {
@@ -446,7 +560,7 @@ async function fetchCustomers() {
 
 async function fetchProducts() {
   try {
-    const response = await axios.get('http://localhost:3000/product')
+    const response = await axios.get('/product')
     console.log('제품 데이터:', response.data)
     products.value = response.data || []
   } catch (error) {
@@ -476,7 +590,7 @@ async function editOrder(order: GroupedOrder) {
   selectedOrderId.value = order.orderId
   
   try {
-    const response = await axios.get(`http://localhost:3000/api/orders/${order.orderId}/details`)
+    const response = await axios.get(`/orders/${order.orderId}/details`)
     console.log('서버 응답 데이터: ', response.data)
     const { order: orderInfo, items } = response.data
     
@@ -547,7 +661,7 @@ async function deleteOrder(order: GroupedOrder) {
   if (!confirm(`주문번호 ${order.orderId}를 정말 삭제하시겠습니까?`)) return
   
   try {
-    await axios.delete(`http://localhost:3000/api/orders/${order.orderId}`)
+    await axios.delete(`/orders/${order.orderId}`)
     alert('삭제되었습니다.')
     
     // 삭제한 주문이 선택된 상태였다면 폼 초기화
@@ -676,7 +790,7 @@ async function saveOrder() {
     }
 
     try {
-      await axios.put(`http://localhost:3000/api/orders/${selectedOrderId.value}`, orderData)
+      await axios.put(`/orders/${selectedOrderId.value}`, orderData)
       alert('수정되었습니다.')
       resetForm()
       fetchOrders()
@@ -703,7 +817,7 @@ async function saveOrder() {
     console.log('저장할 데이터:', orderData)
     
     try {
-      await axios.post('http://localhost:3000/api/orders', orderData)
+      await axios.post('/orders', orderData)
       alert('등록되었습니다.')
       resetForm()
       fetchOrders()
@@ -806,6 +920,17 @@ h1 {
   color: #999;
 }
 
+/* 클릭 가능한 상태 스타일 */
+.clickable-status {
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.clickable-status:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
 /* 폼 섹션 */
 .form-section {
   background: white;
@@ -889,6 +1014,63 @@ h1 {
 .new-order-button {
   margin-top: 20px;
   text-align: center;
+}
+
+/* 상태 모달 스타일 */
+.status-modal-content {
+  padding: 16px 0;
+}
+
+.current-status {
+  margin-bottom: 20px;
+  padding: 12px;
+  background-color: #f8f9fa;
+  border-radius: 6px;
+}
+
+.current-status p {
+  margin: 4px 0;
+  font-size: 14px;
+}
+
+.modal-footer {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+/* 권한 안내 섹션 */
+.permission-info-section {
+  background: white;
+  border-radius: 8px;
+  padding: 40px 20px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  text-align: center;
+  margin-top: 20px;
+}
+
+.permission-content {
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.permission-content h3 {
+  margin: 16px 0;
+  color: #333;
+}
+
+.permission-content p {
+  color: #666;
+  line-height: 1.5;
+  margin: 12px 0;
+}
+
+.current-permission {
+  margin: 16px 0;
+}
+
+.permission-desc {
+  font-size: 14px;
 }
 
 /* 반응형 */

@@ -104,7 +104,7 @@ app.get('/', (req, res)=>{
  // 라우터 모듈 등록
 
  //홍인
-app.use('/api/orders', orderRouter);
+app.use('/', orderRouter);
 app.use('/', accountRouter);
 app.use('/', employeeRouter);
 
