@@ -1,26 +1,24 @@
-const mariadb = require('../database/mapper.js')
+const mariadb = require('../database/mapper');
 
-const selectWorkOrder = async () => {
-  return await mariadb.query("selectWorkOrder")
-}
+const selectProductList = async () => {
+  return await mariadb.query('selectProductName');
+};
+
+const selectWorkOrderNo = async (productCode) => {
+  return await mariadb.query('selectWorkOrderNo', [productCode]);
+};
 
 const selectWorkOrderDetail = async (workOrderNo) => {
-  return await mariadb.query("selectWorkOrderDetail", [workOrderNo])
-}
+  return await mariadb.query('selectWorkOrderDetail', [workOrderNo]);
+};
 
-// 제품명 목록 조회
-const selectProductList = async () => {
-  return await mariadb.query("selectProductLists")
-}
-
-// 제품명으로 작업지시서 목록 조회
-const selectWorkOrdersByProductName = async (productName) => {
-  return await mariadb.query("selectWorkOrdersByProductName", [productName])
-}
+const selectInspectionStandardByProcessName = async (processName) => {
+  return await mariadb.query('selectInspectionStandardByProcessName', [processName]);
+};
 
 module.exports = {
-  selectWorkOrder,
-  selectWorkOrderDetail,
   selectProductList,
-  selectWorkOrdersByProductName
+  selectWorkOrderNo,
+  selectWorkOrderDetail,
+  selectInspectionStandardByProcessName
 }

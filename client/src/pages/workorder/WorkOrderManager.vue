@@ -4,9 +4,6 @@
     <div class="mb-3">
       <h1 class="text-2xl font-bold text-gray-800">
         작업지시서 관리
-        <span class="text-sm font-normal text-gray-500 ml-2">
-          ({{ authStore.user?.employee_name || '사용자' }})
-        </span>
       </h1>
     </div>
 
@@ -25,7 +22,6 @@
               readonly
             />
             <button 
-              v-if="authStore.canManageProduction"
               @click="openWorkOrderModal"
               class="px-2 bg-blue-500 text-white rounded-r-md hover:bg-blue-600 text-xs flex items-center justify-center"
             >
@@ -34,11 +30,6 @@
                 <path d="m21 21-4.35-4.35"/>
               </svg>
             </button>
-            <div v-else class="px-2 bg-gray-300 text-gray-500 rounded-r-md text-xs flex items-center justify-center">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M9 12l2 2 4-4"/>
-              </svg>
-            </div>
           </div>
         </div>
 
@@ -52,7 +43,6 @@
               readonly
             />
             <button 
-              v-if="authStore.canManageProduction"
               @click="openPlanModal"
               class="px-2 bg-blue-500 text-white rounded-r-md hover:bg-blue-600 text-xs flex items-center justify-center"
             >
@@ -61,11 +51,6 @@
                 <path d="m21 21-4.35-4.35"/>
               </svg>
             </button>
-            <div v-else class="px-2 bg-gray-300 text-gray-500 rounded-r-md text-xs flex items-center justify-center">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M9 12l2 2 4-4"/>
-              </svg>
-            </div>
           </div>
         </div>
 
@@ -100,9 +85,7 @@
           <input 
             v-model="form.order_start_dt" 
             type="date"
-            class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs"
-            :class="authStore.canManageProduction ? 'focus:outline-none focus:ring-1 focus:ring-blue-500' : 'bg-gray-50'"
-            :readonly="!authStore.canManageProduction"
+            class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
         </div>
 
@@ -112,9 +95,7 @@
           <input 
             v-model="form.order_end_dt" 
             type="date"
-            class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs"
-            :class="authStore.canManageProduction ? 'focus:outline-none focus:ring-1 focus:ring-blue-500' : 'bg-gray-50'"
-            :readonly="!authStore.canManageProduction"
+            class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
         </div>
 
@@ -123,9 +104,7 @@
           <label class="block text-xs font-medium text-blue-600 mb-1">비고</label>
           <input 
             v-model="form.order_remark" 
-            class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs"
-            :class="authStore.canManageProduction ? 'focus:outline-none focus:ring-1 focus:ring-blue-500' : 'bg-gray-50'"
-            :readonly="!authStore.canManageProduction"
+            class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
             placeholder="비고 입력"
           />
         </div>
@@ -184,9 +163,7 @@
                     type="number" 
                     min="1"
                     step="1"
-                    class="w-20 px-1 py-0.5 border border-gray-300 rounded text-xs text-center"
-                    :class="authStore.canManageProduction ? 'focus:outline-none focus:ring-1 focus:ring-blue-500' : 'bg-gray-50'"
-                    :readonly="!authStore.canManageProduction"
+                    class="w-20 px-1 py-0.5 border border-gray-300 rounded text-xs text-center focus:outline-none focus:ring-1 focus:ring-blue-500"
                     placeholder="수량"
                   />
                 </td>
@@ -195,19 +172,15 @@
                     v-model.number="product.work_order_priority" 
                     type="number" 
                     min="1"
-                    class="w-16 px-1 py-0.5 border border-gray-300 rounded text-xs"
-                    :class="authStore.canManageProduction ? 'focus:outline-none focus:ring-1 focus:ring-blue-500' : 'bg-gray-50'"
-                    :readonly="!authStore.canManageProduction"
+                    class="w-16 px-1 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
                     placeholder=""
-                    @input="authStore.canManageProduction && sortProductsByPriority()"
+                    @input="sortProductsByPriority()"
                   />
                 </td>
                 <td class="border border-gray-200 px-2 py-1.5">
                   <input 
                     v-model="product.order_detail_remark" 
-                    class="w-full px-1 py-0.5 border border-gray-300 rounded text-xs"
-                    :class="authStore.canManageProduction ? 'focus:outline-none focus:ring-1 focus:ring-blue-500' : 'bg-gray-50'"
-                    :readonly="!authStore.canManageProduction"
+                    class="w-full px-1 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
                     placeholder="비고"
                   />
                 </td>
@@ -235,7 +208,7 @@
       </div>
     </div>
 
-    <!-- 모달들 (권한 있을 때만 렌더링) -->
+    <!-- 모달들 (검색은 모든 사용자 가능) -->
     <ProductSearchModal 
       v-if="showProductModal && authStore.canManageProduction" 
       @select="addProduct" 
@@ -243,13 +216,13 @@
     />
     
     <PlanSearchModal 
-      v-if="showPlanModal && authStore.canManageProduction" 
+      v-if="showPlanModal" 
       @select="selectPlan" 
       @close="showPlanModal = false" 
     />
 
     <WorkOrderSearchModal 
-      v-if="showWorkOrderModal && authStore.canManageProduction" 
+      v-if="showWorkOrderModal" 
       @select="selectWorkOrder" 
       @close="showWorkOrderModal = false" 
     />
@@ -312,12 +285,10 @@ const checkProductionPermission = (action = '이 작업') => {
 
 // 메서드들
 const openWorkOrderModal = () => {
-  if (!checkProductionPermission('작업지시서 검색')) return
   showWorkOrderModal.value = true
 }
 
 const openPlanModal = () => {
-  if (!checkProductionPermission('계획 검색')) return
   showPlanModal.value = true
 }
 
@@ -327,7 +298,6 @@ const openProductModal = () => {
 }
 
 const selectPlan = (plan) => {
-  if (!checkProductionPermission('계획 선택')) return
   form.value.plan_id = plan.plan_id
   loadPlanProducts(plan.plan_id)
   showPlanModal.value = false
@@ -389,6 +359,18 @@ const loadPlanProducts = async (planId) => {
   try {
     const res = await axios.get(`/workOrder/plan/${planId}`)
     if (res.data && res.data.length > 0) {
+      // 첫 번째 항목에서 계획 정보 추출
+      const planInfo = res.data[0]
+      
+      // 계획 일정을 작업지시서 일정에 자동 입력
+      if (planInfo.plan_start_dt) {
+        form.value.order_start_dt = planInfo.plan_start_dt.split('T')[0]
+      }
+      if (planInfo.plan_end_dt) {
+        form.value.order_end_dt = planInfo.plan_end_dt.split('T')[0]
+      }
+      
+      // 제품 목록 설정
       form.value.products = res.data.map((item) => ({
         product_code: item.product_code,
         product_name: item.product_name,
@@ -400,6 +382,15 @@ const loadPlanProducts = async (planId) => {
         order_detail_remark: '',
         selected: false
       }))
+      
+      console.log('계획 정보 불러오기 완료:', {
+        plan_id: planId,
+        plan_start_dt: planInfo.plan_start_dt,
+        plan_end_dt: planInfo.plan_end_dt,
+        order_start_dt: form.value.order_start_dt,
+        order_end_dt: form.value.order_end_dt,
+        products_count: form.value.products.length
+      })
     }
   } catch (err) {
     console.error('계획 제품 조회 오류:', err)
@@ -524,8 +515,8 @@ const selectWorkOrder = async (workOrder) => {
       form.value = {
         work_order_no: master.work_order_no,
         plan_id: master.plan_id || '',
-        writer_id: master.writer_id || '2',
-        writer_name: master.writer_name || '김홍인',
+        writer_id: master.writer_id || authStore.user?.employee_id?.toString() || '',
+        writer_name: master.writer_name || authStore.user?.employee_name || '',
         write_date: master.write_date ? master.write_date.split('T')[0] : new Date().toISOString().split('T')[0],
         order_start_dt: master.order_start_dt ? master.order_start_dt.split('T')[0] : '',
         order_end_dt: master.order_end_dt ? master.order_end_dt.split('T')[0] : '',
@@ -606,4 +597,4 @@ input:focus, select:focus {
 button {
   transition: all 0.15s ease-in-out;
 }
-</style>  
+</style>
