@@ -110,13 +110,6 @@ export default {
         },
       },
       {
-      name: 'equipment-cleaning',
-      displayName: 'menu.설비 청소',
-      meta: {
-        icon: 'broom',
-      },
-      },
-      {
       name: 'equipment-history',
       displayName: 'menu.설비 이력',
       meta: {

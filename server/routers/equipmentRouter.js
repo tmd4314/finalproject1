@@ -41,6 +41,16 @@ const upload = multer({
 });
 // ===== Multer 설정 끝 =====
 
+router.get('/inquiry', async (req, res) => {
+  try {
+    const list = await equipmentService.getEquipmentListForInquiry();
+    res.json({ isSuccessed: true, data: list });
+  } catch (err) {
+    console.error('설비 조회 페이지용 목록 조회 실패:', err);
+    res.status(500).json({ isSuccessed: false, message: '설비 목록 조회 실패' });
+  }
+});
+
 // 이미지 파일 서빙
 router.get('/uploads/equipment/:filename', (req, res) => {
   const filename = req.params.filename;
