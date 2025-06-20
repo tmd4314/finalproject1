@@ -13,7 +13,7 @@ const getInboundWaitingList = async (searchParams = {}) => {
     } = searchParams;
 
     console.log('입고 대기 목록 조회 시작, 검색 조건:', searchParams);
-    console.log('포장공정 완료 조건 적용: process_seq = 7, code_value = p5');
+    console.log('포장공정 완료 조건 적용: process_name = 포장, code_label = 완료');
     
     const params = [
       result_id, result_id,        // 작업실적ID
@@ -49,13 +49,13 @@ const getInboundWaitingList = async (searchParams = {}) => {
       });
       console.log('포장공정 완료 제품 고유 조합 수:', uniqueKeys.size, '/ 전체 결과 수:', result.length);
     } else {
-      console.log('⚠️ 포장공정이 완료된 제품이 없습니다 (process_seq = 7, code_value = p5 조건)');
+      console.log('⚠️ 포장공정이 완료된 제품이 없습니다 (process_name = 포장, code_label = 완료 조건)');
     }
     
     return result;
   } catch (err) {
     console.error('입고 대기 목록 조회 오류:', err);
-    console.error('포장공정 완료 조건 오류 - process 테이블 조인 확인 필요');
+    console.error('포장공정 완료 조건 오류 - process, common_code 테이블 조인 확인 필요');
     throw err;
   }
 };
@@ -301,7 +301,7 @@ const processMultipleInbound = async (products) => {
   try {
     console.log('=== 다중 제품 입고 처리 시작 ===');
     console.log(`처리할 제품 수: ${products.length}개`);
-    console.log('포장공정 완료 조건 적용: 모든 제품은 이미 포장공정 완료된 상태');
+    console.log('포장공정 완료 조건 적용: 모든 제품은 이미 포장공정 완료된 상태 (process_name = 포장, code_label = 완료)');
 
     const results = [];
     const errors = [];
