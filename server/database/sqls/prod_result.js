@@ -194,7 +194,7 @@ const updateEquipment =
 const updateStopEq =
 `
   UPDATE equipment 
-  SET    eq_run_code = "s3"
+  SET    eq_run_code = "s3",
          stop_reason = ?
   WHERE  eq_id = ?
 `

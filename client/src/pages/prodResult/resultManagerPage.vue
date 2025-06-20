@@ -78,11 +78,10 @@
         <va-input v-model.number="selectedItem.pass_qty" label="생산수량" />
         <va-select
           v-model="selectedItem.end_reason_code"
-          :options="endReasonList.map(item => ({
-            code_value: item.code_value,
-            code_label: item.code_label
-          }))"
+          :options="endReasonOptions"
           track-by="value"
+          value-by="value"
+          text-by="label"
           label="작업 종료 사유"
           placeholder="종료 사유 선택"
         />
@@ -170,7 +169,7 @@ interface WorkItem {
   selected?: boolean
   result_remark?: string
   eq_type_code: string 
-  end_reason_code?: string
+  end_reason_code?: string | { value: string, label: string }
   process_defective_qty: string
 }
 
@@ -250,11 +249,21 @@ const fetchEndReasons = async () => {
       code_label: item.code_label ?? item.label ?? '',
       code_value: item.code_value ?? item.value ?? ''
     }))
+    console.log('✅ endReasonList:', endReasonList.value)
+    console.log('✅ endReasonOptions:', endReasonOptions.value) // 💡 이 시점에는 값 있음
   } catch (err) {
     console.error('작업종료 사유 코드 불러오기 실패', err)
   }
 }
 
+console.log('✅ endReasonList:', endReasonList.value)
+
+const endReasonOptions = computed(() =>
+  endReasonList.value.map(item => ({
+    value: String(item.code_value ?? ''),
+    label: String(item.code_label ?? '')
+  }))
+)
 
 const fetchMaterialList = async () => {
   if (!selectedItem.value.result_id || !selectedItem.value.process_code) {
@@ -355,7 +364,11 @@ const endWork = async () => {
     return
   }
 
-  if (!selectedItem.value.result_remark || selectedItem.value.result_remark.trim() === '') {
+  const reasonCode = typeof selectedItem.value.end_reason_code === 'string'
+  ? selectedItem.value.end_reason_code
+  : (selectedItem.value.end_reason_code as { value: string })?.value ?? ''
+
+  if (reasonCode.trim() === '') {
     alert('⚠️ 종료 사유(비고)를 작성해주세요.')
     return
   }
@@ -368,7 +381,7 @@ const endWork = async () => {
     // ✅ 실적 상세 업데이트
     await axios.put(`/prodResultStop/${selectedItem.value.result_detail}`, {
       pass_qty: selectedItem.value.pass_qty,
-      result_remark: selectedItem.value.result_remark
+      result_remark: selectedItem.value.end_reason_code
     })
 
     // ✅ 설비 상태 업데이트

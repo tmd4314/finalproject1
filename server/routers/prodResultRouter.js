@@ -82,8 +82,7 @@ router.put('/prodEnd/:result_id', async (req, res) => {
 router.put('/eqStatus/:eq_id', async (req, res) => {
   try {
     const eqId = req.params.eq_id;
-    const stopReason = req.body
-    const result = await prodResultService.workEq(stopReason, eqId);
+    const result = await prodResultService.workEq(eqId);
     res.send(result)
   } catch(err) {
     console.error('작업시작 실패: ', err);
@@ -131,7 +130,9 @@ router.put('/prodResultStop/:result_detail', async (req, res) => {
 router.put('/eqStop/:eq_id', async (req, res) => {
   try {
     const eqId = req.params.eq_id;
-    const result = await prodResultService.workStopEq(eqId);
+    const stopReason = req.body
+    console.log(eqId);
+    const result = await prodResultService.workStopEq(eqId, stopReason);
     res.send(result)
   } catch(err) {
     console.error('작업시작 실패: ', err);
