@@ -2,7 +2,12 @@
   <div class="max-w-[1060px] h-[739px] mx-auto p-4 bg-gray-50 overflow-hidden">
     <!-- 상단 타이틀 -->
     <div class="mb-3">
-      <h1 class="text-2xl font-bold text-gray-800">생산계획 관리</h1>
+      <h1 class="text-2xl font-bold text-gray-800">
+        생산계획 관리
+        <span class="text-sm font-normal text-gray-500 ml-2">
+          ({{ authStore.user?.employee_name || '사용자' }})
+        </span>
+      </h1>
     </div>
 
     <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4" style="height: calc(100% - 60px);">
@@ -124,7 +129,7 @@
       <div class="flex flex-col" style="height: calc(100% - 200px);">
         <div class="flex justify-between items-center mb-3">
           <label class="text-sm font-medium text-blue-600">제품 목록</label>
-          <div class="flex gap-2">
+          <div class="flex gap-2" v-if="authStore.canManageProduction">
             <button 
               @click="removeSelectedProducts" 
               class="px-3 py-1.5 bg-red-500 text-white text-xs rounded hover:bg-red-600 transition-colors disabled:opacity-50"
@@ -146,7 +151,7 @@
           <table class="w-full text-xs border-collapse bg-white">
             <thead class="bg-gray-50 sticky top-0">
               <tr>
-                <th class="border border-gray-200 px-2 py-1.5 text-center font-medium text-gray-700">#</th>
+                <th class="border border-gray-200 px-2 py-1.5 text-center font-medium text-gray-700" v-if="authStore.canManageProduction">#</th>
                 <th class="border border-gray-200 px-2 py-1.5 text-left font-medium text-gray-700">제품코드</th>
                 <th class="border border-gray-200 px-2 py-1.5 text-left font-medium text-gray-700">제품명</th>
                 <th class="border border-gray-200 px-2 py-1.5 text-left font-medium text-gray-700">단위</th>
@@ -157,12 +162,12 @@
             </thead>
             <tbody>
               <tr v-if="form.products.length === 0">
-                <td colspan="7" class="text-center text-gray-500 py-8">
+                <td :colspan="authStore.canManageProduction ? 7 : 6" class="text-center text-gray-500 py-8">
                   등록된 제품이 없습니다. 제품을 추가해주세요.
                 </td>
               </tr>
               <tr v-else v-for="(product, index) in form.products" :key="index" class="hover:bg-gray-50">
-                <td class="border border-gray-200 px-2 py-1.5 text-center">
+                <td class="border border-gray-200 px-2 py-1.5 text-center" v-if="authStore.canManageProduction">
                   <input type="checkbox" v-model="product.selected" class="rounded w-3 h-3" />
                 </td>
                 <td class="border border-gray-200 px-2 py-1.5">{{ product.product_code }}</td>
@@ -176,7 +181,7 @@
                     type="number" 
                     min="1"
                     step="1"
-                    class="w-20 px-1 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 text-center"
+                    class="w-20 px-1 py-0.5 border border-gray-300 rounded text-xs text-center focus:outline-none focus:ring-1 focus:ring-blue-500"
                     placeholder="수량"
                   />
                 </td>
@@ -186,7 +191,7 @@
         </div>
 
         <!-- 저장/초기화 버튼 -->
-        <div class="flex gap-3 justify-center">
+        <div class="flex gap-3 justify-center" v-if="authStore.canManageProduction">
           <button 
             @click="savePlan" 
             class="px-6 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 transition-colors font-medium disabled:opacity-50"
@@ -204,9 +209,9 @@
       </div>
     </div>
 
-    <!-- 모달들 -->
+    <!-- 모달들 (검색은 모든 사용자 가능, 제품추가는 권한 필요) -->
     <PlanProductSearchModal 
-      v-if="showProductModal" 
+      v-if="showProductModal && authStore.canManageProduction" 
       @select="addProduct" 
       @close="showProductModal = false" 
     />
@@ -230,6 +235,10 @@
 import { ref, onMounted, computed } from 'vue'
 import axios from 'axios'
 
+// 권한 스토어
+import { useAuthStore } from '@/stores/authStore'
+const authStore = useAuthStore()
+
 // 모달 컴포넌트들 
 import OrderSearchModal from './OrderSearchModal.vue'
 import PlanProductSearchModal from './PlanProductSearchModal.vue'
@@ -243,13 +252,13 @@ const showProductModal = ref(false)
 const showOrderModal = ref(false)
 const showPlanModal = ref(false)
 
-// 폼 데이터 - employee_name 구조로 변경
+// 폼 데이터
 const form = ref({
   plan_id: '',
   plan_name: '',
   order_id: '',
-  employee_name: '', // writer_id → employee_name (DB에 저장될 사원명)
-  writer_name: '',   // 화면 표시용 (employee_name과 동일한 값)
+  employee_name: '', // DB에 저장될 사원명
+  writer_name: '',   // 화면 표시용
   plan_reg_dt: '',
   plan_start_dt: '',
   plan_end_dt: '',
@@ -257,21 +266,32 @@ const form = ref({
   products: []
 })
 
+// 권한 체크 함수들
+const checkProductionPermission = (action = '이 작업') => {
+  if (!authStore.canManageProduction) {
+    alert(authStore.getPermissionMessage('production') || '생산 관리 권한이 없습니다.')
+    return false
+  }
+  return true
+}
+
 // Computed 속성들
 const hasSelectedProducts = computed(() => {
   return form.value.products.some(product => product.selected)
 })
 
 const canSave = computed(() => {
-  return form.value.employee_name && // writer_id → employee_name
+  return form.value.employee_name &&
          form.value.plan_name &&
          form.value.plan_start_dt &&
          form.value.plan_end_dt &&
-         form.value.products.length > 0
+         form.value.products.length > 0 &&
+         authStore.canManageProduction
 })
 
 // 메서드들
 const openProductModal = () => {
+  if (!checkProductionPermission('제품 추가')) return
   showProductModal.value = true
 }
 
@@ -287,6 +307,11 @@ const openPlanModal = () => {
 const selectOrder = async (order) => {
   form.value.order_id = order.order_id
   showOrderModal.value = false
+
+  // 권한이 있을 때만 제품 정보 자동 추가
+  if (!authStore.canManageProduction) {
+    return
+  }
 
   // 주문의 제품 정보를 자동으로 추가
   try {
@@ -312,7 +337,7 @@ const selectOrder = async (order) => {
   }
 }
 
-// 계획 선택 (불러오기) - 저장된 사원명 불러오기
+// 계획 선택 (불러오기)
 const selectPlan = async (plan) => {
   try {
     console.log('선택된 계획:', plan)
@@ -330,7 +355,7 @@ const selectPlan = async (plan) => {
         return date.toISOString().split('T')[0]
       }
       
-      // 폼에 계획 정보 설정 - 저장된 사원명 불러오기
+      // 폼에 계획 정보 설정
       form.value = {
         plan_id: master.plan_id || '',
         plan_name: master.plan_name || '',
@@ -371,6 +396,8 @@ const selectPlan = async (plan) => {
 
 // 제품 추가
 const addProduct = (product) => {
+  if (!checkProductionPermission('제품 추가')) return
+  
   // 이미 추가된 제품인지 확인
   const existingProduct = form.value.products.find(p => p.product_code === product.product_code)
   if (existingProduct) {
@@ -393,6 +420,8 @@ const addProduct = (product) => {
 
 // 제품 제거
 const removeSelectedProducts = () => {
+  if (!checkProductionPermission('제품 제거')) return
+  
   const selectedProducts = form.value.products.filter(product => product.selected)
   
   if (selectedProducts.length === 0) {
@@ -402,8 +431,10 @@ const removeSelectedProducts = () => {
   form.value.products = form.value.products.filter(product => !product.selected)
 }
 
-// 생산계획 저장 - employee_name으로 변경
+// 생산계획 저장
 const savePlan = async () => {
+  if (!checkProductionPermission('생산계획 저장')) return
+  
   if (!canSave.value) {
     alert('계획명, 작성자, 시작일, 종료일, 제품을 모두 입력해주세요.')
     return
@@ -416,7 +447,7 @@ const savePlan = async () => {
         ...(isEditMode.value && form.value.plan_id && { plan_id: form.value.plan_id }),
         plan_name: form.value.plan_name,
         order_id: form.value.order_id || null,
-        employee_name: form.value.employee_name, // writer_id → employee_name
+        employee_name: form.value.employee_name || authStore.user?.employee_name || '', // 로그인된 사용자명
         plan_reg_dt: form.value.plan_reg_dt,
         plan_start_dt: form.value.plan_start_dt,
         plan_end_dt: form.value.plan_end_dt,
@@ -429,7 +460,12 @@ const savePlan = async () => {
       }))
     }
 
-    console.log('전송할 payload:', JSON.stringify(payload, null, 2))
+    console.log('전송할 payload:', {
+      ...payload,
+      로그인사용자: authStore.user?.employee_name,
+      로그인ID: authStore.user?.employee_id,
+      작성자명: payload.master.employee_name
+    })
 
     let response
     if (isEditMode.value && form.value.plan_id) {
@@ -444,11 +480,11 @@ const savePlan = async () => {
       // 서버에서 생성된 번호를 폼에 설정
       if (response.data && response.data.plan_id) {
         form.value.plan_id = response.data.plan_id
+        isEditMode.value = true
       }
     }
     
     console.log('서버 응답:', response.data)
-    resetForm()
   } catch (err) {
     console.error('생산계획 저장 오류:', err)
     
@@ -467,30 +503,51 @@ const savePlan = async () => {
   }
 }
 
-// 폼 초기화 - 신규 등록 시 로그인된 사용자 정보 설정
+// 폼 초기화
 const resetForm = () => {
+  if (!checkProductionPermission('폼 초기화')) return
+  
+  const today = new Date().toISOString().split('T')[0]
+  
   form.value = {
     plan_id: '',
     plan_name: '',
     order_id: '',
-    employee_name: '김홍인', // 로그인된 사용자명 (신규 등록 시)
-    writer_name: '김홍인',   // 화면 표시용
-    plan_reg_dt: new Date().toISOString().split('T')[0],
+    employee_name: authStore.user?.employee_name || '', // 로그인된 사용자명
+    writer_name: authStore.user?.employee_name || '',   // 화면 표시용
+    plan_reg_dt: today,
     plan_start_dt: '',
     plan_end_dt: '',
     plan_remark: '',
     products: []
   }
   isEditMode.value = false
+  
+  console.log('폼 초기화 - 작성자 정보:', {
+    employee_name: form.value.employee_name,
+    writer_name: form.value.writer_name,
+    로그인사용자: authStore.user?.employee_name
+  })
 }
 
 // 컴포넌트 마운트 시 로그인된 사용자 정보 설정
 onMounted(() => {
+  // 권한 체크 및 알림
+  if (!authStore.canManageProduction) {
+    alert('조회만 가능합니다. 생산 관리 권한이 없습니다.')
+  }
+  
   const today = new Date().toISOString().split('T')[0]
   form.value.plan_reg_dt = today
-  form.value.employee_name = '김홍인' // 로그인된 사용자명
-  form.value.writer_name = '김홍인'   // 화면 표시용
+  form.value.employee_name = authStore.user?.employee_name || '' // 로그인된 사용자명
+  form.value.writer_name = authStore.user?.employee_name || ''   // 화면 표시용
   form.value.plan_id = ''
+  
+  console.log('초기화된 작성자 정보:', {
+    employee_name: form.value.employee_name,
+    writer_name: form.value.writer_name,
+    loginUser: authStore.user?.employee_name
+  })
 })
 </script>
 
