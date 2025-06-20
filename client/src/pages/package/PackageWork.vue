@@ -1000,10 +1000,21 @@ const canStartWork = computed(() => {
   return hasInputQuantity
 })
 
-// 미완료 여부 판단
+// 부분완료 여부 판단 (수정된 로직)
 const isPartialCompletion = computed(() => {
-  return currentWork.value.output_qty < currentWork.value.target_quantity && 
-         currentWork.value.target_quantity > 0
+  // 외포장인 경우에는 부분완료 로직이 다를 수 있음
+  if (workInfo.value.lineType === 'OUTER') {
+    return currentWork.value.output_qty < currentWork.value.target_quantity && 
+           currentWork.value.target_quantity > 0
+  }
+  
+  // 내포장의 경우: 지시량과 생산량이 정확히 일치하지 않으면 부분완료로 간주할 수 있음
+  // 하지만 지시량 이상 달성했으면 완료로 처리
+  const isExactMatch = currentWork.value.output_qty === currentWork.value.target_quantity
+  const isOverAchieved = currentWork.value.output_qty >= currentWork.value.target_quantity
+  
+  // 지시량 이상 달성했으면 완료, 미달이면 부분완료
+  return !isOverAchieved && currentWork.value.target_quantity > 0
 })
 
 // 미달성 수량 계산
@@ -1806,22 +1817,60 @@ async function onWorkOrderChange() {
   }
 }
 
-// 작업 시작
+// 작업 시작 - 실제 DB 연동 강화 (work_result_detail 테이블)
 async function startWork() {
   if (!isWorking.value) {
     try {
       loading.value = true
       loadingMessage.value = '작업을 시작하는 중...'
       
-      // 실제 API 호출은 현재 구현되지 않았으므로 시뮬레이션으로 진행
-      addLog('작업이 시작되었습니다. (시뮬레이션 모드)', 'success')
+      const startTime = new Date().toISOString()
       
-      // 상태 업데이트
+      // 실제 DB API 호출 - work_result_detail 테이블 업데이트
+      const updateData = {
+        work_order_no: currentWork.value.work_order_no || currentWork.value.work_id,
+        work_start_time: startTime,
+        step_status: 'WORKING',
+        input_qty: inputQuantity.value,
+        employee_id: currentWork.value.employee_id,
+        package_type: workInfo.value.lineType,
+        line_id: workInfo.value.lineId,
+        line_name: workInfo.value.lineName,
+        table_name: 'work_result_detail'
+      }
+      
+      // 내포장 시작 시 특별 처리
+      if (workInfo.value.lineType === 'INNER') {
+        updateData.inner_start_time = startTime
+        updateData.process_step = 'INNER_PACKAGING'
+        addLog('내포장 작업 시작 - work_start_time과 inner_start_time 업데이트', 'info')
+      } else {
+        updateData.outer_start_time = startTime
+        updateData.process_step = 'OUTER_PACKAGING'
+        addLog('외포장 작업 시작 - outer_start_time 업데이트', 'info')
+      }
+      
+      try {
+        const response = await axios.put('/packages/works/start', updateData)
+        
+        if (response.data.success) {
+          addLog('작업 시작이 work_result_detail 테이블에 반영되었습니다.', 'success')
+          addLog(`DB 업데이트: work_start_time = ${startTime}`, 'info')
+        } else {
+          throw new Error(response.data.message || '작업 시작 API 실패')
+        }
+      } catch (apiError) {
+        console.warn('work_result_detail 업데이트 실패, 로컬 상태만 업데이트:', apiError.message)
+        addLog('DB 연결 실패 - 로컬 시뮬레이션 모드로 진행', 'warning')
+      }
+      
+      // 상태 업데이트 (DB 성공/실패 관계없이)
       isWorking.value = true
       workStatus.value = 'WORKING'
-      workStartTime.value = new Date()
+      workStartTime.value = new Date(startTime)
       currentWork.value.start_time = workStartTime.value
       currentWork.value.current_quantity = inputQuantity.value
+      currentWork.value.step_status = 'WORKING'
       
       // 진행률 초기화
       productionSettings.value.targetQty = inputQuantity.value
@@ -1831,11 +1880,11 @@ async function startWork() {
       startWorkTimer()
       startProductionSimulation()
       
-      addLog(`목표수량: ${formatNumber(inputQuantity.value)}개로 작업을 시작했습니다.`, 'success')
+      addLog(`${workInfo.value.lineType === 'INNER' ? '내포장' : '외포장'} 작업 시작: ${formatNumber(inputQuantity.value)}개`, 'success')
       
     } catch (error) {
       console.error('작업 시작 실패:', error)
-      showErrorMessage(`작업 시작 실패: ${error.message}`)
+      addLog(`작업 시작 실패: ${error.message}`, 'error')
     } finally {
       loading.value = false
     }
@@ -1844,22 +1893,105 @@ async function startWork() {
   }
 }
 
-// 작업 완료
+// 작업 완료 - 실제 DB 연동 및 워크플로우 개선
 async function confirmCompleteWork() {
   try {
     loading.value = true
     loadingMessage.value = '작업을 완료하는 중...'
     
-    // 실제 API 호출은 현재 구현되지 않았으므로 시뮬레이션으로 진행
-    addLog('작업이 완료되었습니다. (시뮬레이션 모드)', 'success')
+    const endTime = new Date().toISOString()
+    const isCompleteWork = currentWork.value.output_qty >= currentWork.value.target_quantity
+    const isExactMatch = currentWork.value.output_qty === currentWork.value.target_quantity
     
-    // 내포장 완료 시 외포장 연계
-    if (workInfo.value.lineType === 'INNER') {
-      await processInnerToOuterWorkflow()
+    const completionData = {
+      work_order_no: currentWork.value.work_order_no || currentWork.value.work_id,
+      output_qty: currentWork.value.output_qty,
+      defect_qty: currentWork.value.defect_qty,
+      work_end_time: endTime,
+      step_status: isCompleteWork ? 'COMPLETED' : 'PARTIAL_COMPLETE',
+      employee_id: currentWork.value.employee_id,
+      package_type: workInfo.value.lineType,
+      line_id: workInfo.value.lineId,
+      line_name: workInfo.value.lineName,
+      completion_type: isCompleteWork ? 'COMPLETE' : 'PARTIAL',
+      target_quantity: currentWork.value.target_quantity,
+      achievement_rate: Math.round((currentWork.value.output_qty / currentWork.value.target_quantity) * 100)
     }
     
+    // 내포장 vs 외포장 완료 시간 구분
+    if (workInfo.value.lineType === 'INNER') {
+      completionData.inner_end_time = endTime
+      completionData.process_step = 'INNER_PACKAGING_COMPLETE'
+    } else {
+      completionData.outer_end_time = endTime
+      completionData.process_step = 'OUTER_PACKAGING_COMPLETE'
+    }
+    
+    try {
+      // 실제 DB API 호출
+      const response = await axios.put('/packages/works/complete', completionData)
+      
+      if (response.data.success) {
+        if (workInfo.value.lineType === 'INNER') {
+          addLog('내포장 작업이 완료되었습니다. (work_result_detail 테이블 업데이트)', 'success')
+          addLog(`DB 업데이트: inner_end_time = ${endTime}`, 'info')
+        } else {
+          addLog('외포장 작업이 완료되었습니다. (work_result_detail 테이블 업데이트)', 'success')
+          addLog(`DB 업데이트: outer_end_time = ${endTime}`, 'info')
+        }
+      } else {
+        throw new Error(response.data.message || '작업 완료 실패')
+      }
+    } catch (apiError) {
+      console.warn('work_result_detail 업데이트 실패, 워크플로우는 계속 진행:', apiError.message)
+      addLog('DB 연결 실패 - 시뮬레이션 모드로 완료 처리', 'warning')
+    }
+    
+    // 내포장 완료 시 워크플로우 처리
+    if (workInfo.value.lineType === 'INNER') {
+      await processInnerToOuterWorkflow()
+      
+      // 지시량과 생산량 비교하여 워크플로우 결정
+      if (isExactMatch) {
+        // 정확히 일치하면 바로 외포장으로
+        addLog(`지시량 ${formatNumber(currentWork.value.target_quantity)}개와 생산량이 정확히 일치합니다.`, 'success')
+        addLog('부분완료 처리 없이 바로 외포장 단계로 이동합니다.', 'info')
+        
+        setTimeout(() => {
+          startDirectTransitionToOuter()
+        }, 2000)
+        
+      } else if (isCompleteWork) {
+        // 지시량 이상 달성했지만 정확하지 않은 경우
+        addLog(`지시량을 달성했습니다. (목표: ${formatNumber(currentWork.value.target_quantity)}, 실제: ${formatNumber(currentWork.value.output_qty)})`, 'success')
+        addLog('외포장 단계로 이동합니다.', 'info')
+        
+        setTimeout(() => {
+          startDirectTransitionToOuter()
+        }, 2000)
+        
+      } else {
+        // 지시량 미달성 시 부분완료 처리
+        const shortfall = currentWork.value.target_quantity - currentWork.value.output_qty
+        addLog(`지시량 미달성: ${formatNumber(shortfall)}개 부족`, 'warning')
+        addLog('부분완료로 처리되며, 추후 계속 작업하거나 외포장으로 진행할 수 있습니다.', 'info')
+        
+        // 부분완료 처리 후에도 외포장 옵션 제공
+        setTimeout(() => {
+          showPartialCompleteOptions()
+        }, 2000)
+      }
+    } else {
+      // 외포장 완료
+      addLog('모든 포장 작업이 완료되었습니다!', 'success')
+      setTimeout(() => {
+        startAutoTransitionToLineSelection()
+      }, 3000)
+    }
+    
+    // 작업 상태 업데이트
     isWorking.value = false
-    workStatus.value = 'COMPLETED'
+    workStatus.value = isCompleteWork ? 'COMPLETED' : 'PARTIAL_COMPLETE'
     
     if (workTimer) {
       clearInterval(workTimer)
@@ -1871,15 +2003,6 @@ async function confirmCompleteWork() {
     }
     
     closeCompleteModal()
-    
-    // 워크플로우에 따른 분기
-    if (workInfo.value.lineType === 'INNER') {
-      addLog('내포장 작업 완료 - 외포장 라인 선택으로 이동합니다...', 'success')
-      startAutoTransitionToLineSelection()
-    } else {
-      addLog('모든 포장 작업이 완료되었습니다!', 'success')
-      startAutoTransitionToLineSelection()
-    }
     
   } catch (error) {
     console.error('작업 완료 실패:', error)
@@ -2208,14 +2331,89 @@ async function stopWork() {
   }
 }
 
-// 부분 완료 처리
+// 바로 외포장으로 전환
+function startDirectTransitionToOuter() {
+  addLog('지시량 달성 완료 - 외포장 라인 선택으로 이동합니다.', 'success')
+  
+  const queryParams = {
+    inner_completed: 'true',
+    inner_work_order_no: currentWork.value.work_order_no || currentWork.value.work_id,
+    inner_output_qty: currentWork.value.output_qty,
+    inner_completion_time: new Date().toISOString(),
+    auto_start_guide: 'true',
+    workflow_type: 'direct_transition',
+    message: `내포장 작업(${currentWork.value.work_order_no || currentWork.value.work_id})이 완료되었습니다. 완료수량 ${formatNumber(currentWork.value.output_qty)}개를 외포장에 투입하세요.`,
+    success_message: '내포장 작업이 성공적으로 완료되었습니다!'
+  }
+  
+  // 자동 전환 애니메이션 표시
+  showAutoTransition.value = true
+  transitionProgress.value = 0
+  
+  const duration = 2000  // 2초로 단축
+  const interval = 50
+  const increment = (100 / (duration / interval))
+  
+  const progressTimer = setInterval(() => {
+    transitionProgress.value += increment
+    
+    if (transitionProgress.value >= 100) {
+      clearInterval(progressTimer)
+      showAutoTransition.value = false
+      
+      router.push({
+        name: 'package_line',
+        query: queryParams
+      })
+    }
+  }, interval)
+}
+
+// 부분완료 옵션 표시
+function showPartialCompleteOptions() {
+  // 부분완료 확인 모달 표시
+  showCompleteModal.value = true
+  
+  // 부분완료 안내 메시지
+  addLog('부분완료 옵션: 1) 현재 수량으로 외포장 진행, 2) 나중에 계속 작업', 'info')
+}
+
+// 부분 완료 처리 (외포장 진행 옵션 포함)
 async function confirmPartialComplete() {
   try {
     loading.value = true
     loadingMessage.value = '부분 완료 처리 중...'
     
-    // 실제 API 대신 시뮬레이션
-    addLog(`부분 완료 처리되었습니다. (달성률: ${getCompletionRate()}%) - 시뮬레이션 모드`, 'warning')
+    const endTime = new Date().toISOString()
+    
+    // 부분완료 DB 업데이트
+    const partialData = {
+      work_order_no: currentWork.value.work_order_no || currentWork.value.work_id,
+      output_qty: currentWork.value.output_qty,
+      defect_qty: currentWork.value.defect_qty,
+      work_end_time: endTime,
+      step_status: 'PARTIAL_COMPLETE',
+      employee_id: currentWork.value.employee_id,
+      package_type: workInfo.value.lineType,
+      line_id: workInfo.value.lineId,
+      completion_type: 'PARTIAL',
+      partial_reason: `지시량 ${formatNumber(currentWork.value.target_quantity)}개 중 ${formatNumber(currentWork.value.output_qty)}개 완료`
+    }
+    
+    if (workInfo.value.lineType === 'INNER') {
+      partialData.inner_end_time = endTime
+      partialData.process_step = 'INNER_PACKAGING_PARTIAL'
+    }
+    
+    try {
+      const response = await axios.put('/packages/works/partial-complete', partialData)
+      if (response.data.success) {
+        addLog('부분완료가 DB에 반영되었습니다.', 'success')
+      }
+    } catch (apiError) {
+      console.warn('부분완료 DB 업데이트 실패:', apiError.message)
+      addLog('DB 연결 실패 - 로컬에서 부분완료 처리', 'warning')
+    }
     
     isWorking.value = false
     workStatus.value = 'PARTIAL_COMPLETE'
@@ -2231,9 +2429,27 @@ async function confirmPartialComplete() {
     
     closeCompleteModal()
     
-    if (getRemainingQuantity() > 0) {
-      addLog(`지시수량 미달성: ${formatNumber(getRemainingQuantity())}개 남음`, 'warning')
-      addLog(`나중에 같은 작업번호를 선택하여 계속 작업할 수 있습니다.`, 'info')
+    const shortfall = currentWork.value.target_quantity - currentWork.value.output_qty
+    addLog(`부분완료 처리완료 (달성률: ${getCompletionRate()}%)`, 'warning')
+    addLog(`미달성: ${formatNumber(shortfall)}개`, 'info')
+    
+    // 내포장 부분완료 시에도 외포장 진행 옵션 제공
+    if (workInfo.value.lineType === 'INNER' && currentWork.value.output_qty > 0) {
+      addLog('현재 완료된 수량으로 외포장을 진행할 수 있습니다.', 'info')
+      
+      // 워크플로우 데이터 저장
+      await processInnerToOuterWorkflow()
+      
+      // 3초 후 외포장 옵션 제공
+      setTimeout(() => {
+        if (confirm(`현재 완료된 ${formatNumber(currentWork.value.output_qty)}개로 외포장을 진행하시겠습니까?\n\n확인: 외포장 진행\n취소: 나중에 계속 작업`)) {
+          startDirectTransitionToOuter()
+        } else {
+          addLog('나중에 같은 작업번호를 선택하여 계속 작업할 수 있습니다.', 'info')
+        }
+      }, 2000)
+    } else {
+      addLog('나중에 같은 작업번호를 선택하여 계속 작업할 수 있습니다.', 'info')
     }
     
   } catch (error) {
@@ -2437,7 +2653,7 @@ function handleWorkButton() {
   }
 }
 
-// 자동 전환 함수
+// 자동 전환 함수 (일반용)
 function startAutoTransitionToLineSelection() {
   console.log('자동 전환 시작')
   showAutoTransition.value = true
@@ -2506,23 +2722,45 @@ function getCompleteModalTitle() {
 }
 
 function getConfirmationText() {
+  const isExactMatch = currentWork.value.output_qty === currentWork.value.target_quantity
+  const isOverAchieved = currentWork.value.output_qty >= currentWork.value.target_quantity
+  
   if (isPartialCompletion.value) {
     const remainingQty = getRemainingQuantity()
     if (remainingQty > 0) {
-      return `지시량 ${formatNumber(currentWork.value.target_quantity)}개 중 ${formatNumber(currentWork.value.output_qty)}개만 완료되었습니다. 남은 ${formatNumber(remainingQty)}개는 어떻게 처리하시겠습니까?`
+      if (workInfo.value.lineType === 'INNER') {
+        return `지시량 ${formatNumber(currentWork.value.target_quantity)}개 중 ${formatNumber(currentWork.value.output_qty)}개만 완료되었습니다.\n\n현재 완료된 수량으로 외포장을 진행하거나, 나중에 계속 작업할 수 있습니다.`
+      } else {
+        return `지시량 ${formatNumber(currentWork.value.target_quantity)}개 중 ${formatNumber(currentWork.value.output_qty)}개만 완료되었습니다. 남은 ${formatNumber(remainingQty)}개는 어떻게 처리하시겠습니까?`
+      }
     }
   }
   
   if (workInfo.value.lineType === 'INNER') {
-    return '내포장 작업을 완료하고 외포장 라인 선택으로 이동하시겠습니까?'
+    if (isExactMatch) {
+      return `지시량 ${formatNumber(currentWork.value.target_quantity)}개를 정확히 달성했습니다!\n바로 외포장 라인 선택으로 이동하시겠습니까?`
+    } else if (isOverAchieved) {
+      return `지시량을 달성했습니다! (목표: ${formatNumber(currentWork.value.target_quantity)}개, 실제: ${formatNumber(currentWork.value.output_qty)}개)\n외포장 라인 선택으로 이동하시겠습니까?`
+    } else {
+      return '내포장 작업을 완료하고 외포장 라인 선택으로 이동하시겠습니까?'
+    }
   } else {
     return '외포장 작업을 완료하시겠습니까? 모든 포장 단계가 완료됩니다.'
   }
 }
 
 function getCompleteButtonText() {
+  const isExactMatch = currentWork.value.output_qty === currentWork.value.target_quantity
+  const isOverAchieved = currentWork.value.output_qty >= currentWork.value.target_quantity
+  
   if (workInfo.value.lineType === 'INNER') {
-    return '내포장 완료 → 외포장 선택'
+    if (isExactMatch) {
+      return '정확히 달성! → 외포장 선택'
+    } else if (isOverAchieved) {
+      return '목표 달성! → 외포장 선택'
+    } else {
+      return '내포장 완료 → 외포장 선택'
+    }
   } else {
     return '외포장 완료 → 전체 완료'
   }
@@ -2531,12 +2769,18 @@ function getCompleteButtonText() {
 function getPartialCompleteButtonText() {
   const remainingQty = getRemainingQuantity()
   
-  if (remainingQty > 0) {
-    return `부분완료로 저장 (남은: ${formatNumber(remainingQty)}개)`
-  } else if (workInfo.value.lineType === 'INNER') {
-    return `내포장 완료 → 외포장 진행`
+  if (workInfo.value.lineType === 'INNER') {
+    if (remainingQty > 0) {
+      return `현재 수량으로 외포장 진행 (${formatNumber(currentWork.value.output_qty)}개)`
+    } else {
+      return `내포장 완료 → 외포장 진행`
+    }
   } else {
-    return `외포장 완료`
+    if (remainingQty > 0) {
+      return `부분완료로 저장 (남은: ${formatNumber(remainingQty)}개)`
+    } else {
+      return `외포장 완료`
+    }
   }
 }
 
