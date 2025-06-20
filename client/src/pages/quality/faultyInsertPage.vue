@@ -5,7 +5,15 @@
         <!-- 제품 등록 폼 -->
         <div class="product-form">
           <h3 class="form-title">불량품검사 등록</h3>
-          <va-input v-model="form.name" label="제품명" />
+          <va-select
+            v-model="form.productCode"
+            :options="productOptions"
+            label="제품명"
+            class="quarter-width"
+            value-by="value"
+            text-by="label"
+            placeholder="제품을 선택하세요"
+          />
           <va-input v-model="form.code" label="작업지시서번호" />
           <va-input v-model="form.processStage" label="공정단계" />
           <va-input v-model="form.faultyType" label="불량유형" />
@@ -30,10 +38,11 @@
 </template>
 
 <script lang="ts" setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
+import axios from 'axios'
 
 const form = ref({
-  name: '',
+  productCode: '',
   code: '',
   processStage: '',
   faultyType: '',
@@ -41,6 +50,20 @@ const form = ref({
   occurDate: '',
   detail: '',
   judgment: '',
+})
+
+const productOptions = ref<{ label: string; value: string }[]>([])
+
+onMounted(async () => {
+  try {
+    const res = await axios.get('/qualitys/productList')
+    productOptions.value = res.data.map((item: any) => ({
+      label: item.product_name,
+      value: item.product_code
+    }))
+  } catch (err) {
+    console.error('제품명 목록 조회 실패:', err)
+  }
 })
 </script>
 
