@@ -171,6 +171,12 @@
             <span>점검 종료</span>
           </div>
         </VaButton>
+
+        <!-- 점검 시간 표시 -->
+  <div class="text-sm text-gray-600 mt-2">
+  <div v-if="inspectionStartTime">시작 시각: {{ inspectionStartTime }}</div>
+  <div v-if="inspectionEndTime">종료 시각: {{ inspectionEndTime }}</div>
+  </div>
       </div>
 
       <div v-if="inspectionParts.length > 0">
@@ -227,20 +233,6 @@
                   @update:model-value="updateInspectionStorage"
                 />
               </div>
-              
-              <!-- 확인자 -->
-              <div>
-                <VaSelect
-                  v-model="part.checker_id"
-                  :options="employeeOptions"
-                  text-by="label"
-                  value-by="value"
-                  placeholder="확인자"
-                  :disabled="!inspectionStarted || !part.checked"
-                  :color="part.checker_id ? 'success' : undefined"
-                  @update:model-value="updateInspectionStorage"
-                />
-              </div>
             </div>
           </div>
         </div>
@@ -268,6 +260,10 @@ import { ref, computed, onMounted } from 'vue'
 import axios from 'axios'
 import { loadInspectionStorage, saveInspectionStorage, clearInspectionStorage } from '../../utils/inspectionStorage'
 import { useAuthStore } from '@/stores/authStore'
+
+const inspectionStartTime = ref<string | null>(null)
+const inspectionEndTime = ref<string | null>(null)
+
 const authStore = useAuthStore()
 
 const statusProgressOptions = ref([
@@ -526,6 +522,8 @@ const startInspection = async () => {
     
     inspectionStarted.value = true
     
+    inspectionStartTime.value = new Date().toLocaleString()
+
     //점검 시작 알림
     alert('점검이 시작되었습니다!')
 
@@ -574,7 +572,7 @@ const endInspection = async () => {
       checked: Boolean(part.checked),
       result: part.result || '',
       remark: part.remark || '',
-      checker_id: part.checker_id || ''
+      checker_id: inspectionData.value.operator_id || ''
     })).filter(part => part.part_id !== null) // part_id가 null인 항목 제거
 
     console.log('정리된 점검 항목들:', cleanedParts)
@@ -594,6 +592,9 @@ const endInspection = async () => {
       clearInspectionStorage(selectedEquipment.value.eq_id)
       inspectionStarted.value = false
       showModal.value = false
+
+      inspectionEndTime.value = new Date().toLocaleString()
+
       await fetchEquipments()
       alert('점검이 완료되었습니다.')
     } else {
