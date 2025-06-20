@@ -190,10 +190,7 @@ const saveWorkOrderComplete = async (workOrderData) => {
         const random = Math.floor(100 + Math.random() * 900);
         resultId = `RE${yyyyMMdd}${random}-${uuidv4().slice(0, 4)}`;
         product.result_id = resultId;
-
         
-        
-
         const processCodes = await getProcessCodesByGroup(product.process_group_code);
         if (Array.isArray(processCodes) && processCodes.length > 0) {
           await saveWorkResult(master.work_order_no, [product]);

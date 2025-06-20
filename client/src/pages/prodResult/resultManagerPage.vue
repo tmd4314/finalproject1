@@ -218,6 +218,7 @@ const columns = [
   { key: 'work_end_time', label: '종료시간' },
   { key: 'process_time', label: '예상시간(분)' },
   { key: 'duration', label: '소요시간(분)' },
+  { key: 'work_order_qty', label: '요청수량' },
   { key: 'pass_qty', label: '재작수량' },
   { key: 'detail_code_label', label: '진행상태' },
   { key: 'manager_id', label: '작업자' }
