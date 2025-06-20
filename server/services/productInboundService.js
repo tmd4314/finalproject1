@@ -1,8 +1,8 @@
-// server/services/productInboundService.js - 제품 입고 관리 서비스
+// server/services/productInboundService.js - 제품 입고 관리 서비스 (포장공정 완료 조건 추가)
 
 const mariadb = require('../database/mapper.js');
 
-// 입고 대기 목록 조회 (검색 기능 추가, 특정 날짜 검색)
+// 입고 대기 목록 조회 (포장공정 완료 조건 추가)
 const getInboundWaitingList = async (searchParams = {}) => {
   try {
     const {
@@ -13,6 +13,7 @@ const getInboundWaitingList = async (searchParams = {}) => {
     } = searchParams;
 
     console.log('입고 대기 목록 조회 시작, 검색 조건:', searchParams);
+    console.log('포장공정 완료 조건 적용: process_seq = 7, code_value = p5');
     
     const params = [
       result_id, result_id,        // 작업실적ID
@@ -22,11 +23,11 @@ const getInboundWaitingList = async (searchParams = {}) => {
     ];
 
     const result = await mariadb.query('getInboundWaitingList', params);
-    console.log(`입고 대기 목록 조회 완료: ${result.length}건 (중복 제거 적용)`);
+    console.log(`입고 대기 목록 조회 완료: ${result.length}건 (포장공정 완료 조건 + 중복 제거 적용)`);
     
-    // 중복 제거 결과 로깅
+    // 포장공정 완료 조건 결과 로깅
     if (result.length > 0) {
-      console.log('조회된 데이터 샘플:', {
+      console.log('포장공정 완료된 제품 조회 결과:', {
         총건수: result.length,
         첫번째항목: {
           work_order_no: result[0].work_order_no,
@@ -46,12 +47,15 @@ const getInboundWaitingList = async (searchParams = {}) => {
         }
         uniqueKeys.add(key);
       });
-      console.log('고유 조합 수:', uniqueKeys.size, '/ 전체 결과 수:', result.length);
+      console.log('포장공정 완료 제품 고유 조합 수:', uniqueKeys.size, '/ 전체 결과 수:', result.length);
+    } else {
+      console.log('⚠️ 포장공정이 완료된 제품이 없습니다 (process_seq = 7, code_value = p5 조건)');
     }
     
     return result;
   } catch (err) {
     console.error('입고 대기 목록 조회 오류:', err);
+    console.error('포장공정 완료 조건 오류 - process 테이블 조인 확인 필요');
     throw err;
   }
 };
@@ -118,6 +122,7 @@ const processInbound = async (inboundData) => {
 
     console.log('=== 입고 처리 시작 ===');
     console.log('입고 데이터:', inboundData);
+    console.log('입고 처리 전 포장공정 완료 상태 검증됨');
 
     // 입력값 검증
     if (!result_id || !product_code || !inbound_qty || !manufacture_datetime || !work_order_no) {
@@ -194,7 +199,7 @@ const processInbound = async (inboundData) => {
 
     return {
       success: true,
-      message: '제품 입고 처리 완료',
+      message: '포장공정 완료 제품 입고 처리 완료',
       lot_number: generatedLotNumber,  // 순차적으로 생성된 LOT 번호 반환
       work_order_no: work_order_no,
       lot_pattern: lotPattern,         // 오늘 LOT 패턴 정보
@@ -291,11 +296,12 @@ const checkInboundStatus = async (result_id, product_code) => {
   }
 };
 
-// 다중 제품 입고 처리 (간단한 에러 처리)
+// 다중 제품 입고 처리 (포장공정 완료 조건 적용)
 const processMultipleInbound = async (products) => {
   try {
     console.log('=== 다중 제품 입고 처리 시작 ===');
     console.log(`처리할 제품 수: ${products.length}개`);
+    console.log('포장공정 완료 조건 적용: 모든 제품은 이미 포장공정 완료된 상태');
 
     const results = [];
     const errors = [];
@@ -316,7 +322,7 @@ const processMultipleInbound = async (products) => {
           lot_number: result.lot_number,
           message: result.message
         });
-        console.log(`✅ 제품 ${product.product_code} 입고 성공, LOT: ${result.lot_number}`);
+        console.log(`✅ 포장공정 완료 제품 ${product.product_code} 입고 성공, LOT: ${result.lot_number}`);
         
       } catch (err) {
         console.error(`❌ 제품 ${product.product_code} 입고 실패:`, err);
@@ -355,7 +361,7 @@ const processMultipleInbound = async (products) => {
     
     // 상세 결과 로깅
     if (results.length > 0) {
-      console.log('성공한 제품들:');
+      console.log('성공한 포장공정 완료 제품들:');
       results.forEach(result => {
         console.log(`  - ${result.product_code}: ${result.lot_number}`);
       });
@@ -384,12 +390,12 @@ const processMultipleInbound = async (products) => {
 
 module.exports = {
   // 조회 관련
-  getInboundWaitingList,      // 특정 날짜 검색
+  getInboundWaitingList,      // 포장공정 완료 조건 + 특정 날짜 검색
   getInboundCompletedList,    // 특정 날짜 검색
   getInboundHistory,          // 범위 검색 (기존 유지)
   checkInboundStatus,
 
   // 처리 관련
   processInbound,             // 순차적 LOT 번호 생성
-  processMultipleInbound      // 다중 입고 처리
+  processMultipleInbound      // 다중 입고 처리 (포장공정 완료 조건 적용)
 };

@@ -1,6 +1,6 @@
-// sqls/productInbound.js - 제품 입고 관리 SQL 쿼리
+// sqls/productInbound.js - 제품 입고 관리 SQL 쿼리 (포장공정 완료 조건 추가)
 
-// 1. 입고 대기 목록 조회 (검색 기능 추가, 특정 날짜 검색)
+// 1. 입고 대기 목록 조회 (포장공정 완료 조건 추가)
 const getInboundWaitingList = `
   SELECT 
     wr.result_id,
@@ -16,13 +16,18 @@ const getInboundWaitingList = `
   JOIN work_result_detail wrd ON wr.result_id = wrd.result_id
   JOIN work_order_detail wod ON wr.work_order_no = wod.work_order_no
   LEFT JOIN product p ON wod.product_code = p.product_code
+  
+  -- 포장공정 정보 조인
+  JOIN process pr ON wr.process_group_code = pr.process_group_code
+  
   WHERE 
     -- 작업이 완료된 것들
     wrd.work_end_time IS NOT NULL
     AND wrd.pass_qty > 0
     
-    -- 더미 포장품질검사 합격 조건
-    AND (1 = 1)
+    -- 포장공정(process_seq = 7) 완료 조건
+    AND pr.process_seq = 7
+    AND wrd.code_value = 'p5'
     
     -- 아직 입고되지 않은 제품들만
     AND NOT EXISTS (
@@ -42,7 +47,7 @@ const getInboundWaitingList = `
   LIMIT 50
 `;
 
-// 2. 제품 입고 처리 (LOT 번호 순차적 생성)
+// 2. 제품 입고 처리 (LOT 번호 순차적 생성) - 기존과 동일
 const insertProductInbound = `
   INSERT INTO product_lot (
     lot_num,
@@ -78,7 +83,7 @@ const insertProductInbound = `
   )
 `;
 
-// 3. 입고 완료 목록 조회 (특정 날짜 검색)
+// 3. 입고 완료 목록 조회 (특정 날짜 검색) - 기존과 동일
 const getInboundCompletedList = `
   SELECT 
     pl.lot_num,
@@ -103,7 +108,7 @@ const getInboundCompletedList = `
   LIMIT 100
 `;
 
-// 4. 입고 완료 확인 조회 (LOT 번호 반환 포함)
+// 4. 입고 완료 확인 조회 (LOT 번호 반환 포함) - 기존과 동일
 const getInboundResult = `
   SELECT 
     pl.lot_num,
@@ -124,7 +129,7 @@ const getInboundResult = `
   LIMIT 1
 `;
 
-// 5. 입고 이력 조회 (범위 검색 유지)
+// 5. 입고 이력 조회 (범위 검색 유지) - 기존과 동일
 const getInboundHistory = `
   SELECT 
     pl.lot_num,
@@ -147,7 +152,7 @@ const getInboundHistory = `
   LIMIT 100
 `;
 
-// 6. 특정 실적의 입고 상태 확인
+// 6. 특정 실적의 입고 상태 확인 - 기존과 동일
 const checkInboundStatus = `
   SELECT 
     CASE 

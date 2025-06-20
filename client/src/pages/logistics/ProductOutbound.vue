@@ -598,7 +598,6 @@ const processSelectedItems = async () => {
     const outboundResponse = await axios.post('/productOutbound/process-products', {
       products,
       employee_id: authStore.user?.employee_id || null, // 실제 로그인한 사용자의 employee_id 사용
-      notes: `${authStore.user?.employee_name || '시스템'}에 의한 출고 처리`
     })
 
     console.log('Outbound response:', outboundResponse.data)

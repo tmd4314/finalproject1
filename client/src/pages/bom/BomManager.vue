@@ -16,7 +16,7 @@
             class="w-full px-2 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white text-xs"
           >
             <option value="">제품명 선택</option>
-            <option v-for="prod in uniqueProductOptions" :key="prod.product_name" :value="prod.product_name">
+            <option v-for="prod in uniqueProductOptions" :key="prod.base_product_code" :value="prod.product_name">
               {{ prod.product_name }}
             </option>
           </select>
@@ -57,7 +57,8 @@
             <label class="block text-xs font-medium text-blue-600 mb-2">BOM 코드</label>
             <input 
               v-model="form.bom_code" 
-              class="w-full px-2 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-xs" 
+              class="w-full px-2 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-xs bg-gray-100" 
+              readonly
             />
           </div>
           <div>
@@ -89,7 +90,7 @@
               v-model="form.product_stand" 
               class="w-full px-2 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white text-xs"
               @change="updateProductCode"
-              :disabled="!form.product_name"
+              :disabled="!form.product_name || isEditMode"
             >
               <option value="">규격 선택</option>
               <option v-for="spec in availableSpecs" :key="spec" :value="spec">
@@ -253,20 +254,31 @@ const uniqueBomList = computed(() => {
 })
 
 // 제품명 중복 제거하여 드롭다운 옵션 생성 (왼쪽 필터용)
+// 제품코드 기반으로 그룹핑하되 제품명이 표시되도록
 const uniqueProductOptions = computed(() => {
-  const productNameSet = new Set()
-  const uniqueProducts = []
+  const productMap = new Map()
   
-  uniqueBomList.value.forEach(bom => {
-    if (!productNameSet.has(bom.product_name)) {
-      productNameSet.add(bom.product_name)
-      uniqueProducts.push({
-        product_name: bom.product_name
+  productOptions.value.forEach(product => {
+    // 제품코드에서 규격 부분(-10, -30, -60) 제거
+    const baseProductCode = product.product_code.replace(/-\d+$/, '')
+    
+    if (!productMap.has(baseProductCode)) {
+      productMap.set(baseProductCode, {
+        base_product_code: baseProductCode,
+        product_name: product.product_name,
+        // 해당 베이스 코드의 모든 규격들
+        variants: []
       })
     }
+    
+    // 각 베이스 코드별로 규격 정보 저장
+    productMap.get(baseProductCode).variants.push({
+      product_code: product.product_code,
+      product_stand: product.product_stand
+    })
   })
   
-  return uniqueProducts
+  return Array.from(productMap.values())
 })
 
 // 중복 제거된 제품명 목록 (드롭다운용)
@@ -296,16 +308,18 @@ const availableSpecs = computed(() => {
   return Array.from(specs).sort()
 })
 
-// 우측 폼에서 사용할 제품 옵션 (중복 제거 없이 모든 제품 표시)
-const availableProductOptions = computed(() => {
-  return productOptions.value
-})
-
-// 선택된 제품명으로 BOM 목록 필터링
+// 선택된 제품명으로 BOM 목록 필터링 (제품코드 기반)
 const filteredBoms = computed(() => {
   if (!selectedProduct.value) return uniqueBomList.value
+  
+  // 선택된 제품명에 해당하는 제품코드들 찾기
+  const matchingProductCodes = productOptions.value
+    .filter(product => product.product_name === selectedProduct.value)
+    .map(product => product.product_code)
+  
+  // BOM 목록에서 해당 제품코드들과 일치하는 것들만 필터링
   return uniqueBomList.value.filter(bom => 
-    bom.product_name.includes(selectedProduct.value)
+    matchingProductCodes.includes(bom.product_code)
   )
 })
 
@@ -328,16 +342,29 @@ const canSave = computed(() => {
   return form.value.bom_code && form.value.product_name && form.value.product_stand && form.value.materials.length > 0
 })
 
+// BOM 코드 자동 생성 함수 (BOM-제품코드-YYYYMMDD 형식)
+const generateBomCode = () => {
+  if (form.value.product_code) {
+    const today = new Date()
+    const year = today.getFullYear()
+    const month = String(today.getMonth() + 1).padStart(2, '0')
+    const day = String(today.getDate()).padStart(2, '0')
+    const dateStr = year + month + day
+    
+    form.value.bom_code = `BOM-${form.value.product_code}-${dateStr}`
+  }
+}
+
 // 제품명 선택 시 처리
 const onProductNameChange = () => {
   // 제품명이 변경되면 규격 초기화
   form.value.product_stand = ''
   form.value.product_code = ''
-  updateProductCode()
+  form.value.bom_code = ''
 }
 
-// 제품명과 규격 기반으로 제품코드 업데이트
-const updateProductCode = () => {
+// 제품명과 규격 기반으로 제품코드 업데이트 및 BOM 코드 자동 생성
+const updateProductCode = async () => {
   if (!isEditMode.value && form.value.product_name && form.value.product_stand) {
     console.log('매칭 시도:', form.value.product_name, form.value.product_stand)
     
@@ -350,10 +377,34 @@ const updateProductCode = () => {
     if (matchingProduct) {
       form.value.product_code = matchingProduct.product_code
       console.log(`✅ 매칭된 제품: ${form.value.product_name} ${form.value.product_stand} -> ${matchingProduct.product_code}`)
+      
+      // BOM 코드 자동 생성
+      generateBomCode()
+      
+      // 동일한 제품코드로 기존 BOM이 있는지 확인
+      await checkExistingBom(matchingProduct.product_code)
     } else {
       form.value.product_code = ''
+      form.value.bom_code = ''
       console.log(`❌ 매칭되는 제품을 찾을 수 없습니다: ${form.value.product_name} ${form.value.product_stand}`)
     }
+  }
+}
+
+// 기존 BOM 존재 여부 확인
+const checkExistingBom = async (productCode) => {
+  try {
+    // 기존 BOM 목록에서 동일한 제품코드가 있는지 확인
+    const existingBom = uniqueBomList.value.find(bom => bom.product_code === productCode)
+    if (existingBom) {
+      alert(`${form.value.product_name}의 BOM 코드가 이미 등록되어 있습니다.`)
+      form.value.bom_code = ''
+      return false
+    }
+    return true
+  } catch (err) {
+    console.error('기존 BOM 확인 오류:', err)
+    return true
   }
 }
 
@@ -362,35 +413,38 @@ const filterBomList = () => {
 }
 
 const selectBom = async (bom) => {
+  // 중복 호출 방지
+  if (isEditMode.value && form.value.bom_code === bom.bom_code) {
+    return
+  }
+  
   try {
-    const res = await axios.get(`/bom/detail/${bom.bom_code}`)
-    if (res.data && res.data.length > 0) {
-      const bomData = res.data[0]
+    console.log('BOM 선택:', bom.bom_code)
+    const res = await axios.get(`/bom/${bom.bom_code}`)
+    
+    if (res.data && res.data.master) {
+      const { master, materials } = res.data
       
       form.value = {
-        bom_code: bomData.bom_code,
-        product_code: bomData.product_code,
-        product_name: bom.product_name,
-        product_stand: bomData.product_stand || '',
-        materials: res.data.map(item => {
-          // 자재 목록에서 해당 자재의 상세 정보 찾기
-          const materialDetail = materialList.value.find(mat => mat.material_code === item.material_code)
-          
-          return {
-            material_code: item.material_code,
-            material_name: item.material_name,
-            material_type: materialDetail?.material_type || item.material_type || item.material_category || '',
-            material_unit: item.material_unit,
-            material_stand: item.material_stand,
-            usage_qty: item.usage_qty,
-            bom_unit: item.bom_unit,
-            selected: false,
-            status: 'existing'
-          }
-        }),
+        bom_code: master.bom_code,
+        product_code: master.product_code,
+        product_name: master.product_name,
+        product_stand: master.product_stand,
+        materials: materials.map(item => ({
+          material_code: item.material_code,
+          material_name: item.material_name,
+          material_type: item.material_type || '',
+          material_unit: item.material_unit,
+          material_stand: item.material_stand,
+          usage_qty: item.usage_qty,
+          bom_unit: item.bom_unit,
+          selected: false,
+          status: 'existing'
+        })),
         deletedMaterials: []
       }
       isEditMode.value = true
+      console.log('BOM 데이터 로드 완료:', form.value)
     }
   } catch (err) {
     console.error('BOM 상세 조회 오류:', err)
@@ -465,20 +519,23 @@ const saveBom = async () => {
       }
     }
 
+    // 백엔드 서비스와 동일한 구조로 데이터 구성
     const payload = {
-      bom_code: form.value.bom_code,
-      product_code: finalProductCode,
-      product_name: form.value.product_name,
-      product_stand: form.value.product_stand,
+      master: {
+        bom_code: form.value.bom_code,
+        product_code: finalProductCode,
+        product_name: form.value.product_name,
+        product_stand: form.value.product_stand
+      },
       materials: form.value.materials.map(mat => ({
         material_code: mat.material_code,
         usage_qty: mat.usage_qty,
-        bom_unit: mat.bom_unit,
+        bom_unit: mat.bom_unit || mat.material_unit,
         status: mat.status || 'new'
-      })),
-      // 삭제할 자재 목록 추가 (편집 모드일 때만)
-      deletedMaterials: isEditMode.value ? (form.value.deletedMaterials || []) : []
+      }))
     }
+
+    console.log('전송할 데이터:', payload)
 
     if (isEditMode.value) {
       await axios.put('/bom', payload)
@@ -492,7 +549,11 @@ const saveBom = async () => {
     resetForm()
   } catch (err) {
     console.error('BOM 저장 오류:', err)
-    alert('BOM 저장에 실패했습니다.')
+    if (err.response && err.response.data && err.response.data.error) {
+      alert(`BOM 저장에 실패했습니다: ${err.response.data.error}`)
+    } else {
+      alert('BOM 저장에 실패했습니다.')
+    }
   }
 }
 
