@@ -1,290 +1,179 @@
-  <template>
-    <div class="product-form">
-      <h3 class="form-title">제품품질검사</h3>
+<template>
+  <div class="product-form">
+    <h3 class="form-title">제품품질검사</h3>
+    <br />
+
+    <div class="form-section">
+      <h3 class="form-title">조회</h3>
       <br />
+      <div class="input-row">
+        <!-- 제품명 선택 -->
+        <va-select
+          v-model="form.productCode"
+          :options="productOptions"
+          label="제품명"
+          class="quarter-width"
+          value-by="value"
+          text-by="label"
+          placeholder="제품을 선택하세요"
+          @update:modelValue="onProductChange"
+        />
 
-      <div class="form-section">
-        <h3 class="form-title">조회</h3>
-        <br />
-        <div class="input-row">
-          <!-- 제품명 선택 -->
-          <va-select
-            v-model="form.productName"
-            :options="productOptions"
-            label="제품명"
-            class="quarter-width"
-            @update:modelValue="fetchWorkOrdersByProductName"
-          />
-
-          <!-- 작업지시서번호 선택 -->
-          <va-select
-            v-model="form.workNum"
-            :options="workOrderOptions"
-            label="작업지시서번호"
-            class="quarter-width"
-            @update:modelValue="fetchDetail"
-          />
-
-          <va-input
-            v-model="form.managerId"
-            label="담당자 명"
-            class="quarter-width"
-            readonly
-          />
-
-        </div>
-        <div class="input-row">
-          <va-select
-            v-model="form.inspName"
-            :options="inspNameOptions"
-            label="검사항목명"
-            class="quarter-width"
-          />
-
-          <va-input
-            v-model="form.orderQty"
-            label="투입량"
-            class="quarter-width"
-            readonly
-          />
-          <va-input
-            v-model="form.orderAccepQty"
-            label="합격수량"
-            class="quarter-width"
-          />
-          <va-input
-            v-model="form.defectQty"
-            label="불량수량"
-            class="quarter-width"
-            readonly
-          />
-        </div>
-
-        <div class="form-buttons">
-          <va-button @click="resetForm" color="secondary">초기화</va-button>
-        </div>
+        <!-- 작업지시서 번호 선택 -->
+        <va-select
+          v-model="form.workOrderNo"
+          :options="workOrderOptions"
+          label="작업지시서 번호"
+          class="quarter-width"
+          value-by="value"
+          text-by="label"
+          placeholder="작업지시서 번호를 선택하세요"
+          :disabled="workOrderOptions.length === 0"
+        />
       </div>
-
-      <div class="form-section">
-        <table class="custom-table">
-          <thead>
-            <tr>
-              <th>검사항목</th>
-              <th>기준값</th>
-              <th>측정값</th>
-              <th>판정</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="(item, index) in filteredInspectionDetails" :key="index">
-              <td>{{ item.insp_name }}</td>
-              
-              <!-- 기준값 표시 로직 (여기 수정됨) -->
-              <td>
-                <template v-if="item.insp_ref_value === '정량'">
-                  {{
-                    (item.insp_quantita_value ?? 'N/A') +
-                    (item.insp_unit || '')
-                  }}
-                </template>
-                <template v-else>
-                  {{ item.insp_qualita_value ?? 'N/A' }}
-                </template>
-              </td>
-              <td>
-                <!-- 측정값 입력 -->
-                <template v-if="item.insp_ref_value === '정량'">
-                  
-                  <va-input
-                    v-model="item.measuredValue"
-                    type="number"
-                    @input="evaluateJudgement(item)"
-                  />
-                </template>
-                <template v-else>
-                  <va-input v-model="item.measuredValue" />
-                </template>
-              </td>
-              
-              <td>
-                <!-- 판정 표시 -->
-                <template v-if="item.insp_ref_value === '정량'">
-                  {{ item.judgement || '판정대기' }}
-                </template>
-                <template v-else>
-                  <va-select
-                    v-model="item.judgement"
-                    :options="['합', '불합']"
-                    placeholder="선택"
-                    class="w-full"
-                  />
-                </template>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+        <div class="input-row">
+          <va-input v-model="resultInfo.processName" label="공정명" readonly />
+          <va-input v-model="resultInfo.managerId" label="담당자" readonly />
+          <va-input v-model="resultInfo.passQty" label="투입량" readonly />
+        </div>
     </div>
-  </template>
+    <div class="form-section">
+      <table class="custom-table">
+        <thead>
+          <tr>
+            <th>판정방식</th>
+            <th>단위</th>
+            <th>기준값</th>
+            <th>측정값</th>
+            <th>판정</th>
+          </tr>
+        </thead>
+         <tbody>
+          <tr v-for="(item, index) in inspectionStandardList" :key="index">
+            <td>{{ item.insp_value_type }}</td>
+            <td>{{ item.insp_unit }}</td>
+            <td>{{ item.insp_value_qty }}</td>
+            <td><va-input /></td>
+            <td><va-input /></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</template>
 
-  <script lang="ts" setup>
-  import { ref, computed, onMounted, watch } from 'vue'
-  import axios from 'axios'
+<script lang="ts" setup>
+import { ref, onMounted, watch } from 'vue'
+import axios from 'axios'
 
-  // form 상태
-  const form = ref({
-    workNum: '',
-    productName: '',
-    managerId: '',
-    inspName: '',
-    orderQty: '',
-    defectQty: '',
-    orderAccepQty: ''
-  })
+// 폼 상태
+const form = ref({
+  productCode: '',
+  workOrderNo: ''
+})
 
-  // 옵션 리스트들
-  const productOptions = ref<string[]>([])
-  const workOrderOptions = ref<string[]>([])
-  const inspNameOptions = ref<string[]>([])
+// 검사 기준 목록
+const inspectionStandardList = ref<
+  {
+    insp_value_type: string;
+    insp_unit: string;
+    insp_value_qty: number;
+    insp_value_min: number;
+    insp_value_max: number;
+  }[]
+>([])
 
-  // 상세 검사 항목 전체 데이터
-  const inspectionDetails = ref<any[]>([])
+// 제품명 옵션 리스트
+const productOptions = ref<{ label: string; value: string }[]>([])
 
-  // inspName으로 필터링한 상세 데이터 (선택 없으면 전체 출력)
-  const filteredInspectionDetails = computed(() => {
-    if (!form.value.inspName) {
-      return inspectionDetails.value
-    }
-    return inspectionDetails.value.filter(
-      item => item.insp_name === form.value.inspName
-    )
-  })
+// 작업지시서 번호 옵션 리스트
+const workOrderOptions = ref<{ label: string; value: string }[]>([])
 
-  function resetForm() {
-  form.value = {
-    workNum: '',
-    productName: '',
-    managerId: '',
-    inspName: '',
-    orderQty: '',
-    defectQty: '',
-    orderAccepQty: ''
+// 페이지 진입 시 제품명 목록 불러오기
+onMounted(async () => {
+  try {
+    const res = await axios.get('/qualitys/productList')
+    productOptions.value = res.data.map((item: any) => ({
+      label: item.product_name,
+      value: item.product_code
+    }))
+  } catch (err) {
+    console.error('제품명 목록 조회 실패:', err)
   }
+})
 
- 
-  inspectionDetails.value = []
-  inspNameOptions.value = []
+// 제품 선택 시 작업지시서 번호 목록 불러오기
+const onProductChange = async (selectedProductCode: string) => {
+  console.log('제품 선택:', selectedProductCode);
+
+  form.value.workOrderNo = ''
+  workOrderOptions.value = []
+
+  if (!selectedProductCode) return
+
+  try {
+    const res = await axios.get('/qualitys/workOrderNoList', {
+      params: { productCode: selectedProductCode }
+    })
+    workOrderOptions.value = res.data.map((item: any) => ({
+      label: item.work_order_no,
+      value: item.work_order_no
+    }))
+  } catch (err) {
+    console.error('작업지시서 목록 조회 실패:', err)
+  }
 }
 
-  // 초기 제품명 목록 호출
-  onMounted(async () => {
-    try {
-      const res = await axios.get('/qualitys/productList')
-      productOptions.value = res.data.map((item: any) => item.product_name)
-    } catch (err) {
-      console.error('제품명 불러오기 실패:', err)
-    }
-  })
+const resultInfo = ref({
+  processName: '',
+  managerId: '',
+  passQty: 0
+})
 
-  // 제품명 선택 시 작업지시서 목록 호출
-  const fetchWorkOrdersByProductName = async (productName: string) => {
-    if (!productName) {
-      workOrderOptions.value = []
-      form.value.workNum = ''
-      return
-    }
-    try {
-      const res = await axios.get(
-        `/qualitys/workOrderListByProduct/${encodeURIComponent(productName)}`
-      )
-      workOrderOptions.value = res.data.map((item: any) => item.work_order_no)
-      form.value.workNum = ''
-    } catch (err) {
-      console.error('작업지시서 목록 조회 실패:', err)
-    }
+// 작업지시서 선택 시 상세 정보 조회
+watch(() => form.value.workOrderNo, async (newVal) => {
+  if (!newVal) {
+    resultInfo.value = { processName: '', managerId: '', passQty: 0 }
+    return
   }
 
-  // 작업지시서번호 선택 시 상세정보 조회
-  const fetchDetail = async (workNo: string) => {
-    if (!workNo) {
-      inspNameOptions.value = []
-      inspectionDetails.value = []
-      form.value.inspName = ''
-      form.value.orderQty = ''
-      return
-    }
-    try {
-      const res = await axios.get(
-        `/qualitys/workOrderDetailList/${encodeURIComponent(workNo)}`
-      )
-      if (res.data.length > 0) {
-        const data = res.data[0]
-        form.value.productName = data.product_name
-        form.value.managerId = data.manager_id || ''
-        form.value.orderQty = data.pass_qty || ''
+  try {
+    const res = await axios.get('/qualitys/workOrderDetail', {
+      params: { workOrderNo: newVal }
+    })
 
-        // insp_name 중복 제거
-        const uniqueInspNames = Array.from(
-          new Set(res.data.map((item: any) => item.insp_name))
-        )
-        inspNameOptions.value = uniqueInspNames
-
-        // inspName 초기값을 빈 문자열로 세팅
-        form.value.inspName = ''
-
-        // 상세 검사 항목 데이터 저장 + 초기 measuredValue, judgement 필드 추가
-        inspectionDetails.value = res.data.map((item: any) => ({
-          ...item,
-          measuredValue: '',
-          judgement: ''
-        }))
-      } else {
-        form.value.productName = ''
-        form.value.managerId = ''
-        form.value.orderQty = ''
-        inspNameOptions.value = []
-        inspectionDetails.value = []
-        form.value.inspName = ''
+    if (res.data.length > 0) {
+      const first = res.data[0] // 여러 개 중 첫 번째만 표시
+      resultInfo.value = {
+        processName: first.process_name || '',
+        managerId: first.manager_id || '',
+        passQty: first.pass_qty || 0
       }
-    } catch (err) {
-      console.error('상세정보 조회 실패:', err)
-      form.value.productName = ''
-      form.value.managerId = ''
-      form.value.orderQty = ''
-      inspNameOptions.value = []
-      inspectionDetails.value = []
-      form.value.inspName = ''
-    }
-  }
-
-  // 정량 항목 자동 판정 함수
-  const evaluateJudgement = (item: any) => {
-  const 측정값 = parseFloat(item.measuredValue)
-  const 최소값 = parseFloat(item.insp_quantita_min)
-  const 최대값 = parseFloat(item.insp_quantita_max)
-
-  if (!isNaN(측정값) && !isNaN(최소값) && !isNaN(최대값)) {
-    item.judgement = 측정값 >= 최소값 && 측정값 <= 최대값 ? '합' : '불합'
-  } else {
-    item.judgement = ''
-  }
-}
-
-
-watch(
-  () => form.value.orderAccepQty,
-  (newVal) => {
-    const orderQty = parseInt(form.value.orderQty)
-    const accepQty = parseInt(newVal)
-
-    if (!isNaN(orderQty) && !isNaN(accepQty)) {
-      const defect = orderQty - accepQty
-      form.value.defectQty = defect >= 0 ? defect.toString() : '0'
     } else {
-      form.value.defectQty = ''
+      resultInfo.value = { processName: '', managerId: '', passQty: 0 }
     }
+  } catch (err) {
+    console.error('작업지시서 상세 조회 실패:', err)
   }
-)
+})
+
+watch(() => resultInfo.value.processName, async (processName) => {
+  if (!processName) {
+    inspectionStandardList.value = []
+    return
+  }
+
+  try {
+    const res = await axios.get('/qualitys/inspectionStandard', {
+      params: { processName }
+    })
+    console.log('검사 기준 응답:', res.data) // ← 디버깅용
+    inspectionStandardList.value = res.data
+  } catch (err) {
+    console.error('검사 기준 조회 실패:', err)
+    inspectionStandardList.value = []
+  }
+})
 </script>
 
 <style scoped>
