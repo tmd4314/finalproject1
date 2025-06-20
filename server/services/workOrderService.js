@@ -113,8 +113,7 @@ const saveWorkOrderProducts = async (workOrderNo, products) => {
 // 작업지시서 제품 정보 저장 (기존 삭제 후 재입력)
 const saveWorkResult = async (workOrderNo, products) => {
   try {
-    // 1. 기존 제품 정보 삭제
-    await mariadb.query('deleteResult', [workOrderNo]);
+
     
     // 2. 새로운 제품 정보 입력
     for (const product of products) {
@@ -185,43 +184,19 @@ const saveWorkOrderComplete = async (workOrderData) => {
 
       const now = new Date();
       const yyyyMMdd = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
-
+      // 1. 기존 제품 정보 삭제
+      await mariadb.query('deleteResult', [master.work_order_no]);
       for (const product of products) {
-        let attempt = 0;
-        let resultId;
-        let insertSuccess = false;
+        const random = Math.floor(100 + Math.random() * 900);
+        resultId = `RE${yyyyMMdd}${random}-${uuidv4().slice(0, 4)}`;
+        product.result_id = resultId;
 
-        while (!insertSuccess && attempt < 10) {
-          const random = Math.floor(100 + Math.random() * 900);
-          resultId = `RE${yyyyMMdd}${random}-${uuidv4().slice(0, 4)}`;
-          product.result_id = resultId;
-
-          try {
-            await mariadb.query('insertResult', [
-              master.work_order_no,
-              product.process_group_code,
-              resultId,
-              product.work_order_date,
-            ]);
-            insertSuccess = true;
-          } catch (err) {
-            if (err.code === 'ER_DUP_ENTRY') {
-              attempt++;
-            } else {
-              throw err;
-            }
-          }
-        }
-
-        if (!insertSuccess) {
-          console.warn(`⚠️ result_id 생성 실패 (중복 10회): ${product.product_code}`);
-          continue;
-        }
-
-        await saveWorkResult(master.work_order_no, [product]);
+        
+        
 
         const processCodes = await getProcessCodesByGroup(product.process_group_code);
         if (Array.isArray(processCodes) && processCodes.length > 0) {
+          await saveWorkResult(master.work_order_no, [product]);
           await saveWorkResultDetails(resultId, processCodes);
         }
       }
