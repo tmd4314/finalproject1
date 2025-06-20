@@ -15,7 +15,7 @@ const selectWorkOrderNo =
 SELECT DISTINCT wom.work_order_no
 FROM work_order_master wom
 JOIN work_order_detail wod ON wom.work_order_no = wod.work_order_no
-WHERE wod.product_code = ?  -- 여기에 선택한 product_code가 들어갑니다
+WHERE wod.product_code = ?  
 ORDER BY wom.work_order_no;
 `
 ;
@@ -53,9 +53,45 @@ WHERE
   pit.process_name = ?;
 `;
 
+const insertQualTestResult = `
+INSERT INTO quality_test (
+  product_code,
+  work_order_no,
+  qual_measured_value,
+  qual_result,
+  process_name,
+  insp_value_qty,
+  qual_remark
+) VALUES (?, ?, ?, ?, ?, ?, ?);
+`;
+
+const updateCodeValueToPass =`
+UPDATE work_result_detail
+SET code_value = 'p5'
+WHERE result_id IN (
+  SELECT result_id
+  FROM work_result
+  WHERE work_order_no = ?
+)
+AND code_value = 'p4';
+`
+const updateCodeValueToFail = `
+UPDATE work_result_detail
+SET code_value = 'p7'
+WHERE result_id IN (
+  SELECT result_id
+  FROM work_result
+  WHERE work_order_no = ?
+)
+AND code_value = 'p4';
+`;
+
 module.exports = {
   selectProductName,
   selectWorkOrderNo,
   selectWorkOrderDetail,
-  selectInspectionStandardByProcessName
+  selectInspectionStandardByProcessName,
+  insertQualTestResult,
+  updateCodeValueToPass,
+  updateCodeValueToFail
 };
