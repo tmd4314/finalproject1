@@ -230,6 +230,14 @@
               <span class="label">설비명:</span>
               <span class="value">{{ line.eq_name }}</span>
             </div>
+            <div class="detail-row">
+              <span class="label">제품번호:</span>
+              <span class="value">{{ line.product_code }}</span>
+            </div>
+            <div class="detail-row">
+              <span class="label">제품명:</span>
+              <span class="value">{{ line.product_name }}</span>
+            </div>
             <div v-if="line.curr_work_no" class="detail-row">
               <span class="label">작업번호:</span>
               <span class="value">{{ line.curr_work_no }}</span>
@@ -293,6 +301,8 @@
             <h4>{{ selectedLineForStart?.line_name }}</h4>
             <p><strong>라인 ID:</strong> {{ selectedLineForStart?.line_id }}</p>
             <p><strong>타입:</strong> {{ getLineTypeText(selectedLineForStart?.line_type) }}</p>
+            <p><strong>제품번호:</strong> {{ selectedLineForStart?.product_code  }}</p>
+            <p><strong>제품명:</strong> {{ selectedLineForStart?.product_name  }}</p>
           </div>
           
           <!--  워크플로우 정보 표시 -->
