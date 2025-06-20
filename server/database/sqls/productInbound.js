@@ -15,33 +15,25 @@ const getInboundWaitingList = `
   FROM work_result wr
   JOIN work_result_detail wrd ON wr.result_id = wrd.result_id
   JOIN work_order_detail wod ON wr.work_order_no = wod.work_order_no
+  JOIN process pc ON wrd.process_code = pc.process_code
+  JOIN common_code cm ON wrd.code_value = cm.code_value
   LEFT JOIN product p ON wod.product_code = p.product_code
-  
-  -- 포장공정 정보 조인
-  JOIN process pr ON wr.process_group_code = pr.process_group_code
-  
-  WHERE 
-    -- 작업이 완료된 것들
-    wrd.work_end_time IS NOT NULL
-    AND wrd.pass_qty > 0
-    
-    -- 포장공정(process_seq = 7) 완료 조건
-    AND pr.process_seq = 7
-    AND wrd.code_value = 'p5'
-    
+  WHERE pc.process_name = "포장"
+    AND cm.code_label = "완료"
+
     -- 아직 입고되지 않은 제품들만
     AND NOT EXISTS (
       SELECT 1 FROM product_lot pl 
       WHERE pl.result_id = wr.result_id
       AND pl.product_code = wod.product_code
     )
-    
+
     -- 검색 조건 (특정 날짜 검색)
     AND (? = '' OR wr.result_id LIKE CONCAT('%', ?, '%'))
     AND (? = '' OR p.product_name LIKE CONCAT('%', ?, '%'))
     AND (? = '' OR wod.product_code LIKE CONCAT('%', ?, '%'))
     AND (? = '' OR DATE(wrd.work_end_time) = ?)
-    
+
   GROUP BY wr.work_order_no, wod.product_code, wr.result_id
   ORDER BY MAX(wrd.work_end_time) DESC, wr.result_id, wod.product_code
   LIMIT 50
