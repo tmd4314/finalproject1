@@ -526,6 +526,9 @@ const startInspection = async () => {
     
     inspectionStarted.value = true
     
+    //점검 시작 알림
+    alert('점검이 시작되었습니다!')
+
     // 로컬 스토리지에 저장
     saveInspectionStorage(selectedEquipment.value.eq_id, {
       parts: inspectionParts.value,
