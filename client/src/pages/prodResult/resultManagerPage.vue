@@ -331,6 +331,7 @@ const startWork = async () => {
     return
   }
 
+
   // ✅ 작업 시작 처리
   const now = new Date()
   selectedItem.value.work_start_time = now.toISOString()
@@ -341,7 +342,6 @@ const startWork = async () => {
     if (selectedSeq === 1) {
       await axios.put(`/workResultStatus/${selectedItem.value.result_id}`)
     } 
-    console.log(selectedItem.value.manager_id);
     await axios.put(`/prodResult/${selectedItem.value.result_detail}`, {
       pass_qty: selectedItem.value.pass_qty ?? 0,
       manager_id: selectedItem.value.manager_id ?? '',
