@@ -62,7 +62,7 @@
                 <va-button 
                   icon="delete" 
                   preset="plain" 
-                  size="small"
+                  size="medium"
                   color="danger"
                   @click.stop="deleteOrder(order)"
                   title="주문 삭제"
