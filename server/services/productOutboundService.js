@@ -1,4 +1,4 @@
-// server/services/productOutboundService.js - 제품 출고 관리 서비스 (MariaDB callback 방식)
+// server/services/productOutboundService.js - 주문 상태 자동 업데이트 기능 추가 (완전한 버전)
 
 const mapper = require('../database/mapper');
 
@@ -45,7 +45,20 @@ const getOutboundWaitingList = async (searchParams = {}) => {
     const params = prepareSearchParamsLegacy(searchParams);
     console.log('[getOutboundWaitingList] Prepared Params:', params);
     
-    return await mapper.query('getOutboundWaitingList', params);
+    const result = await mapper.query('getOutboundWaitingList', params);
+    
+    // 결과 로깅 (디버깅용)
+    console.log(`[getOutboundWaitingList] 조회 결과: ${result.length}건`);
+    if (result.length > 0) {
+      console.log('[getOutboundWaitingList] 첫 번째 레코드:', {
+        order_id: result[0].order_id,
+        order_number: result[0].order_number,
+        client_name: result[0].client_name,
+        product_name: result[0].product_name
+      });
+    }
+    
+    return result;
   } catch (err) {
     console.error('출고 대기 목록 조회 오류:', err);
     throw err;
@@ -58,7 +71,19 @@ const getOutboundCompletedList = async (searchParams = {}) => {
     const params = prepareCompletedSearchParamsLegacy(searchParams);
     console.log('[getOutboundCompletedList] Prepared Params:', params);
     
-    return await mapper.query('getOutboundCompletedList', params);
+    const result = await mapper.query('getOutboundCompletedList', params);
+    
+    // 결과 로깅 (디버깅용)
+    console.log(`[getOutboundCompletedList] 조회 결과: ${result.length}건`);
+    if (result.length > 0) {
+      console.log('[getOutboundCompletedList] 첫 번째 레코드:', {
+        outbound_code: result[0].outbound_code,
+        client_name: result[0].client_name,
+        product_name: result[0].product_name
+      });
+    }
+    
+    return result;
   } catch (err) {
     console.error('출고 완료 목록 조회 오류:', err);
     throw err;
@@ -68,7 +93,19 @@ const getOutboundCompletedList = async (searchParams = {}) => {
 // 주문 상세 조회
 const getOrderDetails = async (orderId) => {
   try {
-    return await mapper.query('getOrderDetails', [orderId]);
+    const result = await mapper.query('getOrderDetails', [orderId]);
+    
+    // 결과 로깅 (디버깅용)
+    console.log(`[getOrderDetails] 주문 ${orderId} 조회 결과: ${result.length}건`);
+    if (result.length > 0) {
+      console.log('[getOrderDetails] 첫 번째 레코드:', {
+        order_id: result[0].order_id,
+        order_number: result[0].order_number,
+        client_name: result[0].client_name
+      });
+    }
+    
+    return result;
   } catch (err) {
     console.error('주문 상세 조회 오류:', err);
     throw err;
@@ -169,7 +206,113 @@ const generateOutboundCode = async (date) => {
   }
 };
 
-// 단일 제품 출고 처리 (트랜잭션 없이)
+// ========== 새로 추가된 주문 상태 관련 함수들 ==========
+
+// 주문이 완전 출고되었는지 확인
+const checkOrderFullyShipped = async (orderId) => {
+  try {
+    console.log(`[checkOrderFullyShipped] 주문 ${orderId} 완전 출고 여부 확인`);
+    
+    const result = await mapper.query('checkOrderFullyShipped', [orderId]);
+    
+    if (result.length === 0) {
+      console.log(`[checkOrderFullyShipped] 주문 ${orderId}를 찾을 수 없거나 이미 완료/취소됨`);
+      return {
+        order_id: orderId,
+        is_fully_shipped: false,
+        current_status: null,
+        shipping_status: 'NOT_FOUND'
+      };
+    }
+    
+    const orderInfo = result[0];
+    console.log(`[checkOrderFullyShipped] 주문 ${orderId} 정보:`, orderInfo);
+    
+    return {
+      order_id: orderId,
+      is_fully_shipped: orderInfo.shipping_status === 'FULLY_SHIPPED',
+      current_status: orderInfo.current_status,
+      shipping_status: orderInfo.shipping_status,
+      total_items: orderInfo.total_items,
+      shipped_items: orderInfo.shipped_items
+    };
+  } catch (err) {
+    console.error('주문 완전 출고 확인 오류:', err);
+    throw err;
+  }
+};
+
+// 주문 상태를 완료로 업데이트
+const updateOrderToCompleted = async (orderId) => {
+  try {
+    console.log(`[updateOrderToCompleted] 주문 ${orderId} 상태를 완료로 업데이트`);
+    
+    const result = await mapper.query('updateOrderToCompleted', [orderId]);
+    
+    if (result.affectedRows > 0) {
+      console.log(`[updateOrderToCompleted] 주문 ${orderId} 상태 완료 업데이트 성공`);
+      return {
+        success: true,
+        order_id: orderId,
+        updated: true,
+        message: '주문 상태가 완료로 업데이트되었습니다.'
+      };
+    } else {
+      console.log(`[updateOrderToCompleted] 주문 ${orderId} 상태 업데이트 안됨 (이미 완료되었거나 조건 불충족)`);
+      return {
+        success: true,
+        order_id: orderId,
+        updated: false,
+        message: '주문 상태 업데이트가 필요하지 않습니다.'
+      };
+    }
+  } catch (err) {
+    console.error('주문 상태 완료 업데이트 오류:', err);
+    throw err;
+  }
+};
+
+// 주문 완료 처리 (출고 후 자동 실행)
+const processOrderCompletion = async (orderId) => {
+  try {
+    console.log(`[processOrderCompletion] 주문 ${orderId} 완료 처리 시작`);
+    
+    // 1. 주문이 완전 출고되었는지 확인
+    const shippingCheck = await checkOrderFullyShipped(orderId);
+    
+    if (!shippingCheck.is_fully_shipped) {
+      console.log(`[processOrderCompletion] 주문 ${orderId}는 아직 완전 출고되지 않음 (${shippingCheck.shipping_status})`);
+      return {
+        order_id: orderId,
+        completed: false,
+        reason: '아직 모든 제품이 출고되지 않음',
+        shipping_status: shippingCheck.shipping_status
+      };
+    }
+    
+    // 2. 주문 상태를 완료로 업데이트
+    const updateResult = await updateOrderToCompleted(orderId);
+    
+    console.log(`[processOrderCompletion] 주문 ${orderId} 완료 처리 결과:`, updateResult);
+    
+    return {
+      order_id: orderId,
+      completed: updateResult.updated,
+      shipping_status: shippingCheck.shipping_status,
+      total_items: shippingCheck.total_items,
+      shipped_items: shippingCheck.shipped_items,
+      message: updateResult.message
+    };
+    
+  } catch (err) {
+    console.error('주문 완료 처리 오류:', err);
+    throw err;
+  }
+};
+
+// ========== 업데이트된 출고 처리 함수들 ==========
+
+// 단일 제품 출고 처리 (주문 완료 처리 추가)
 const processProductOutbound = async (orderDetail, employeeId, notes = '') => {
   try {
     console.log('[processProductOutbound] 시작:', orderDetail);
@@ -243,6 +386,17 @@ const processProductOutbound = async (orderDetail, employeeId, notes = '') => {
       orderDetail.order_detail_id
     ]);
     
+    // ✅ 6. 주문 완료 상태 확인 및 업데이트
+    let orderCompletionResult = null;
+    try {
+      console.log(`[processProductOutbound] 주문 ${orderDetail.order_id} 완료 상태 확인 시작`);
+      orderCompletionResult = await processOrderCompletion(orderDetail.order_id);
+      console.log(`[processProductOutbound] 주문 완료 처리 결과:`, orderCompletionResult);
+    } catch (completionErr) {
+      console.error('주문 완료 처리 중 오류 (출고는 정상 완료):', completionErr);
+      // 주문 완료 처리 실패해도 출고 자체는 성공으로 처리
+    }
+    
     return {
       success: true,
       outbound_code: outboundCode,
@@ -251,6 +405,7 @@ const processProductOutbound = async (orderDetail, employeeId, notes = '') => {
       product_stand: orderDetail.product_stand,
       quantity: orderDetail.quantity,
       lots: outboundRecords,
+      order_completion: orderCompletionResult,  // 주문 완료 처리 결과 추가
       message: '출고 처리가 완료되었습니다.'
     };
     
@@ -260,7 +415,7 @@ const processProductOutbound = async (orderDetail, employeeId, notes = '') => {
   }
 };
 
-// 여러 제품 일괄 출고 처리 (선택적 출고 지원 - 트랜잭션 없이)
+// 여러 제품 일괄 출고 처리 (주문 완료 처리 추가)
 const processSelectedProducts = async (products, employeeId, notes = '') => {
   try {
     console.log('[processSelectedProducts] 시작:', products.length, '개 제품');
@@ -268,6 +423,8 @@ const processSelectedProducts = async (products, employeeId, notes = '') => {
     const results = [];
     let successCount = 0;
     let errorCount = 0;
+    const processedOrders = new Set(); // 처리된 주문 ID 추적
+    const orderCompletionResults = []; // 주문 완료 처리 결과들
     
     // 선택된 제품들만 재고 부족 체크
     console.log('[processSelectedProducts] 선택된 제품들 재고 체크 시작');
@@ -307,6 +464,12 @@ const processSelectedProducts = async (products, employeeId, notes = '') => {
         results.push({ ...result, order_id: product.order_id });
         successCount++;
         
+        // 주문 완료 처리 결과 수집 (중복 제거)
+        if (result.order_completion && !processedOrders.has(product.order_id)) {
+          processedOrders.add(product.order_id);
+          orderCompletionResults.push(result.order_completion);
+        }
+        
         console.log(`[processSelectedProducts] 제품 ${product.product_code} 출고 완료`);
         
       } catch (err) {
@@ -320,14 +483,19 @@ const processSelectedProducts = async (products, employeeId, notes = '') => {
       }
     }
     
+    // 완료된 주문 수 계산
+    const completedOrdersCount = orderCompletionResults.filter(r => r.completed).length;
+    
     return {
       success: errorCount === 0,
       total: products.length,
       success_count: successCount,
       error_count: errorCount,
+      completed_orders_count: completedOrdersCount, // 완료된 주문 수 추가
+      order_completions: orderCompletionResults,     // 주문 완료 처리 결과들 추가
       message: errorCount === 0 
-        ? `${successCount}건의 출고가 성공적으로 완료되었습니다.`
-        : `${successCount}건 성공, ${errorCount}건 실패`,
+        ? `${successCount}건의 출고가 성공적으로 완료되었습니다.${completedOrdersCount > 0 ? ` (${completedOrdersCount}개 주문 완료됨)` : ''}`
+        : `${successCount}건 성공, ${errorCount}건 실패${completedOrdersCount > 0 ? ` (${completedOrdersCount}개 주문 완료됨)` : ''}`,
       results
     };
     
@@ -338,6 +506,7 @@ const processSelectedProducts = async (products, employeeId, notes = '') => {
 };
 
 module.exports = {
+  // 기존 함수들
   getOutboundWaitingList,
   getOutboundCompletedList,
   getOrderDetails,
@@ -347,5 +516,10 @@ module.exports = {
   checkSelectedProductsInventory,
   generateOutboundCode,
   processProductOutbound,
-  processSelectedProducts
+  processSelectedProducts,
+  
+  // 새로 추가된 주문 완료 처리 함수들
+  checkOrderFullyShipped,
+  updateOrderToCompleted,
+  processOrderCompletion
 };

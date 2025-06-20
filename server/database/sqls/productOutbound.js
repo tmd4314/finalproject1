@@ -1,14 +1,14 @@
-// sqls/productOutbound.js - LOT 다중 출고 대응 포함 (선택적 출고 지원 버전)
+// sqls/productOutbound.js - 주문 상태 업데이트 기능 추가 (완전한 버전)
 
 // 1. 출고 대기 목록 조회 ('완료' 상태만 제외)
 const getOutboundWaitingList = `
   SELECT 
     om.order_id,
-    om.account_id as order_number,
+    om.order_id as order_number,
     DATE_FORMAT(om.order_date, '%Y-%m-%d') as order_date,
     DATE_FORMAT(om.delivery_date, '%Y-%m-%d') as delivery_date,
     om.remarks,
-    CONCAT('거래처-', om.account_id) as client_name,
+    COALESCE(a.account_name, CONCAT('거래처-', om.account_id)) as client_name,
     od.order_detail_id,
     od.product_code,
     p.product_name,
@@ -18,14 +18,15 @@ const getOutboundWaitingList = `
   FROM order_master om
   LEFT JOIN order_detail od ON om.order_id = od.order_id
   LEFT JOIN product p ON od.product_code = p.product_code
+  LEFT JOIN account a ON om.account_id = a.account_id
   WHERE 
-    om.status != '완료'
+    om.status NOT IN ('완료', '취소')
     AND NOT EXISTS (
       SELECT 1 FROM product_outbound po 
       WHERE po.order_id = om.order_id 
       AND po.product_code = od.product_code
     )
-    AND (? = '' OR ? = '' OR CONCAT('거래처-', om.account_id) LIKE CONCAT('%', ?, '%'))
+    AND (? = '' OR ? = '' OR COALESCE(a.account_name, CONCAT('거래처-', om.account_id)) LIKE CONCAT('%', ?, '%'))
     AND (? = '' OR ? = '' OR p.product_name LIKE CONCAT('%', ?, '%'))
     AND (? = '' OR ? = '' OR DATE(om.order_date) >= ?)
     AND (? = '' OR ? = '' OR DATE(om.order_date) <= ?)
@@ -39,11 +40,11 @@ const getOutboundWaitingList = `
 const getOrderDetails = `
   SELECT 
     om.order_id,
-    om.account_id as order_number,
+    om.order_id as order_number,
     DATE_FORMAT(om.order_date, '%Y-%m-%d') as order_date,
     DATE_FORMAT(om.delivery_date, '%Y-%m-%d') as delivery_date,
     om.remarks,
-    CONCAT('거래처-', om.account_id) as client_name,
+    COALESCE(a.account_name, CONCAT('거래처-', om.account_id)) as client_name,
     od.order_detail_id,
     od.product_code,
     p.product_name,
@@ -53,6 +54,7 @@ const getOrderDetails = `
   FROM order_master om
   LEFT JOIN order_detail od ON om.order_id = od.order_id
   LEFT JOIN product p ON od.product_code = p.product_code
+  LEFT JOIN account a ON om.account_id = a.account_id
   WHERE om.order_id = ?
   ORDER BY od.order_detail_id
 `;
@@ -68,13 +70,14 @@ const getOutboundCompletedList = `
     po.outbound_qty,
     p.product_unit as unit,
     po.lot_num,
-    CONCAT('거래처-', om.account_id) as client_name
+    COALESCE(a.account_name, CONCAT('거래처-', om.account_id)) as client_name
   FROM product_outbound po
   LEFT JOIN product p ON po.product_code = p.product_code
   LEFT JOIN order_master om ON po.order_id = om.order_id
+  LEFT JOIN account a ON om.account_id = a.account_id
   WHERE 
     po.outbound_status = '완료'
-    AND (? = '' OR ? = '' OR CONCAT('거래처-', om.account_id) LIKE CONCAT('%', ?, '%'))
+    AND (? = '' OR ? = '' OR COALESCE(a.account_name, CONCAT('거래처-', om.account_id)) LIKE CONCAT('%', ?, '%'))
     AND (? = '' OR ? = '' OR p.product_name LIKE CONCAT('%', ?, '%'))
     AND (? = '' OR ? = '' OR DATE(po.outbound_date) >= ?)
     AND (? = '' OR ? = '' OR DATE(po.outbound_date) <= ?)
@@ -201,13 +204,67 @@ const updateOrderDetailQuantities = `
   WHERE order_detail_id = ?
 `;
 
+// ========== 새로 추가되는 주문 상태 관련 쿼리들 ==========
+
+// 13. 주문의 모든 제품이 출고 완료되었는지 확인
+const checkOrderFullyShipped = `
+  SELECT 
+    om.order_id,
+    om.status as current_status,
+    COUNT(od.order_detail_id) as total_items,
+    COUNT(po.outbound_code) as shipped_items,
+    CASE 
+      WHEN COUNT(od.order_detail_id) = COUNT(po.outbound_code) THEN 'FULLY_SHIPPED'
+      WHEN COUNT(po.outbound_code) > 0 THEN 'PARTIALLY_SHIPPED'
+      ELSE 'NOT_SHIPPED'
+    END as shipping_status
+  FROM order_master om
+  LEFT JOIN order_detail od ON om.order_id = od.order_id
+  LEFT JOIN product_outbound po ON od.order_id = po.order_id 
+    AND od.product_code = po.product_code
+    AND po.outbound_status = '완료'
+  WHERE om.order_id = ?
+    AND om.status NOT IN ('완료', '취소')  -- 이미 완료되거나 취소된 주문은 제외
+  GROUP BY om.order_id, om.status
+`;
+
+// 14. 주문 상태를 완료로 업데이트
+const updateOrderToCompleted = `
+  UPDATE order_master 
+  SET 
+    status = '완료',
+    complete_date = NOW()
+  WHERE 
+    order_id = ? 
+    AND status NOT IN ('완료', '취소')  -- 이미 완료되거나 취소된 주문은 업데이트하지 않음
+`;
+
+// 15. 주문 상태 확인 (현재 상태만 조회)
+const getOrderStatus = `
+  SELECT 
+    order_id,
+    status,
+    complete_date
+  FROM order_master 
+  WHERE order_id = ?
+`;
+
+// 16. 부분 출고 상태 업데이트 (선택사항)
+const updateOrderToPartiallyShipped = `
+  UPDATE order_master 
+  SET status = '부분출고'
+  WHERE 
+    order_id = ? 
+    AND status NOT IN ('완료', '취소', '부분출고')
+`;
+
 module.exports = {
   // 조회 쿼리들
   getOutboundWaitingList,
   getOrderDetails,
   getOutboundCompletedList,
   checkInventoryAvailable,
-  checkProductInventoryAvailable, // 새로 추가된 개별 제품 재고 체크
+  checkProductInventoryAvailable,
   getFIFOLotNumber,
   getFIFOLotList,
   getNextOutboundNumber,
@@ -216,5 +273,11 @@ module.exports = {
   // 처리 쿼리들
   insertOutbound,
   updateInventoryFIFO,
-  updateOrderDetailQuantities
+  updateOrderDetailQuantities,
+  
+  // 새로 추가된 주문 상태 관련 쿼리들
+  checkOrderFullyShipped,
+  updateOrderToCompleted,
+  getOrderStatus,
+  updateOrderToPartiallyShipped
 };
