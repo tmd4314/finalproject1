@@ -28,11 +28,11 @@
           <h3>내포장</h3>
           <p>정제를 PTP/병에 포장하는 작업</p>
           <div v-if="completedSteps.includes('INNER')" class="completion-badge">
-            작업완료
+            ✅ 작업완료
             <div class="completion-time">{{ formatTime(innerCompletionTime) }}</div>
           </div>
           <button v-else class="selection-button available" @click.stop="selectPackageType('INNER')">
-            선택 가능
+            작업 시작하기
           </button>
         </div>
         
@@ -47,13 +47,13 @@
           <h3>외포장</h3>
           <p>내포장된 제품을 박스에 포장하는 작업</p>
           <div v-if="completedSteps.includes('OUTER')" class="completion-badge">
-            작업완료
+            ✅ 작업완료
             <div class="completion-time">{{ formatTime(outerCompletionTime) }}</div>
           </div>
           <button v-else-if="completedSteps.includes('INNER')" 
                   class="selection-button available highlighted"
                   @click.stop="selectPackageType('OUTER')">
-            선택 가능 
+            다음 단계 진행
           </button>
           <button v-else class="selection-button disabled" disabled>
             내포장 완료 후 선택 가능
@@ -90,7 +90,7 @@
         <!-- 모든 작업 완료시 -->
         <div v-if="completedSteps.includes('INNER') && completedSteps.includes('OUTER')" class="all-complete-section">
           <div class="all-complete-message">
-            모든 포장 작업이 완료되었습니다!
+            🎉 모든 포장 작업이 완료되었습니다!
           </div>
           <div class="complete-summary-info">
             <p>총 작업시간: {{ getTotalWorkTime() }}</p>
@@ -905,110 +905,161 @@ defineOptions({
   color: #6c757d;
 }
 
-/* 포장 타입 선택 */
+/* 포장 타입 선택 - 크기 개선 */
 .package-type-selection {
-  padding: 16px 24px;
+  padding: 24px;
 }
 
 .package-type-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 16px;
-  max-width: 800px;
-  margin: 0 auto 24px;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: 32px;
+  max-width: 1200px;
+  margin: 32px auto 48px;
 }
 
 .package-type-card {
   background: white;
-  border-radius: 4px;
-  padding: 20px;
+  border-radius: 12px;
+  padding: 40px 32px;
   text-align: center;
-  border: 1px solid #e9ecef;
+  border: 3px solid #e9ecef;
   cursor: pointer;
-  transition: border-color 0.15s;
+  transition: all 0.3s ease;
+  min-height: 300px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
 }
 
 .package-type-card:hover {
   border-color: #007bff;
+  transform: translateY(-4px);
+  box-shadow: 0 8px 25px rgba(0, 123, 255, 0.15);
 }
 
 .package-type-card.completed {
-  background: #f8f9fa;
-  border-color: #007bff;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e8f5e8 100%);
+  border-color: #28a745;
+  box-shadow: 0 6px 20px rgba(40, 167, 69, 0.2);
 }
 
 .package-type-card.disabled {
   background: #f8f9fa;
   color: #6c757d;
   cursor: not-allowed;
-  opacity: 0.6;
+  opacity: 0.7;
+  transform: none !important;
 }
 
 .package-type-card.highlighted {
   border-color: #007bff;
-  background: #f8f9fa;
+  background: linear-gradient(135deg, #f0f8ff 0%, #e6f3ff 100%);
+  box-shadow: 0 8px 30px rgba(0, 123, 255, 0.25);
+  animation: gentle-pulse 3s ease-in-out infinite;
+}
+
+@keyframes gentle-pulse {
+  0%, 100% { 
+    transform: scale(1);
+    box-shadow: 0 8px 30px rgba(0, 123, 255, 0.25);
+  }
+  50% { 
+    transform: scale(1.02);
+    box-shadow: 0 12px 40px rgba(0, 123, 255, 0.35);
+  }
+}
+
+.card-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
 }
 
 .package-type-card h3 {
-  font-size: 18px;
-  font-weight: 600;
-  margin-bottom: 8px;
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: 16px;
   color: #495057;
 }
 
 .package-type-card p {
-  font-size: 14px;
-  margin-bottom: 16px;
+  font-size: 16px;
+  margin-bottom: 24px;
   color: #6c757d;
+  line-height: 1.6;
 }
 
 .selection-button {
-  padding: 8px 16px;
+  padding: 16px 32px;
   border: none;
-  border-radius: 4px;
-  font-size: 14px;
-  font-weight: 500;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.15s;
+  transition: all 0.3s ease;
+  min-width: 180px;
+  text-transform: none;
 }
 
 .selection-button.available {
-  background: #007bff;
+  background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
   color: white;
+  box-shadow: 0 4px 15px rgba(0, 123, 255, 0.3);
 }
 
 .selection-button.available:hover {
-  background: #0056b3;
+  background: linear-gradient(135deg, #0056b3 0%, #004494 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 123, 255, 0.4);
 }
 
 .selection-button.highlighted {
-  background: #007bff;
+  background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
   color: white;
+  animation: button-pulse 2s ease-in-out infinite;
+  box-shadow: 0 4px 20px rgba(0, 123, 255, 0.4);
+}
+
+@keyframes button-pulse {
+  0%, 100% {
+    box-shadow: 0 4px 20px rgba(0, 123, 255, 0.4);
+  }
+  50% {
+    box-shadow: 0 6px 30px rgba(0, 123, 255, 0.6);
+  }
 }
 
 .selection-button.highlighted:hover {
-  background: #0056b3;
+  background: linear-gradient(135deg, #0056b3 0%, #004494 100%);
+  transform: translateY(-2px);
 }
 
 .selection-button.disabled {
   background: #e9ecef;
   color: #6c757d;
   cursor: not-allowed;
+  font-size: 14px;
+  box-shadow: none;
 }
 
 .completion-badge {
-  padding: 8px 16px;
-  background: #e9ecef;
-  color: #495057;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 500;
+  padding: 16px 24px;
+  background: linear-gradient(135deg, #28a745 0%, #20a039 100%);
+  color: white;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
 }
 
 .completion-time {
-  font-size: 11px;
-  color: #6c757d;
-  margin-top: 4px;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.9);
+  margin-top: 8px;
 }
 
 /* 완료 요약 */
@@ -1016,33 +1067,34 @@ defineOptions({
   max-width: 600px;
   margin: 0 auto;
   background: white;
-  border-radius: 4px;
-  padding: 20px;
+  border-radius: 8px;
+  padding: 24px;
   border: 1px solid #e9ecef;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
 }
 
 .completion-summary h4 {
-  font-size: 16px;
+  font-size: 20px;
   font-weight: 600;
   color: #495057;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
   text-align: center;
 }
 
 .completed-items {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  margin-bottom: 16px;
+  gap: 16px;
+  margin-bottom: 20px;
 }
 
 .completed-item {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px;
+  gap: 16px;
+  padding: 16px;
   background: #f8f9fa;
-  border-radius: 4px;
+  border-radius: 8px;
   border: 1px solid #e9ecef;
 }
 
@@ -1051,45 +1103,48 @@ defineOptions({
 }
 
 .item-title {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 600;
   color: #495057;
+  display: block;
+  margin-bottom: 4px;
 }
 
 .item-work {
-  font-size: 12px;
+  font-size: 14px;
   color: #6c757d;
 }
 
 .completed-item .time {
-  font-size: 12px;
+  font-size: 14px;
   color: #6c757d;
+  font-weight: 500;
 }
 
 .all-complete-section {
   border-top: 1px solid #e9ecef;
-  padding-top: 16px;
+  padding-top: 20px;
   text-align: center;
 }
 
 .all-complete-message {
-  font-size: 16px;
-  font-weight: 600;
+  font-size: 20px;
+  font-weight: 700;
   color: #007bff;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
 }
 
 .complete-summary-info {
   background: #f8f9fa;
   border: 1px solid #e9ecef;
-  border-radius: 4px;
-  padding: 12px;
-  margin-bottom: 16px;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 20px;
 }
 
 .complete-summary-info p {
-  margin: 4px 0;
-  font-size: 12px;
+  margin: 6px 0;
+  font-size: 14px;
   color: #495057;
 }
 
@@ -1550,18 +1605,20 @@ defineOptions({
 }
 
 .back-btn {
-  padding: 8px 16px;
+  padding: 12px 24px;
   background: #6c757d;
   color: white;
   border: none;
-  border-radius: 4px;
+  border-radius: 6px;
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
+  transition: all 0.2s ease;
 }
 
 .back-btn:hover {
   background: #545b62;
+  transform: translateY(-1px);
 }
 
 .back-btn.secondary {
@@ -1573,24 +1630,54 @@ defineOptions({
 }
 
 .reset-btn {
-  padding: 8px 16px;
+  padding: 12px 24px;
   background: #007bff;
   color: white;
   border: none;
-  border-radius: 4px;
+  border-radius: 6px;
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
+  transition: all 0.2s ease;
 }
 
 .reset-btn:hover {
   background: #0056b3;
+  transform: translateY(-1px);
 }
 
 /* 반응형 */
 @media (max-width: 768px) {
   .package-type-cards {
     grid-template-columns: 1fr;
+    gap: 24px;
+    margin: 24px auto 32px;
+  }
+  
+  .package-type-card {
+    min-height: 250px;
+    padding: 32px 24px;
+  }
+  
+  .card-icon {
+    font-size: 40px;
+    margin-bottom: 12px;
+  }
+  
+  .package-type-card h3 {
+    font-size: 24px;
+    margin-bottom: 12px;
+  }
+  
+  .package-type-card p {
+    font-size: 14px;
+    margin-bottom: 20px;
+  }
+  
+  .selection-button {
+    padding: 14px 28px;
+    font-size: 15px;
+    min-width: 160px;
   }
   
   .lines-grid {
@@ -1629,6 +1716,36 @@ defineOptions({
     flex-direction: column;
     text-align: center;
     gap: 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .package-type-selection {
+    padding: 16px;
+  }
+  
+  .package-type-cards {
+    gap: 20px;
+    margin: 20px auto 28px;
+  }
+  
+  .package-type-card {
+    min-height: 220px;
+    padding: 28px 20px;
+  }
+  
+  .card-icon {
+    font-size: 36px;
+  }
+  
+  .package-type-card h3 {
+    font-size: 22px;
+  }
+  
+  .selection-button {
+    padding: 12px 24px;
+    font-size: 14px;
+    min-width: 140px;
   }
 }
 </style>
