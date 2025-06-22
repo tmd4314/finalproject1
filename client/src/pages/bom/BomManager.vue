@@ -366,8 +366,6 @@ const onProductNameChange = () => {
 // 제품명과 규격 기반으로 제품코드 업데이트 및 BOM 코드 자동 생성
 const updateProductCode = async () => {
   if (!isEditMode.value && form.value.product_name && form.value.product_stand) {
-    console.log('매칭 시도:', form.value.product_name, form.value.product_stand)
-    
     // 제품명과 규격이 일치하는 제품 찾기
     const matchingProduct = productOptions.value.find(product => 
       product.product_name === form.value.product_name && 
@@ -376,7 +374,6 @@ const updateProductCode = async () => {
     
     if (matchingProduct) {
       form.value.product_code = matchingProduct.product_code
-      console.log(`✅ 매칭된 제품: ${form.value.product_name} ${form.value.product_stand} -> ${matchingProduct.product_code}`)
       
       // BOM 코드 자동 생성
       generateBomCode()
@@ -386,7 +383,6 @@ const updateProductCode = async () => {
     } else {
       form.value.product_code = ''
       form.value.bom_code = ''
-      console.log(`❌ 매칭되는 제품을 찾을 수 없습니다: ${form.value.product_name} ${form.value.product_stand}`)
     }
   }
 }
@@ -403,7 +399,6 @@ const checkExistingBom = async (productCode) => {
     }
     return true
   } catch (err) {
-    console.error('기존 BOM 확인 오류:', err)
     return true
   }
 }
@@ -419,7 +414,6 @@ const selectBom = async (bom) => {
   }
   
   try {
-    console.log('BOM 선택:', bom.bom_code)
     const res = await axios.get(`/bom/${bom.bom_code}`)
     
     if (res.data && res.data.master) {
@@ -444,10 +438,8 @@ const selectBom = async (bom) => {
         deletedMaterials: []
       }
       isEditMode.value = true
-      console.log('BOM 데이터 로드 완료:', form.value)
     }
   } catch (err) {
-    console.error('BOM 상세 조회 오류:', err)
     alert('BOM 상세 정보를 불러오는데 실패했습니다.')
   }
 }
@@ -535,8 +527,6 @@ const saveBom = async () => {
       }))
     }
 
-    console.log('전송할 데이터:', payload)
-
     if (isEditMode.value) {
       await axios.put('/bom', payload)
       alert('BOM 수정 완료')
@@ -548,7 +538,6 @@ const saveBom = async () => {
     await fetchBomList()
     resetForm()
   } catch (err) {
-    console.error('BOM 저장 오류:', err)
     if (err.response && err.response.data && err.response.data.error) {
       alert(`BOM 저장에 실패했습니다: ${err.response.data.error}`)
     } else {
@@ -575,7 +564,7 @@ const fetchBomList = async () => {
     const res = await axios.get('/bom/list')
     bomList.value = res.data || []
   } catch (err) {
-    console.error('BOM 목록 조회 오류:', err)
+    // 오류 처리
   }
 }
 
@@ -583,9 +572,8 @@ const fetchProductList = async () => {
   try {
     const res = await axios.get('/bom/products')
     productOptions.value = res.data || []
-    console.log('불러온 제품 목록:', productOptions.value)
   } catch (err) {
-    console.error('제품 목록 조회 오류:', err)
+    // 오류 처리
   }
 }
 
@@ -594,7 +582,7 @@ const fetchMaterialList = async () => {
     const res = await axios.get('/bom/materials')
     materialList.value = res.data || []
   } catch (err) {
-    console.error('자재 목록 조회 오류:', err)
+    // 오류 처리
   }
 }
 

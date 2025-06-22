@@ -1,5 +1,5 @@
 <template>
-  <div class="max-w-[1200px] h-[739px] mx-auto p-4 bg-gray-50 overflow-hidden">
+  <div class="max-w-[1060px] h-[739px] mx-auto p-4 bg-gray-50 overflow-hidden">
     <!-- 상단 타이틀 -->
     <div class="mb-3">
       <h1 class="text-2xl font-bold text-gray-800">작업지시 조회</h1>
@@ -163,8 +163,6 @@ const searchParams = ref({
 const searchWorkOrders = async () => {
   loading.value = true
   try {
-    console.log('검색 파라미터:', searchParams.value)
-    
     // 검색 파라미터 준비
     const params = new URLSearchParams()
     Object.keys(searchParams.value).forEach(key => {
@@ -176,10 +174,7 @@ const searchWorkOrders = async () => {
     // API 호출
     const response = await axios.get(`/workOrder/list-page?${params.toString()}`)
     workOrderList.value = response.data || []
-    
-    console.log('조회 결과:', workOrderList.value)
   } catch (err) {
-    console.error('작업지시 조회 오류:', err)
     alert('작업지시 조회에 실패했습니다.')
     workOrderList.value = []
   } finally {
@@ -201,7 +196,6 @@ const resetSearch = () => {
 const viewWorkOrderDetail = (workOrder) => {
   selectedWorkOrderNo.value = workOrder.work_order_no
   showDetailModal.value = true
-  console.log('상세보기:', workOrder.work_order_no)
 }
 
 // 유틸리티 함수들

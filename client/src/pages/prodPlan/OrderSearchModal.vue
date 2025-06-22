@@ -76,24 +76,18 @@ const loading = ref(false)
 // 메서드들
 const searchOrders = async () => {
   loading.value = true
-  console.log('주문 검색 시작:', searchTerm.value) // 디버깅
   
   try {
     const response = await axios.get('/prodPlan/orders/search', {
       params: { q: searchTerm.value }
     })
 
-    
     if (response.data) {
       orderList.value = response.data
-      console.log('설정된 주문 목록:', orderList.value) // 디버깅
     } else {
       orderList.value = []
-      console.log('응답 데이터가 없음') // 디버깅
     }
   } catch (error) {
-    console.error('주문 검색 오류:', error)
-    console.error('에러 상세:', error.response) // 디버깅
     orderList.value = []
   } finally {
     loading.value = false

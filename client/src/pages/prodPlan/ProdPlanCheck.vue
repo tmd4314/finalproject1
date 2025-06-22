@@ -1,5 +1,5 @@
 <template>
-  <div class="max-w-[1200px] h-[739px] mx-auto p-4 bg-gray-50 overflow-hidden">
+  <div class="max-w-[1060px] h-[739px] mx-auto p-4 bg-gray-50 overflow-hidden">
     <!-- 상단 타이틀 -->
     <div class="mb-3">
       <h1 class="text-2xl font-bold text-gray-800">생산계획 조회</h1>
@@ -176,8 +176,6 @@ const searchParams = ref({
 const searchPlans = async () => {
   loading.value = true
   try {
-    console.log('검색 파라미터:', searchParams.value)
-    
     // 모든 검색 조건이 비어있으면 빈 파라미터로 전체 조회
     const params = new URLSearchParams()
     Object.keys(searchParams.value).forEach(key => {
@@ -189,10 +187,7 @@ const searchPlans = async () => {
     // 검색 조건이 없어도 전체 조회
     const response = await axios.get(`/prodPlan/integrated/list?${params.toString()}`)
     planList.value = response.data || []
-    
-    console.log('조회 결과:', planList.value)
   } catch (err) {
-    console.error('생산계획 조회 오류:', err)
     alert('생산계획 조회에 실패했습니다.')
     planList.value = []
   } finally {
@@ -214,7 +209,6 @@ const resetSearch = () => {
 const viewPlanDetail = (plan) => {
   selectedPlanId.value = plan.plan_id
   showDetailModal.value = true
-  console.log('상세보기:', plan.plan_id)
 }
 
 // 유틸리티 함수들

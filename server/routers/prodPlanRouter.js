@@ -12,15 +12,11 @@ router.get('/generate-no', async (req, res) => {
     const planId = await prodPlanService.generatePlanId();
     res.json({ plan_id: planId });
   } catch (err) {
-    console.error('생산계획 번호 생성 오류:', err);
     res.status(500).json({ error: err.message });
   }
 });
 
-
-
 // ========== 검색 API ==========
-
 
 // [GET] /prodPlan/products/search - 제품 검색 (모달용)
 router.get('/products/search', async (req, res) => {
@@ -108,7 +104,6 @@ router.get('/products/:planId', async (req, res) => {
   }
 });
 
-
 // ========== 저장 API ==========
 
 // [POST] /prodPlan - 생산계획 전체 저장 (신규)
@@ -130,7 +125,6 @@ router.post('/', async (req, res) => {
     
     res.status(201).json(result);
   } catch (err) {
-    console.error('생산계획 저장 오류:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -154,7 +148,6 @@ router.put('/', async (req, res) => {
     
     res.json({ ...result, message: '생산계획 수정 완료' });
   } catch (err) {
-    console.error('생산계획 수정 오류:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -173,7 +166,6 @@ router.post('/master', async (req, res) => {
     const result = await prodPlanService.savePlanMaster(masterData);
     res.status(201).json({ message: '생산계획 마스터 저장 완료', result });
   } catch (err) {
-    console.error('생산계획 마스터 저장 오류:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -192,7 +184,6 @@ router.post('/products', async (req, res) => {
     const result = await prodPlanService.savePlanProducts(plan_id, products || []);
     res.status(201).json({ message: '생산계획 제품 저장 완료', result });
   } catch (err) {
-    console.error('생산계획 제품 저장 오류:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -216,13 +207,10 @@ router.get('/integrated/list', async (req, res) => {
       end_date
     };
 
-    console.log('통합조회 파라미터:', searchParams);
-
     const result = await prodPlanService.findPlanIntegratedList(searchParams);
     res.json(result);
   } catch (err) {
-    console.error('생산계획 통합조회 오류:', err);
-    res.status(500).json({ error: err.massege});
+    res.status(500).json({ error: err.message });
   }
 })
 

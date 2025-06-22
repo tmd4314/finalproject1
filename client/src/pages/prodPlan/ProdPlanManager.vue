@@ -332,7 +332,6 @@ const selectOrder = async (order) => {
       })
     }
   } catch (err) {
-    console.error('주문 제품 정보 조회 오류:', err)
     alert('주문 제품 정보를 불러오는데 실패했습니다.')
   }
 }
@@ -340,10 +339,7 @@ const selectOrder = async (order) => {
 // 계획 선택 (불러오기)
 const selectPlan = async (plan) => {
   try {
-    console.log('선택된 계획:', plan)
-    
     const res = await axios.get(`/prodPlan/${plan.plan_id}`)
-    console.log('서버 응답:', res.data)
     
     if (res.data && res.data.master) {
       const { master, products } = res.data
@@ -377,19 +373,14 @@ const selectPlan = async (plan) => {
         }))
       }
       
-      console.log('설정된 폼 데이터:', form.value)
-      console.log('불러온 제품 목록:', form.value.products)
-      
       // 수정 모드로 설정
       isEditMode.value = true
     } else {
-      console.error('서버 응답에 master 정보가 없습니다:', res.data)
       alert('생산계획 정보가 올바르지 않습니다.')
     }
     
     showPlanModal.value = false
   } catch (err) {
-    console.error('생산계획 불러오기 오류:', err)
     alert('생산계획 정보를 불러오는데 실패했습니다.')
   }
 }
@@ -460,13 +451,6 @@ const savePlan = async () => {
       }))
     }
 
-    console.log('전송할 payload:', {
-      ...payload,
-      로그인사용자: authStore.user?.employee_name,
-      로그인ID: authStore.user?.employee_id,
-      작성자명: payload.master.employee_name
-    })
-
     let response
     if (isEditMode.value && form.value.plan_id) {
       // 수정 시에는 기존 번호 사용
@@ -483,15 +467,8 @@ const savePlan = async () => {
         isEditMode.value = true
       }
     }
-    
-    console.log('서버 응답:', response.data)
   } catch (err) {
-    console.error('생산계획 저장 오류:', err)
-    
     if (err.response) {
-      console.error('에러 상태:', err.response.status)
-      console.error('에러 데이터:', err.response.data)
-      
       if (err.response.data && err.response.data.error) {
         alert(`저장 실패: ${err.response.data.error}`)
       } else {
@@ -522,12 +499,6 @@ const resetForm = () => {
     products: []
   }
   isEditMode.value = false
-  
-  console.log('폼 초기화 - 작성자 정보:', {
-    employee_name: form.value.employee_name,
-    writer_name: form.value.writer_name,
-    로그인사용자: authStore.user?.employee_name
-  })
 }
 
 // 컴포넌트 마운트 시 로그인된 사용자 정보 설정
@@ -542,12 +513,6 @@ onMounted(() => {
   form.value.employee_name = authStore.user?.employee_name || '' // 로그인된 사용자명
   form.value.writer_name = authStore.user?.employee_name || ''   // 화면 표시용
   form.value.plan_id = ''
-  
-  console.log('초기화된 작성자 정보:', {
-    employee_name: form.value.employee_name,
-    writer_name: form.value.writer_name,
-    loginUser: authStore.user?.employee_name
-  })
 })
 </script>
 

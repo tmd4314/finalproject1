@@ -12,7 +12,6 @@ router.get('/generate-no', async (req, res) => {
     const workOrderNo = await workOrderService.generateWorkOrderNo();
     res.json({ work_order_no: workOrderNo });
   } catch (err) {
-    console.error('작업지시서 번호 생성 오류:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -115,7 +114,6 @@ router.post('/', async (req, res) => {
     
     res.status(201).json(result);
   } catch (err) {
-    console.error('작업지시서 저장 오류:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -139,7 +137,6 @@ router.put('/', async (req, res) => {
     
     res.json({ ...result, message: '작업지시서 수정 완료' });
   } catch (err) {
-    console.error('작업지시서 수정 오류:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -158,7 +155,6 @@ router.post('/master', async (req, res) => {
     const result = await workOrderService.saveWorkOrderMaster(masterData);
     res.status(201).json({ message: '작업지시서 마스터 저장 완료', result });
   } catch (err) {
-    console.error('작업지시서 마스터 저장 오류:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -177,7 +173,6 @@ router.post('/products', async (req, res) => {
     const result = await workOrderService.saveWorkOrderProducts(work_order_no, products || []);
     res.status(201).json({ message: '작업지시서 제품 저장 완료', result });
   } catch (err) {
-    console.error('작업지시서 제품 저장 오류:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -204,7 +199,6 @@ router.get('/list-page', async (req, res) => {
     const result = await workOrderService.getWorkOrderListPage(searchConditions);
     res.json(result);
   } catch (err) {
-    console.error('작업지시서 조회 페이지 오류:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -218,7 +212,5 @@ router.get('/:workOrderNo', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
-
 
 module.exports = router;

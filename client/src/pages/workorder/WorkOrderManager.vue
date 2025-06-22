@@ -9,7 +9,6 @@
 
     <div class="h-[calc(100%-60px)] bg-white rounded-lg shadow-sm border border-gray-200 p-4">
 
-
       <!-- 기본 정보 영역 -->
       <div class="grid grid-cols-3 gap-3 mb-4">
         <!-- 작업지시서 번호 -->
@@ -35,7 +34,7 @@
 
         <!-- 계획 ID -->
         <div>
-          <label class="block text-xs font-medium text-blue-600 mb-1">계획 ID</label>
+          <label class="block text-xs font-medium text-blue-600 mb-1">계획번호</label>
           <div class="flex">
             <input 
               v-model="form.plan_id" 
@@ -307,8 +306,6 @@ const selectPlan = (plan) => {
 const addProduct = (product) => {
   if (!checkProductionPermission('제품 추가')) return
   
-  console.log('선택된 제품 데이터:', product)
-  
   const newProduct = {
     product_code: product.product_code,
     product_name: product.product_name,
@@ -321,7 +318,6 @@ const addProduct = (product) => {
     selected: false
   }
   
-  console.log('추가될 제품 데이터:', newProduct)
   form.value.products.push(newProduct)
   showProductModal.value = false
 }
@@ -382,15 +378,6 @@ const loadPlanProducts = async (planId) => {
         order_detail_remark: '',
         selected: false
       }))
-      
-      console.log('계획 정보 불러오기 완료:', {
-        plan_id: planId,
-        plan_start_dt: planInfo.plan_start_dt,
-        plan_end_dt: planInfo.plan_end_dt,
-        order_start_dt: form.value.order_start_dt,
-        order_end_dt: form.value.order_end_dt,
-        products_count: form.value.products.length
-      })
     }
   } catch (err) {
     console.error('계획 제품 조회 오류:', err)
@@ -428,12 +415,6 @@ const saveWorkOrder = async () => {
       }))
     }
 
-    console.log('전송할 payload:', {
-      ...payload,
-      로그인사용자: authStore.user?.employee_name,
-      작성자ID: payload.master.writer_id,
-      작성자명: payload.master.writer_name
-    })
     let response
     if (isEditMode.value) {
       payload.master.work_order_no = form.value.work_order_no
@@ -449,16 +430,10 @@ const saveWorkOrder = async () => {
         isEditMode.value = true  // 수정 모드로 전환
       }
     }
-    
-    console.log('서버 응답:', response.data)
-    // resetForm() 제거 - 사용자가 저장된 내용을 확인할 수 있도록
   } catch (err) {
     console.error('작업지시서 저장 오류:', err)
     
     if (err.response) {
-      console.error('에러 상태:', err.response.status)
-      console.error('에러 데이터:', err.response.data)
-      
       if (err.response.data && err.response.data.error) {
         alert(`저장 실패: ${err.response.data.error}`)
       } else {
@@ -487,11 +462,6 @@ const resetForm = () => {
     products: []
   }
   isEditMode.value = false
-  
-  console.log('폼 초기화 - 작성자 정보:', {
-    writer_id: form.value.writer_id,
-    writer_name: form.value.writer_name
-  })
 }
 
 const generateWorkOrderNo = async () => {
@@ -557,12 +527,6 @@ onMounted(() => {
   form.value.writer_name = authStore.user?.employee_name || ''
   form.value.writer_id = authStore.user?.employee_id?.toString() || ''
   form.value.work_order_no = ''
-  
-  console.log('초기화된 작성자 정보:', {
-    writer_id: form.value.writer_id,
-    writer_name: form.value.writer_name,
-    loginUser: authStore.user?.employee_name
-  })
 })
 </script>
 

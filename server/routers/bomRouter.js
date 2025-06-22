@@ -12,7 +12,6 @@ router.get('/generate-code/:productCode', async (req, res) => {
     const bomCode = await bomService.generateBomCode(req.params.productCode);
     res.json({ bom_code: bomCode });
   } catch (err) {
-    console.error('BOM 코드 생성 오류:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -57,12 +56,9 @@ router.get('/search', async (req, res) => {
 // [GET] /bom/products - 제품 드롭다운용
 router.get('/products', async (req, res) => {
   try {
-    console.log('=== 제품 목록 조회 시작 ===');
     const result = await bomService.getProductList();
-    console.log('제품 목록 조회 결과 개수:', result ? result.length : 0);
     res.json(result);
   } catch (err) {
-    console.error('제품 목록 조회 오류:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -70,12 +66,9 @@ router.get('/products', async (req, res) => {
 // [GET] /bom/materials - 자재 리스트
 router.get('/materials', async (req, res) => {
   try {
-    console.log('=== 자재 목록 조회 시작 ===');
     const result = await bomService.getMaterialList();
-    console.log('자재 목록 조회 결과 개수:', result ? result.length : 0);
     res.json(result);
   } catch (err) {
-    console.error('자재 목록 조회 오류:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -83,13 +76,10 @@ router.get('/materials', async (req, res) => {
 // [GET] /bom/list - BOM 목록 (불러오기용)
 router.get('/list', async (req, res) => {
   try {
-    console.log('=== BOM 목록 조회 시작 ===');
     const { q } = req.query;
     const result = await bomService.findBomList(q || '');
-    console.log('BOM 목록 조회 결과 개수:', result ? result.length : 0);
     res.json(result);
   } catch (err) {
-    console.error('BOM 목록 조회 오류:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -148,12 +138,9 @@ router.get('/integrated/list', async (req, res) => {
       end_date
     };
 
-    console.log('BOM 통합조회 파라미터:', searchParams);
-
     const result = await bomService.findBomIntegratedList(searchParams);
     res.json(result);
   } catch (err) {
-    console.error('BOM 통합조회 오류:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -174,19 +161,9 @@ router.get('/processList/:product_code', async (req, res) => {
 // [GET] /bom/:bomCode - BOM 상세 조회 (마스터 + 자재)
 router.get('/:bomCode', async (req, res) => {
   try {
-    console.log('=== BOM 상세 조회 시작 ===');
-    console.log('요청된 BOM 코드:', req.params.bomCode);
-    
     const result = await bomService.findBomDetailFull(req.params.bomCode);
-    
-    console.log('조회 결과:', {
-      master: result.master ? '마스터 정보 있음' : '마스터 정보 없음',
-      materials_count: result.materials ? result.materials.length : 0
-    });
-    
     res.json(result);
   } catch (err) {
-    console.error('BOM 상세 조회 API 오류:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -197,15 +174,13 @@ router.get('/:bomCode', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     const { master, materials } = req.body;
-    
-    // 필수 필드 검증 완화 - bom_code는 자동 생성
+
     if (!master) {
       return res.status(400).json({ 
         error: '마스터 정보가 필요합니다.' 
       });
     }
 
-    // 중복 BOM 체크 (수정 모드가 아닌 경우만)
     if (!master.bom_code || master.bom_code === '') {
       const duplicateCheck = await bomService.checkDuplicateBom(master.product_code);
       if (duplicateCheck && duplicateCheck.length > 0) {
@@ -220,10 +195,9 @@ router.post('/', async (req, res) => {
       master,
       materials: materials || []
     });
-    
+
     res.status(201).json(result);
   } catch (err) {
-    console.error('BOM 저장 오류:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -232,8 +206,7 @@ router.post('/', async (req, res) => {
 router.put('/', async (req, res) => {
   try {
     const { master, materials } = req.body;
-    
-    // 수정 시에만 bom_code 필수
+
     if (!master || !master.bom_code) {
       return res.status(400).json({ 
         error: 'BOM 코드가 필요합니다.' 
@@ -244,10 +217,9 @@ router.put('/', async (req, res) => {
       master,
       materials: materials || []
     });
-    
+
     res.json({ ...result, message: 'BOM 수정 완료' });
   } catch (err) {
-    console.error('BOM 수정 오류:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -256,7 +228,7 @@ router.put('/', async (req, res) => {
 router.post('/master', async (req, res) => {
   try {
     const masterData = req.body;
-    
+
     if (!masterData) {
       return res.status(400).json({ 
         error: '마스터 정보가 필요합니다.' 
@@ -266,7 +238,6 @@ router.post('/master', async (req, res) => {
     const result = await bomService.saveBomMaster(masterData);
     res.status(201).json({ message: 'BOM 마스터 저장 완료', result });
   } catch (err) {
-    console.error('BOM 마스터 저장 오류:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -275,7 +246,7 @@ router.post('/master', async (req, res) => {
 router.post('/materials', async (req, res) => {
   try {
     const { bom_code, materials } = req.body;
-    
+
     if (!bom_code) {
       return res.status(400).json({ 
         error: 'BOM 코드가 필요합니다.' 
@@ -285,7 +256,6 @@ router.post('/materials', async (req, res) => {
     const result = await bomService.saveBomMaterials(bom_code, materials || []);
     res.status(201).json({ message: 'BOM 자재 저장 완료', result });
   } catch (err) {
-    console.error('BOM 자재 저장 오류:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -305,20 +275,15 @@ router.put('/master/date/:bomCode', async (req, res) => {
 // [DELETE] /bom/:bomCode - BOM 전체 삭제
 router.delete('/:bomCode', async (req, res) => {
   const { bomCode } = req.params;
-  
+
   try {
-    // BOM 자재 먼저 삭제
     const bomMaterials = await bomService.findBomMaterials(bomCode);
     if (bomMaterials && bomMaterials.length > 0) {
-      await bomService.saveBomMaterials(bomCode, []); // 빈 배열로 전달하여 모든 자재 삭제
+      await bomService.saveBomMaterials(bomCode, []);
     }
-    
-    // BOM 마스터 삭제는 실제로는 비활성화 처리하는 것을 권장
-    // 여기서는 삭제 상태만 업데이트하고 실제 DELETE는 하지 않음
-    
+
     res.json({ message: 'BOM 삭제 완료' });
   } catch (err) {
-    console.error('BOM 삭제 오류:', err);
     res.status(500).json({ error: err.message || 'BOM 삭제 중 오류가 발생했습니다.' });
   }
 });
@@ -346,12 +311,9 @@ router.get('/integrated/list', async (req, res) => {
       end_date
     };
 
-    console.log('BOM 통합조회 파라미터:', searchParams);
-
     const result = await bomService.findBomIntegratedList(searchParams);
     res.json(result);
   } catch (err) {
-    console.error('BOM 통합조회 오류:', err);
     res.status(500).json({ error: err.message });
   }
 });
