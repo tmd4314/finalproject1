@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const faultyService = require('../services/inspectionService.js');
+const faultyService = require('../services/faultyInsertService');
 
 router.get('/productList', async (req, res) => {
   try {
@@ -12,7 +12,7 @@ router.get('/productList', async (req, res) => {
   }
 });
 
-router.get('/workOrderNoList', async (req, res) => {
+router.get('/faultyOrderNoList', async (req, res) => {
   const { productCode } = req.query;
 
   if (!productCode) {
@@ -20,11 +20,27 @@ router.get('/workOrderNoList', async (req, res) => {
   }
 
   try {
-    const workOrderNoList = await workOrderService.selectWorkOrderNo(productCode);
+    const workOrderNoList = await faultyService.selectWorkOrderDetailNo(productCode);
     res.send(workOrderNoList);
   } catch (err) {
     console.error(err);
     res.status(500).send({ error: '작업지시서 번호 조회 실패' });
+  }
+});
+
+router.get('/faultyDetail', async (req, res) => {
+  const { workOrderNo } = req.query;
+
+  if (!workOrderNo) {
+    return res.status(400).send({ error: 'workOrderNo가 필요합니다.' });
+  }
+
+  try {
+    const result = await faultyService.selectFaultyTestDetail(workOrderNo);
+    res.send(result); 
+  } catch (err) {
+    console.error(err);
+    res.status(500).send({ error: '불량 상세 조회 실패' });
   }
 });
 

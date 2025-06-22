@@ -1,4 +1,6 @@
-
+const express = require('express');
+const router = express.Router();
+const workOrderService = require('../services/qualityService');
 
 // 제품명 목록 조회
 router.get('/productList', async (req, res) => {
@@ -62,32 +64,32 @@ router.get('/inspectionStandard', async (req, res) => {
 });
 
 router.post('/registerTest', async (req, res) => {
-  const {
-    productCode,
-    workOrderNo,
-    qual_measured_value,
-    qual_result,
-    process_name,
-    pass_qty,
-    qual_remark
-  } = req.body;
+const {
+  productCode,
+  workOrderNo,
+  qual_measured_value,
+  qual_result,
+  process_name,
+  pass_qty,
+  insp_value_qty, 
+  qual_remark
+} = req.body;
 
   if (!productCode || !workOrderNo || qual_measured_value == null || !qual_result || pass_qty == null) {
     return res.status(400).send({ success: false, message: '필수 값 누락' });
   }
 
   try {
-    const inspValueQty = qual_result === '합' ? 0 : pass_qty;
-
-    await workOrderService.insertQualTestResult(
-      productCode,
-      workOrderNo,
-      qual_measured_value,
-      qual_result,
-      process_name,
-      qual_result === '합' ? pass_qty : 0,
-      qual_remark || null // 불합이면 값, 아니면 null
-    );
+  
+await workOrderService.insertQualTestResult(
+  productCode,
+  workOrderNo,
+  qual_measured_value,
+  qual_result,
+  process_name,
+  insp_value_qty,   
+  qual_remark || null
+);
 
     if (qual_result === '합') {
       await workOrderService.updateCodeValueToPass(workOrderNo);

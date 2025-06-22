@@ -14,12 +14,20 @@
             text-by="label"
             placeholder="제품을 선택하세요"
           />
-          <va-input v-model="form.code" label="작업지시서번호" />
-          <va-input v-model="form.processStage" label="공정단계" />
+          <va-select
+            v-model="form.code"
+            :options="workOrderOptions"
+            label="작업지시서번호"
+            class="quarter-width"
+            value-by="value"
+            text-by="label"
+            placeholder="작업지시서를 선택하세요"
+          />
+          <va-input v-model="form.processStage" label="공정단계" readonly />
           <va-input v-model="form.faultyType" label="불량유형" />
-          <va-input v-model="form.faultyQuantity" label="불량수량" />
-          <va-input v-model="form.occurDate" label="발생일자" type="date" />
-          <va-input v-model="form.detail" label="상세설명" />
+          <va-input v-model="form.faultyQuantity" label="불량수량" readonly />
+          <va-input v-model="form.occurDate" label="불합판정일자" type="date" readonly/>
+          <va-input v-model="form.detail" label="상세설명" readonly/>
 
           <va-radio-group v-model="form.judgment" row class="judgment-radio-group">
             <va-radio label="폐기" name="click" value="delete" />
@@ -38,7 +46,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import axios from 'axios'
 
 const form = ref({
@@ -53,18 +61,57 @@ const form = ref({
 })
 
 const productOptions = ref<{ label: string; value: string }[]>([])
+const workOrderOptions = ref<{ label: string; value: string }[]>([])
 
+// 제품명 목록 불러오기
 onMounted(async () => {
   try {
-    const res = await axios.get('/qualitys/productList')
+    const res = await axios.get('/faultys/productList')
     productOptions.value = res.data.map((item: any) => ({
       label: item.product_name,
-      value: item.product_code
+      value: item.product_code,
     }))
   } catch (err) {
     console.error('제품명 목록 조회 실패:', err)
   }
 })
+
+// ✅ 제품명이 선택되었을 때 작업지시서 목록 가져오기
+watch(() => form.value.productCode, async (newCode) => {
+  if (!newCode) return
+  try {
+    const res = await axios.get('/faultys/faultyOrderNoList', {
+      params: { productCode: newCode }
+    })
+    workOrderOptions.value = res.data.map((item: any) => ({
+      label: item.work_order_no,
+      value: item.work_order_no,
+    }))
+  } catch (err) {
+    console.error('작업지시서 번호 조회 실패:', err)
+  }
+})
+
+watch(() => form.value.code, async (newCode) => {
+  if (!newCode) return;
+
+  try {
+    const res = await axios.get('/faultys/faultyDetail', {
+      params: { workOrderNo: newCode }
+    });
+
+    if (res.data.length > 0) {
+      const detail = res.data[0];
+      form.value.processStage = detail.process_name || '';
+      form.value.faultyQuantity = detail.insp_value_qty || '';
+      form.value.occurDate = detail.created_at || '';
+      form.value.detail = detail.qual_remark || '';
+    }
+  } catch (err) {
+    console.error('불량 상세 정보 조회 실패:', err);
+  }
+});
+
 </script>
 
 <style scoped>
