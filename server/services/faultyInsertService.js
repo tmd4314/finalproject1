@@ -5,11 +5,16 @@ const selectProductFaultyList = async () => {
 };
 
 const selectWorkOrderDetailNo = async (productCode) => {
-  return await mariadb.query('selectWorkOrderDetailNo', [productCode]);
+  return await mariadb.query('selectFaultyWorkOrderNo', [productCode]);
 };
+
+const selectFaultyTestDetail = async (workOrderNo) => {
+  return await mariadb.query('selectFaultyTestDetail', [workOrderNo]);
+};
+
 
 module.exports = {
   selectProductFaultyList,
-  selectWorkOrderDetailNo
-
+  selectWorkOrderDetailNo,
+  selectFaultyTestDetail
 }

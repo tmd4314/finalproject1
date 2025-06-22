@@ -111,6 +111,7 @@ const inspectionStandardList = ref<
     insp_result: string;
   }[]
 >([])
+
 // 이거 지워도 되는건지 확인
 const finalResult = computed(() => {
   return inspectionStandardList.value.some(item => item.insp_result !== '합')
@@ -260,16 +261,20 @@ const submitForm = async () => {
       return;
     }
 
+
+    const inspValueQty = finalResult.value === '불합' ? resultInfo.value.passQty : 0;
+    
   try {
-    const res = await axios.post('/qualitys/registerTest', {
-      productCode: form.value.productCode,
-      workOrderNo: form.value.workOrderNo,
-      qual_measured_value: averageMeasuredValue,
-      qual_result: finalResult.value,
-      process_name: resultInfo.value.processName,
-      pass_qty: finalResult.value === '합' ? resultInfo.value.passQty : 0,
-      qual_remark: finalResultVisible.value ? form.value.qualRemark : null
-    });
+const res = await axios.post('/qualitys/registerTest', {
+  productCode: form.value.productCode,
+  workOrderNo: form.value.workOrderNo,
+  qual_measured_value: averageMeasuredValue,
+  qual_result: finalResult.value,
+  process_name: resultInfo.value.processName,
+  pass_qty: resultInfo.value.passQty,   // 전체 투입량
+  insp_value_qty: inspValueQty,         // 여기 새로 추가됨
+  qual_remark: finalResultVisible.value ? form.value.qualRemark : null
+}); 
 
     if (res.data.success) {
       alert('검사 결과 등록 완료');
