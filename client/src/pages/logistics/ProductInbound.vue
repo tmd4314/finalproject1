@@ -1,5 +1,5 @@
 <template>
-  <div class="max-w-[1200px] h-[739px] mx-auto p-4 bg-gray-50 overflow-hidden">
+  <div class="max-w-[1060px] h-[739px] mx-auto p-4 bg-gray-50 overflow-hidden">
     <!-- 상단 타이틀 -->
     <div class="mb-3">
       <h1 class="text-2xl font-bold text-gray-800">제품 입고 관리</h1>

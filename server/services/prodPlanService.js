@@ -6,31 +6,41 @@ const { convertObjToAry } = require('../utils/converts.js');
 // 제품 검색 (모달용)
 const searchProducts = async (searchTerm = '') => {
   return await mariadb.query('searchProdPlanProducts', [searchTerm, searchTerm, searchTerm])
-    .catch(err => console.error(err));
+    .catch(err => {
+      throw err;
+    });
 };
 
 // 주문 검색 (모달용)
 const searchOrders = async (searchTerm = '') => {
   return await mariadb.query('searchProdPlanOrders', [searchTerm, searchTerm, searchTerm, searchTerm])
-    .catch(err => console.error(err));
+    .catch(err => {
+      throw err;
+    });
 };
 
 // 생산계획 검색 (모달용) - 파라미터 수 조정
 const searchProdPlans = async (searchTerm = '') => {
   return await mariadb.query('searchProdPlanList', [searchTerm, searchTerm, searchTerm])
-    .catch(err => console.error(err));
+    .catch(err => {
+      throw err;
+    });
 };
 
 // 생산계획 정보 상세 조회 (작업지시와 동일한 방식 - 한 번에 모든 정보 조회)
 const findPlanInfo = async (planId) => {
   return await mariadb.query('getProdPlanInfo', [planId])
-    .catch(err => console.error(err));
+    .catch(err => {
+      throw err;
+    });
 };
 
 // 생산계획 제품 목록만 조회 (별도 필요시)
 const findPlanProducts = async (planId) => {
   return await mariadb.query('getProdPlanProducts', [planId])
-    .catch(err => console.error(err));
+    .catch(err => {
+      throw err;
+    });
 };
 
 // 생산계획 전체 정보 조회 - employee_name으로 변경
@@ -84,8 +94,6 @@ const findPlanDetailFull = async (planId) => {
     
     return result;
   } catch (err) {
-    console.error('❌ 생산계획 상세 조회 오류:', err);
-    console.error('오류 스택:', err.stack);
     throw err;
   }
 };
@@ -93,19 +101,25 @@ const findPlanDetailFull = async (planId) => {
 // 생산계획 목록 조회 (불러오기용) - 파라미터 수 조정
 const findPlanList = async (searchTerm = '') => {
   return await mariadb.query('getProdPlanList', [searchTerm, searchTerm, searchTerm])
-    .catch(err => console.error(err));
+    .catch(err => {
+      throw err;
+    });
 };
 
 // 주문 정보 조회
 const findOrderInfo = async (orderId) => {
   return await mariadb.query('getProdPlanOrderInfo', [orderId])
-    .catch(err => console.error(err));
+    .catch(err => {
+      throw err;
+    });
 };
 
 // 주문 제품 목록 조회
 const findOrderProducts = async (orderId) => {
   return await mariadb.query('getProdPlanOrderProducts', [orderId])
-    .catch(err => console.error(err));
+    .catch(err => {
+      throw err;
+    });
 };
 
 // 주문 전체 정보 조회 (마스터 + 제품)
@@ -119,16 +133,12 @@ const findOrderDetailFull = async (orderId) => {
       products: productInfo || []
     };
   } catch (err) {
-    console.error('주문 상세 조회 오류:', err);
     throw err;
   }
 };
 
 // 생산계획 마스터 저장 - employee_name으로 변경
 const savePlanMaster = async (planInfo) => {
-  console.log('=== savePlanMaster 시작 ===');
-  console.log('입력 데이터:', planInfo);
-  
   // order_id 처리: 빈 문자열이면 null로 변환
   if (planInfo.order_id === '' || planInfo.order_id === undefined) {
     planInfo.order_id = null;
@@ -140,15 +150,8 @@ const savePlanMaster = async (planInfo) => {
   ];
   const values = convertObjToAry(planInfo, insertColumns);
   
-  console.log('변환된 컬럼들:', insertColumns);
-  console.log('변환된 값들:', values);
-  console.log('값들의 개수:', values.length);
-  
   return await mariadb.query('saveProdPlan', values)
     .catch(err => {
-      console.error('❌ DB 쿼리 실행 오류:', err);
-      console.error('SQL:', err.sql);
-      console.error('파라미터:', values);
       throw err;
     });
 };
@@ -156,9 +159,6 @@ const savePlanMaster = async (planInfo) => {
 // 생산계획 제품 저장
 const savePlanProducts = async (planId, products) => {
   try {
-    console.log('savePlanProducts - planId:', planId);
-    console.log('savePlanProducts - products:', products);
-    
     // 1. 기존 제품 정보 삭제
     await mariadb.query('deleteProdPlanProducts', [planId]);
     
@@ -170,13 +170,11 @@ const savePlanProducts = async (planId, products) => {
         product.plan_qty
       ];
       
-      console.log('insertProdPlanProduct - 삽입 데이터:', insertData);
       await mariadb.query('insertProdPlanProduct', insertData);
     }
     
     return { success: true };
   } catch (err) {
-    console.error('생산계획 제품 저장 오류:', err);
     throw err;
   }
 };
@@ -194,7 +192,6 @@ const generatePlanId = async () => {
       return `PL${today}001`;
     }
   } catch (err) {
-    console.error('생산계획 번호 생성 오류:', err);
     // 에러 시 기본값
     const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
     return `PL${today}001`;
@@ -206,24 +203,17 @@ const savePlanComplete = async (planData) => {
   try {
     const { master, products } = planData;
     
-    console.log('savePlanComplete - 전체 데이터:', planData);
-    console.log('savePlanComplete - 마스터 데이터:', master);
-    console.log('savePlanComplete - 제품 데이터:', products);
-    
     // 신규 등록 시 번호가 없으면 자동 생성
     if (!master.plan_id || master.plan_id === '') {
       master.plan_id = await generatePlanId();
-      console.log('생성된 계획 번호:', master.plan_id);
     }
     
     // 1. 마스터 정보 저장
     await savePlanMaster(master);
-    console.log('마스터 정보 저장 완료');
     
     // 2. 제품 정보 저장
     if (products && products.length > 0) {
       await savePlanProducts(master.plan_id, products);
-      console.log('제품 정보 저장 완료');
     }
     
     return { 
@@ -232,7 +222,6 @@ const savePlanComplete = async (planData) => {
       plan_id: master.plan_id // 생성된 번호 반환
     };
   } catch (err) {
-    console.error('생산계획 완전 저장 오류:', err);
     throw err;
   }
 };
@@ -258,7 +247,6 @@ const findPlanIntegratedList = async (searchParams = {}) => {
 
     return await mariadb.query('getProdPlanIntegratedList', params);
   } catch (err) {
-    console.error('생산계획 통합조회 목록 조회 오류:', err);
     throw err;
   }
 };

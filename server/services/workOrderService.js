@@ -7,37 +7,49 @@ const { v4: uuidv4 } = require('uuid');
 // 제품 검색 (모달용)
 const searchProducts = async (searchTerm = '') => {
   return await mariadb.query('searchProducts', [searchTerm, searchTerm, searchTerm])
-    .catch(err => console.error(err));
+    .catch(err => {
+      throw err;
+    });
 };
 
 // 작업지시서 검색 (모달용)
 const searchWorkOrders = async (searchTerm = '') => {
   return await mariadb.query('searchWorkOrders', [searchTerm, searchTerm, searchTerm])
-    .catch(err => console.error(err));
+    .catch(err => {
+      throw err;
+    });
 };
 
 // 계획 검색 (모달용) - 파라미터 수정
 const searchPlans = async (searchTerm = '') => {
   return await mariadb.query('searchPlans', [searchTerm, searchTerm])
-    .catch(err => console.error(err));
+    .catch(err => {
+      throw err;
+    });
 };
 
 // 계획 정보 상세 조회
 const findPlanInfo = async (planId) => {
   return await mariadb.query('getPlanInfo', [planId])
-    .catch(err => console.error(err));
+    .catch(err => {
+      throw err;
+    });
 };
 
 // 작업지시서 마스터 정보 조회
 const findWorkOrderInfo = async (workOrderNo) => {
   return await mariadb.query('getWorkOrderInfo', [workOrderNo])
-    .catch(err => console.error(err));
+    .catch(err => {
+      throw err;
+    });
 };
 
 // 작업지시서 제품 목록 조회
 const findWorkOrderProducts = async (workOrderNo) => {
   return await mariadb.query('getWorkOrderProducts', [workOrderNo])
-    .catch(err => console.error(err));
+    .catch(err => {
+      throw err;
+    });
 };
 
 // 작업지시서 전체 정보 조회 (마스터 + 제품)
@@ -51,7 +63,6 @@ const findWorkOrderDetailFull = async (workOrderNo) => {
       products: productInfo || []
     };
   } catch (err) {
-    console.error('작업지시서 상세 조회 오류:', err);
     throw err;
   }
 };
@@ -59,7 +70,9 @@ const findWorkOrderDetailFull = async (workOrderNo) => {
 // 작업지시서 목록 조회 (불러오기용)
 const findWorkOrderList = async (searchTerm = '') => {
   return await mariadb.query('getWorkOrderList', [searchTerm, searchTerm, searchTerm])
-    .catch(err => console.error(err));
+    .catch(err => {
+      throw err;
+    });
 };
 
 // 작업지시서 마스터 저장 (신규/수정 통합) - writer_name 제거
@@ -70,16 +83,8 @@ const saveWorkOrderMaster = async (workOrderInfo) => {
   ];
   const values = convertObjToAry(workOrderInfo, insertColumns);
   
-  // 로그 추가: 저장되는 작성자 정보 확인
-  console.log('작업지시서 마스터 저장 데이터:', {
-    work_order_no: workOrderInfo.work_order_no,
-    writer_id: workOrderInfo.writer_id,
-    values: values
-  });
-  
   return await mariadb.query('saveWorkOrder', values)
     .catch(err => {
-      console.error('작업지시서 마스터 저장 오류:', err);
       throw err;
     });
 };
@@ -105,7 +110,6 @@ const saveWorkOrderProducts = async (workOrderNo, products) => {
     
     return { success: true };
   } catch (err) {
-    console.error('작업지시서 제품 저장 오류:', err);
     throw err;
   }
 };
@@ -123,13 +127,11 @@ const saveWorkResult = async (workOrderNo, products) => {
         product.result_id,
         product.work_order_date
       ];
-      console.log('작업 결과 저장:', insertData);
       await mariadb.query('insertResult', insertData);
     }
     
     return { success: true };
   } catch (err) {
-    console.error('작업지시서 제품 저장 오류:', err);
     throw err;
   }
 };
@@ -147,7 +149,6 @@ const generateWorkOrderNo = async () => {
       return `WO${today}001`;
     }
   } catch (err) {
-    console.error('작업지시서 번호 생성 오류:', err);
     // 에러 시 기본값
     const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
     return `WO${today}001`;
@@ -164,14 +165,6 @@ const saveWorkOrderComplete = async (workOrderData) => {
       master.work_order_no = await generateWorkOrderNo();
     }
     
-    // 작성자 정보 로그
-    console.log('작업지시서 완전 저장 시작:', {
-      work_order_no: master.work_order_no,
-      writer_id: master.writer_id,
-      writer_name: master.writer_name || '(없음)',
-      product_count: products?.length || 0
-    });
-    
     // 1. 마스터 정보 저장 (writer_name은 DB에 저장하지 않음)
     await saveWorkOrderMaster({
       ...master,
@@ -187,10 +180,45 @@ const saveWorkOrderComplete = async (workOrderData) => {
       // 1. 기존 제품 정보 삭제
       await mariadb.query('deleteResult', [master.work_order_no]);
       for (const product of products) {
+
+        let attempt = 0;
+        let resultId;
+        let insertSuccess = false;
+
+        while (!insertSuccess && attempt < 10) {
+          const random = Math.floor(100 + Math.random() * 900);
+          resultId = `RE${yyyyMMdd}${random}-${uuidv4().slice(0, 4)}`;
+          product.result_id = resultId;
+
+          try {
+            await mariadb.query('insertResult', [
+              master.work_order_no,
+              product.process_group_code,
+              resultId,
+              product.work_order_date,
+            ]);
+            insertSuccess = true;
+          } catch (err) {
+            if (err.code === 'ER_DUP_ENTRY') {
+              attempt++;
+            } else {
+              throw err;
+            }
+          }
+        }
+
+        if (!insertSuccess) {
+          continue;
+        }
+
+        await saveWorkResult(master.work_order_no, [product]);
+
+
         const random = Math.floor(100 + Math.random() * 900);
         resultId = `RE${yyyyMMdd}${random}-${uuidv4().slice(0, 4)}`;
         product.result_id = resultId;
         
+
         const processCodes = await getProcessCodesByGroup(product.process_group_code);
         if (Array.isArray(processCodes) && processCodes.length > 0) {
           await saveWorkResult(master.work_order_no, [product]);
@@ -208,16 +236,9 @@ const saveWorkOrderComplete = async (workOrderData) => {
         if (orderId) {
           // 2. order_id 기준 상태 업데이트
           await mariadb.query("updateOrderStatusToProcessing", [orderId]);
-        } else {
-          console.warn("⚠️ order_id를 찾을 수 없어 상태를 업데이트하지 못했습니다.");
         }
       }
     }
-    
-    console.log('작업지시서 완전 저장 완료:', {
-      work_order_no: master.work_order_no,
-      writer_id: master.writer_id
-    });
     
     return { 
       success: true, 
@@ -225,7 +246,6 @@ const saveWorkOrderComplete = async (workOrderData) => {
       work_order_no: master.work_order_no
     };
   } catch (err) {
-    console.error('작업지시서 완전 저장 오류:', err);
     throw err;
   }
 };
@@ -244,7 +264,6 @@ const saveWorkResultDetails = async (resultId, processCodes) => {
     
     return { success: true };
   } catch (err) {
-    console.error('작업지시서 제품 저장 오류:', err);
     throw err;
   }
 };
@@ -252,7 +271,9 @@ const saveWorkResultDetails = async (resultId, processCodes) => {
 // 공정흐름도 조회 
 const getProcessCodesByGroup = async (processGroupCode) => {
   return await mariadb.query('getProcessCodesByGroupQuery', processGroupCode)
-    .catch(err => console.error(err));
+    .catch(err => {
+      throw err;
+    });
 };
 
 // 작업지시서 조회 페이지 
@@ -274,7 +295,6 @@ const getWorkOrderListPage = async (searchConditions = {}) => {
       endDate, endDate              // 종료예정일 
     ]);
   } catch (err) {
-    console.error('작업지시서 조회 페이지 오류:', err);
     throw err;
   }
 };
