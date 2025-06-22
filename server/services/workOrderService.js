@@ -117,7 +117,8 @@ const saveWorkOrderProducts = async (workOrderNo, products) => {
 // 작업지시서 제품 정보 저장 (기존 삭제 후 재입력)
 const saveWorkResult = async (workOrderNo, products) => {
   try {
-
+    // 1. 기존 제품 정보 삭제
+    await mariadb.query('deleteResult', [workOrderNo]);
     
     // 2. 새로운 제품 정보 입력
     for (const product of products) {
@@ -177,10 +178,8 @@ const saveWorkOrderComplete = async (workOrderData) => {
 
       const now = new Date();
       const yyyyMMdd = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
-      // 1. 기존 제품 정보 삭제
-      await mariadb.query('deleteResult', [master.work_order_no]);
-      for (const product of products) {
 
+      for (const product of products) {
         let attempt = 0;
         let resultId;
         let insertSuccess = false;
@@ -213,15 +212,8 @@ const saveWorkOrderComplete = async (workOrderData) => {
 
         await saveWorkResult(master.work_order_no, [product]);
 
-
-        const random = Math.floor(100 + Math.random() * 900);
-        resultId = `RE${yyyyMMdd}${random}-${uuidv4().slice(0, 4)}`;
-        product.result_id = resultId;
-        
-
         const processCodes = await getProcessCodesByGroup(product.process_group_code);
         if (Array.isArray(processCodes) && processCodes.length > 0) {
-          await saveWorkResult(master.work_order_no, [product]);
           await saveWorkResultDetails(resultId, processCodes);
         }
       }
