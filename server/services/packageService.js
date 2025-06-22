@@ -1,4 +1,4 @@
-// services/packageService.js - employees 테이블 조인 추가 (employment_status 조건 제거)
+// services/packageService.js - 실제 제품명 매핑 완전 적용
 const mariadb = require('mariadb');
 const packageQueries = require('../database/sqls/package');
 require('dotenv').config();
@@ -20,7 +20,7 @@ class PackageService {
             resetAfterUse: true
         };
 
-        console.log('데이터베이스 연결 설정 (employees 테이블 조인 추가):');
+        console.log('데이터베이스 연결 설정 (실제 제품명 매핑):');
         console.log('- HOST:', dbConfig.host);
         console.log('- USER:', dbConfig.user);
         console.log('- PASSWORD:', dbConfig.password ? '****' : 'MISSING');
@@ -92,52 +92,255 @@ class PackageService {
         throw lastError;
     }
 
-    // 라인명에서 제품코드 추출
+    // 제품코드를 실제 제품명으로 변환하는 함수
+    getProductNameFromCode(productCode) {
+        if (!productCode) return '제품명 없음';
+        
+        const productNameMap = {
+            // BJA 계열 - 베아제정
+            'BJA-STD-10': '베아제정',
+            'BJA-STD-30': '베아제정',
+            'BJA-STD-60': '베아제정',
+            
+            // BJA 계열 - 닥터베아제정
+            'BJA-DR-10': '닥터베아제정',
+            'BJA-DR-30': '닥터베아제정', 
+            'BJA-DR-60': '닥터베아제정',
+            
+            // FST 계열 - 헬스컵골드정
+            'FST-GOLD-10': '헬스컵골드정',
+            'FST-GOLD-30': '헬스컵골드정',
+            'FST-GOLD-60': '헬스컵골드정',
+            
+            // FST 계열 - 헬스컵플러스정
+            'FST-PLUS-10': '헬스컵플러스정',
+            'FST-PLUS-30': '헬스컵플러스정',
+            'FST-PLUS-60': '헬스컵플러스정',
+            
+            // GB 계열 - 게보린정
+            'GB-STD-10': '게보린정',
+            'GB-STD-30': '게보린정',
+            'GB-STD-60': '게보린정',
+            
+            // GB 계열 - 게보린브이정
+            'GB-V-10': '게보린브이정',
+            'GB-V-30': '게보린브이정',
+            'GB-V-60': '게보린브이정',
+            
+            // GN 계열 - 그날엔큐정
+            'GN-Q-10': '그날엔큐정',
+            'GN-Q-30': '그날엔큐정',
+            'GN-Q-60': '그날엔큐정',
+            
+            // GN 계열 - 그날엔정
+            'GN-STD-10': '그날엔정',
+            'GN-STD-30': '그날엔정',
+            'GN-STD-60': '그날엔정',
+            
+            // PCT 계열 - 판코레아정
+            'PCT-STD-10': '판코레아정',
+            'PCT-STD-30': '판코레아정',
+            'PCT-STD-60': '판코레아정',
+            
+            // TN 계열 - 타이레놀정500mg
+            'TN-500-10': '타이레놀정500mg',
+            'TN-500-30': '타이레놀정500mg',
+            'TN-500-60': '타이레놀정500mg',
+            
+            // TN 계열 - 타이레놀정8시간 ER
+            'TN-8HR-10': '타이레놀정8시간 ER',
+            'TN-8HR-30': '타이레놀정8시간 ER',
+            'TN-8HR-60': '타이레놀정8시간 ER',
+            
+            // TN 계열 - 타이레놀우먼스정
+            'TN-WMN-10': '타이레놀우먼스정',
+            'TN-WMN-30': '타이레놀우먼스정',
+            'TN-WMN-60': '타이레놀우먼스정'
+        };
+        
+        // 정확한 매칭
+        if (productNameMap[productCode]) {
+            console.log(`제품명 매핑: ${productCode} -> ${productNameMap[productCode]}`);
+            return productNameMap[productCode];
+        }
+        
+        // 부분 매칭 (용량 정보 제거하고 매칭)
+        const baseCode = productCode.replace(/-\d+$/, '');
+        for (const [code, name] of Object.entries(productNameMap)) {
+            if (code.startsWith(baseCode)) {
+                console.log(`부분 매핑: ${productCode} -> ${name}`);
+                return name;
+            }
+        }
+        
+        // 매핑되지 않는 경우 코드 그대로 반환
+        console.log(`매핑되지 않은 제품코드: ${productCode}`);
+        return productCode;
+    }
+
+    // 라인명에서 제품코드 추출 (완전한 매핑 로직)
     extractProductCodeFromLine(lineName) {
         try {
-            if (!lineName) return null;
+            if (!lineName) return 'BJA-STD-10';  // 베아제정 기본값
             
-            // 일반적인 패턴 매칭
-            const patterns = [
-                /([A-Z]{2,3}-[A-Z]{2,3}-\d+)/i,  // BJA-DR-30 형태
-                /([A-Z]{2,3}-[A-Z]{2}-\d+)/i,    // BJA-DR-10 형태  
-                /([A-Z]+\d+)/i,                   // ABC123 형태
-                /(BJA|BTC|BRA)/i                  // 알려진 제품군
+            console.log('제품코드 추출 시작:', lineName);
+            
+            // 1. 완전한 제품코드 패턴 매칭
+            const codePatterns = [
+                // 표준 패턴들
+                /(BJA-(?:DR|STD)-\d+)/i,           // BJA-DR-10, BJA-STD-30 등
+                /(FST-(?:GOLD|PLUS)-\d+)/i,       // FST-GOLD-10, FST-PLUS-30 등  
+                /(GB-(?:STD|V)-\d+)/i,            // GB-STD-10, GB-V-30 등
+                /(GN-(?:Q|STD)-\d+)/i,            // GN-Q-10, GN-STD-30 등
+                /(PCT-STD-\d+)/i,                 // PCT-STD-10 등
+                /(TN-500-\d+)/i,                  // TN-500-10 등
+                /(TN-8HR-\d+)/i,                  // TN-8HR-10 등  
+                /(TN-WMN-\d+)/i,                  // TN-WMN-10 등
+                // 일반적 패턴
+                /([A-Z]{2,3}-[A-Z]{2,4}-\d+)/i    // 기타 패턴
             ];
             
-            for (const pattern of patterns) {
+            for (const pattern of codePatterns) {
                 const match = lineName.match(pattern);
                 if (match) {
-                    console.log(`제품코드 추출 성공: ${match[1]} (라인명: ${lineName})`);
+                    console.log(`제품코드 패턴 매칭 성공: ${match[1]} (라인명: ${lineName})`);
                     return match[1].toUpperCase();
                 }
             }
             
-            // 라인명에 따른 기본값 설정
-            if (lineName.includes('B라인') || lineName.includes('BJA-DR-30')) {
-                console.log('B라인 감지, BJA-DR-30 반환');
-                return 'BJA-DR-30';
+            // 2. 제품명 기반 완전 매핑 (전체 제품 목록 반영)
+            const productNameMapping = {
+                // BJA 계열
+                '닥터베아제정': { base: 'BJA-DR', default: 'BJA-DR-10' },
+                '베아제정': { base: 'BJA-STD', default: 'BJA-STD-10' },
+                
+                // FST 계열
+                '헬스컵골드정': { base: 'FST-GOLD', default: 'FST-GOLD-10' },
+                '헬스컵플러스정': { base: 'FST-PLUS', default: 'FST-PLUS-10' },
+                
+                // GB 계열
+                '게보린정': { base: 'GB-STD', default: 'GB-STD-10' },
+                '게보린브이정': { base: 'GB-V', default: 'GB-V-10' },
+                
+                // GN 계열
+                '그날엔큐정': { base: 'GN-Q', default: 'GN-Q-10' },
+                '그날엔정': { base: 'GN-STD', default: 'GN-STD-10' },
+                
+                // PCT 계열
+                '판코레아정': { base: 'PCT-STD', default: 'PCT-STD-10' },
+                
+                // TN 계열
+                '타이레놀정500mg': { base: 'TN-500', default: 'TN-500-10' },
+                '타이레놀정8시간': { base: 'TN-8HR', default: 'TN-8HR-10' },
+                '타이레놀우먼스정': { base: 'TN-WMN', default: 'TN-WMN-10' }
+            };
+            
+            // 제품명으로 매핑 확인
+            for (const [productName, config] of Object.entries(productNameMapping)) {
+                if (lineName.includes(productName)) {
+                    // 용량별 구분
+                    if (lineName.includes('30') || lineName.includes('30정')) {
+                        const code30 = `${config.base}-30`;
+                        console.log(`제품명+용량 매핑: ${productName} 30정 -> ${code30}`);
+                        return code30;
+                    }
+                    if (lineName.includes('60') || lineName.includes('60정')) {
+                        const code60 = `${config.base}-60`;
+                        console.log(`제품명+용량 매핑: ${productName} 60정 -> ${code60}`);
+                        return code60;
+                    }
+                    
+                    console.log(`제품명 매핑: ${productName} -> ${config.default}`);
+                    return config.default;
+                }
             }
             
-            if (lineName.includes('A라인') || lineName.includes('BJA-DR-10')) {
-                console.log('A라인 감지, BJA-DR-10 반환');
-                return 'BJA-DR-10';
+            // 3. 제품코드 prefix 매핑
+            const prefixMapping = {
+                // BJA 계열
+                'BJA-DR': 'BJA-DR-10',
+                'BJA-STD': 'BJA-STD-10',
+                
+                // FST 계열
+                'FST-GOLD': 'FST-GOLD-10', 
+                'FST-PLUS': 'FST-PLUS-10',
+                
+                // GB 계열
+                'GB-STD': 'GB-STD-10',
+                'GB-V': 'GB-V-10',
+                
+                // GN 계열
+                'GN-Q': 'GN-Q-10',
+                'GN-STD': 'GN-STD-10',
+                
+                // PCT 계열
+                'PCT-STD': 'PCT-STD-10',
+                
+                // TN 계열
+                'TN-500': 'TN-500-10',
+                'TN-8HR': 'TN-8HR-10', 
+                'TN-WMN': 'TN-WMN-10'
+            };
+            
+            for (const [prefix, defaultCode] of Object.entries(prefixMapping)) {
+                if (lineName.includes(prefix)) {
+                    // 용량 체크
+                    if (lineName.includes('30')) {
+                        const code30 = defaultCode.replace('-10', '-30');
+                        console.log(`Prefix+용량 매핑: ${prefix} 30정 -> ${code30}`);
+                        return code30;
+                    }
+                    if (lineName.includes('60')) {
+                        const code60 = defaultCode.replace('-10', '-60');
+                        console.log(`Prefix+용량 매핑: ${prefix} 60정 -> ${code60}`);
+                        return code60;
+                    }
+                    
+                    console.log(`Prefix 매핑: ${prefix} -> ${defaultCode}`);
+                    return defaultCode;
+                }
             }
             
-            // 최종 기본값
-            console.log('제품코드 추출 실패, 기본값 BJA-DR-10 사용');
-            return 'BJA-DR-10';
+            // 4. 라인명 기반 기본값 (베아제정 계열을 기본으로)
+            if (lineName.includes('A라인')) {
+                console.log('A라인 감지, 베아제정 기본값');
+                return 'BJA-STD-10';
+            }
+            
+            if (lineName.includes('B라인')) {
+                console.log('B라인 감지, 베아제정 30정');
+                return 'BJA-STD-30';
+            }
+            
+            if (lineName.includes('C라인')) {
+                console.log('C라인 감지, 베아제정 60정');
+                return 'BJA-STD-60';
+            }
+            
+            // 5. 용량별 기본 제품 (베아제정 계열)
+            if (lineName.includes('30')) {
+                console.log('30정 패턴 감지, 베아제정 30정');
+                return 'BJA-STD-30';
+            }
+            if (lineName.includes('60')) {
+                console.log('60정 패턴 감지, 베아제정 60정');
+                return 'BJA-STD-60';
+            }
+            
+            // 6. 최종 기본값
+            console.log('제품코드 추출 실패, 기본값 BJA-STD-10 사용');
+            return 'BJA-STD-10';
             
         } catch (error) {
-            console.log('제품코드 추출 실패, 기본값 사용:', error.message);
-            return 'BJA-DR-10';
+            console.log('제품코드 추출 중 오류, 기본값 사용:', error.message);
+            return 'BJA-STD-10';
         }
     }
 
-    // 새 작업번호 생성 (employees 조인 포함)
+    // 새 작업번호 생성 (실제 제품명 적용)
     async createNewWorkOrder(제품코드, lineId) {
         try {
-            console.log(`새 작업번호 생성 (employees 조인 포함): 제품=${제품코드}, 라인=${lineId}`);
+            console.log(`새 작업번호 생성 (실제 제품명 적용): 제품=${제품코드}, 라인=${lineId}`);
             
             const now = new Date();
             const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
@@ -148,12 +351,16 @@ class PackageService {
             const 공정코드 = lineId.includes('내포장') || lineId.includes('INNER') ? 'p3' : 'p5';
             const processGroupCode = `${제품코드}-Process`;
             
+            // 실제 제품명 가져오기
+            const realProductName = this.getProductNameFromCode(제품코드);
+            console.log(`제품코드 ${제품코드} -> 실제 제품명: ${realProductName}`);
+            
             // 안전한 범위 내 정수 생성
             const baseNumber = 1000000;
             const randomNumber = Math.floor(Math.random() * 1000000000);
             const resultDetailId = baseNumber + randomNumber;
             
-            // 기본 작업자 ID (employees 테이블에서 조회 - employment_status 조건 제거)
+            // 기본 작업자 ID (employees 테이블에서 조회)
             let defaultEmployeeId = 2;
             let defaultEmployeeName = '김홍인';
             
@@ -176,6 +383,7 @@ class PackageService {
             
             console.log(`생성할 작업번호: ${workOrderNo}, 실적ID: ${resultId}, 공정코드: ${공정코드}`);
             console.log(`작업자: ${defaultEmployeeName} (ID: ${defaultEmployeeId})`);
+            console.log(`제품명: ${realProductName}`);
             
             // INT(11) 범위 확인
             if (resultDetailId > 2147483647) {
@@ -209,7 +417,7 @@ class PackageService {
                 ) VALUES (?, ?, ?, 'waiting', NOW(), 1000, '0', ?, 'i8')
             `, [resultDetailId, resultId, 공정코드, `d${defaultEmployeeId}`]);
             
-            console.log(`새 작업 생성 완료 (employees 조인): ${workOrderNo}`);
+            console.log(`새 작업 생성 완료 (실제 제품명 적용): ${workOrderNo}`);
             
             return {
                 work_order_no: workOrderNo,
@@ -219,8 +427,8 @@ class PackageService {
                 step_status: 'READY',
                 input_qty: 1000,
                 output_qty: 0,
-                product_name: `${제품코드} 제품`,
-                final_product_name: `${제품코드} 제품`,
+                product_name: realProductName,           // 실제 제품명 사용
+                final_product_name: realProductName,     // 실제 제품명 사용
                 employee_name: defaultEmployeeName,
                 employee_id: defaultEmployeeId,
                 product_code: 제품코드,
@@ -228,22 +436,22 @@ class PackageService {
             };
             
         } catch (error) {
-            console.error('새 작업번호 생성 실패 (employees 조인):', error);
+            console.error('새 작업번호 생성 실패 (실제 제품명 적용):', error);
             throw error;
         }
     }
 
-    // 내포장 라인별 작업번호 조회 (employees 조인 추가, employment_status 조건 제거)
+    // 내포장 라인별 작업번호 조회 (실제 제품명 적용)
     async getInnerWorkByLine(lineId, lineName) {
         try {
-            console.log(`\n=== 내포장 작업번호 조회 (employees 조인 추가) ===`);
+            console.log(`\n=== 내포장 작업번호 조회 (실제 제품명 적용) ===`);
             console.log(`라인: ${lineId}, ${lineName}`);
             
             // 라인명에서 제품코드 추출
-            const productCode = this.extractProductCodeFromLine(lineName) || 'BJA-DR-10';
+            const productCode = this.extractProductCodeFromLine(lineName) || 'BJA-STD-10';
             console.log(`추출된 제품코드: ${productCode}`);
             
-            // employees 테이블 조인으로 내포장 작업 조회 (manager_id에서 d 제거해서 조인)
+            // employees 테이블 조인으로 내포장 작업 조회
             const result = await this.executeRawQuery(`
                 SELECT 
                     wom.work_order_no as 작업번호,
@@ -277,7 +485,11 @@ class PackageService {
             
             if (result.length > 0) {
                 const work = result[0];
-                console.log(`내포장 작업번호 조회 성공 (employees 조인): ${work.작업번호}, 작업자: ${work.employee_name}, manager_id: ${work.manager_id}`);
+                
+                // 실제 제품명 적용
+                const realProductName = this.getProductNameFromCode(work.제품코드);
+                
+                console.log(`내포장 작업번호 조회 성공: ${work.작업번호}, 제품명: ${realProductName}`);
                 return {
                     work_order_no: work.작업번호,
                     work_id: work.작업번호,
@@ -286,8 +498,8 @@ class PackageService {
                     step_status: work.step_status,
                     input_qty: work.input_qty || 1000,
                     output_qty: work.output_qty || 0,
-                    product_name: work.제품명,
-                    final_product_name: work.제품명,
+                    product_name: realProductName,              // 실제 제품명
+                    final_product_name: realProductName,        // 실제 제품명
                     employee_name: work.employee_name,
                     employee_id: work.employee_id,
                     position: work.position,
@@ -298,27 +510,27 @@ class PackageService {
             }
             
             // 작업이 없으면 새로 생성
-            console.log('기존 내포장 작업이 없어서 새로 생성 (employees 조인)');
+            console.log('기존 내포장 작업이 없어서 새로 생성 (실제 제품명 적용)');
             return await this.createNewWorkOrder(productCode, lineId);
             
         } catch (error) {
-            console.error(`내포장 작업번호 조회 실패 (employees 조인):`, error);
+            console.error(`내포장 작업번호 조회 실패 (실제 제품명 적용):`, error);
             throw error;
         }
     }
 
-    // 외포장 라인별 작업번호 조회 (employees 조인 추가, employment_status 조건 제거)
+    // 외포장 라인별 작업번호 조회 (실제 제품명 적용)
     async getOuterWorkByLine(lineId, lineName) {
         try {
-            console.log(`\n=== 외포장 작업번호 조회 (employees 조인 추가) ===`);
+            console.log(`\n=== 외포장 작업번호 조회 (실제 제품명 적용) ===`);
             console.log(`라인: ${lineId}, ${lineName}`);
             
             // 라인명에서 제품코드 추출
-            const productCode = this.extractProductCodeFromLine(lineName) || 'BJA-DR-10';
+            const productCode = this.extractProductCodeFromLine(lineName) || 'BJA-STD-10';
             console.log(`추출된 제품코드: ${productCode}`);
             
-            // 3-1) 포장공정실적에서 내포장 완료된 건 가져오기 (employees 조인, employment_status 조건 제거)
-            console.log('\nStep 3-1: 포장공정실적에서 내포장 완료된 건 가져오기 (employees 조인)');
+            // 3-1) 포장공정실적에서 내포장 완료된 건 가져오기
+            console.log('\nStep 3-1: 포장공정실적에서 내포장 완료된 건 가져오기');
             const 완료된내포장 = await this.executeRawQuery(`
                 SELECT 
                     wom.work_order_no as 작업번호,
@@ -345,9 +557,12 @@ class PackageService {
             `, [productCode]);
             
             if (완료된내포장.length > 0) {
-                console.log('완료된 내포장 발견 (employees 조인):', 완료된내포장[0]);
+                console.log('완료된 내포장 발견:', 완료된내포장[0]);
                 
-                // 해당 실적ID에서 외포장(p5) 작업 확인 (employees 조인, employment_status 조건 제거)
+                // 실제 제품명 적용
+                const realProductName = this.getProductNameFromCode(완료된내포장[0].제품코드);
+                
+                // 해당 실적ID에서 외포장(p5) 작업 확인
                 const 외포장작업 = await this.executeRawQuery(`
                     SELECT 
                         wom.work_order_no as 작업번호,
@@ -375,7 +590,7 @@ class PackageService {
                 `, [완료된내포장[0].실적ID]);
                 
                 if (외포장작업.length > 0) {
-                    console.log('대기중인 외포장 작업 발견 (employees 조인):', 외포장작업[0]);
+                    console.log('대기중인 외포장 작업 발견:', 외포장작업[0]);
                     return {
                         work_order_no: 외포장작업[0].작업번호,
                         work_id: 외포장작업[0].작업번호,
@@ -384,8 +599,8 @@ class PackageService {
                         step_status: 'READY',
                         input_qty: 외포장작업[0].input_qty || 1000,
                         output_qty: 0,
-                        product_name: 외포장작업[0].제품명,
-                        final_product_name: 외포장작업[0].제품명,
+                        product_name: realProductName,              // 실제 제품명
+                        final_product_name: realProductName,        // 실제 제품명
                         employee_name: 외포장작업[0].employee_name,
                         employee_id: 외포장작업[0].employee_id,
                         position: 외포장작업[0].position,
@@ -395,7 +610,7 @@ class PackageService {
                     };
                 } else {
                     // 외포장 작업 생성 (기존 작업자 정보 유지)
-                    console.log('외포장 작업이 없어서 새로 생성 (employees 조인, 기존 작업자 유지)');
+                    console.log('외포장 작업이 없어서 새로 생성 (기존 작업자 유지)');
                     await this.executeRawQuery(`
                         INSERT INTO tablets.work_result_detail (
                             result_detail, result_id, process_code, code_value, 
@@ -417,8 +632,8 @@ class PackageService {
                         step_status: 'READY',
                         input_qty: 완료된내포장[0].합격수량 || 1000,
                         output_qty: 0,
-                        product_name: 완료된내포장[0].제품명,
-                        final_product_name: 완료된내포장[0].제품명,
+                        product_name: realProductName,              // 실제 제품명
+                        final_product_name: realProductName,        // 실제 제품명
                         employee_name: 완료된내포장[0].employee_name,
                         employee_id: 완료된내포장[0].employee_id,
                         product_code: 완료된내포장[0].제품코드,
@@ -427,8 +642,8 @@ class PackageService {
                 }
             }
             
-            // 완료된 내포장이 없으면 일반 외포장 작업 조회 (employees 조인, employment_status 조건 제거)
-            console.log('완료된 내포장이 없어서 일반 외포장 작업 조회 (employees 조인)');
+            // 완료된 내포장이 없으면 일반 외포장 작업 조회
+            console.log('완료된 내포장이 없어서 일반 외포장 작업 조회');
             const result = await this.executeRawQuery(`
                 SELECT 
                     wom.work_order_no as 작업번호,
@@ -461,7 +676,11 @@ class PackageService {
             
             if (result.length > 0) {
                 const work = result[0];
-                console.log(`외포장 작업번호 조회 성공 (employees 조인): ${work.작업번호}, 작업자: ${work.employee_name}`);
+                
+                // 실제 제품명 적용
+                const realProductName = this.getProductNameFromCode(work.제품코드);
+                
+                console.log(`외포장 작업번호 조회 성공: ${work.작업번호}, 제품명: ${realProductName}`);
                 return {
                     work_order_no: work.작업번호,
                     work_id: work.작업번호,
@@ -470,8 +689,8 @@ class PackageService {
                     step_status: work.step_status,
                     input_qty: work.input_qty || 1000,
                     output_qty: work.output_qty || 0,
-                    product_name: work.제품명,
-                    final_product_name: work.제품명,
+                    product_name: realProductName,              // 실제 제품명
+                    final_product_name: realProductName,        // 실제 제품명
                     employee_name: work.employee_name,
                     employee_id: work.employee_id,
                     position: work.position,
@@ -482,19 +701,19 @@ class PackageService {
             }
 
             // 작업이 없으면 새로 생성
-            console.log('기존 외포장 작업이 없어서 새로 생성 (employees 조인)');
+            console.log('기존 외포장 작업이 없어서 새로 생성 (실제 제품명 적용)');
             return await this.createNewWorkOrder(productCode, lineId);
             
         } catch (error) {
-            console.error(`외포장 작업번호 조회 실패 (employees 조인):`, error);
+            console.error(`외포장 작업번호 조회 실패 (실제 제품명 적용):`, error);
             throw error;
         }
     }
 
-    // 내포장 작업 시작 워크플로우 (변경사항 없음)
+    // 내포장 작업 시작 워크플로우
     async startInnerPackagingWorkflow(workOrderNo, productCode, processGroupCode) {
         try {
-            console.log(`내포장 작업 시작 워크플로우 (employees 조인): ${workOrderNo}, 제품: ${productCode}`);
+            console.log(`내포장 작업 시작 워크플로우: ${workOrderNo}, 제품: ${productCode}`);
             
             // 2-4) 작업시작 시 - 내포장시 추가로 코드 만들기
             const result = await this.executeRawQuery(`
@@ -508,7 +727,7 @@ class PackageService {
                 AND wrd.process_code = 'p3'
             `, [workOrderNo]);
             
-            console.log(`내포장 작업 시작 업데이트 완료 (employees 조인): ${workOrderNo} (${result.affectedRows}건)`);
+            console.log(`내포장 작업 시작 업데이트 완료: ${workOrderNo} (${result.affectedRows}건)`);
             
             return {
                 success: true,
@@ -524,7 +743,7 @@ class PackageService {
             };
             
         } catch (error) {
-            console.error(`내포장 작업 시작 워크플로우 실패 (employees 조인) (${workOrderNo}):`, error);
+            console.error(`내포장 작업 시작 워크플로우 실패 (${workOrderNo}):`, error);
             return {
                 success: false,
                 error: error.message,
@@ -533,10 +752,10 @@ class PackageService {
         }
     }
 
-    // 내포장 작업 완료 워크플로우 (변경사항 없음)
+    // 내포장 작업 완료 워크플로우
     async completeInnerPackagingWorkflow(workOrderNo, passQty, defectiveQty) {
         try {
-            console.log(`내포장 작업 완료 워크플로우 (employees 조인): ${workOrderNo}`);
+            console.log(`내포장 작업 완료 워크플로우: ${workOrderNo}`);
             
             // 내포장 완료시 실적 상세 테이블에 시작시간 업데이트 하고
             const result = await this.executeRawQuery(`
@@ -552,7 +771,7 @@ class PackageService {
                 AND wrd.process_code = 'p3'
             `, [passQty, defectiveQty || '0', workOrderNo]);
             
-            console.log(`내포장 완료 업데이트 완료 (employees 조인): ${workOrderNo} (${result.affectedRows}건)`);
+            console.log(`내포장 완료 업데이트 완료: ${workOrderNo} (${result.affectedRows}건)`);
             
             return {
                 success: true,
@@ -568,7 +787,7 @@ class PackageService {
             };
             
         } catch (error) {
-            console.error(`내포장 작업 완료 워크플로우 실패 (employees 조인) (${workOrderNo}):`, error);
+            console.error(`내포장 작업 완료 워크플로우 실패 (${workOrderNo}):`, error);
             return {
                 success: false,
                 error: error.message,
@@ -577,10 +796,10 @@ class PackageService {
         }
     }
 
-    // 외포장 작업 시작 워크플로우 (변경사항 없음)
+    // 외포장 작업 시작 워크플로우
     async startOuterPackagingWorkflow(workOrderNo, productCode, processGroupCode, innerOutputQty) {
         try {
-            console.log(`외포장 작업 시작 워크플로우 (employees 조인): ${workOrderNo}, 내포장 수량: ${innerOutputQty}`);
+            console.log(`외포장 작업 시작 워크플로우: ${workOrderNo}, 내포장 수량: ${innerOutputQty}`);
             
             const result = await this.executeRawQuery(`
                 UPDATE tablets.work_result_detail wrd
@@ -594,7 +813,7 @@ class PackageService {
                 AND wrd.process_code = 'p5'
             `, [innerOutputQty || 1000, workOrderNo]);
             
-            console.log(`외포장 작업 시작 업데이트 완료 (employees 조인): ${workOrderNo} (${result.affectedRows}건)`);
+            console.log(`외포장 작업 시작 업데이트 완료: ${workOrderNo} (${result.affectedRows}건)`);
             
             return {
                 success: true,
@@ -611,7 +830,7 @@ class PackageService {
             };
             
         } catch (error) {
-            console.error(`외포장 작업 시작 워크플로우 실패 (employees 조인) (${workOrderNo}):`, error);
+            console.error(`외포장 작업 시작 워크플로우 실패 (${workOrderNo}):`, error);
             return {
                 success: false,
                 error: error.message,
@@ -620,10 +839,10 @@ class PackageService {
         }
     }
 
-    // 외포장 작업 완료 워크플로우 (변경사항 없음)
+    // 외포장 작업 완료 워크플로우
     async completeOuterPackagingWorkflow(workOrderNo, passQty, defectiveQty) {
         try {
-            console.log(`외포장 작업 완료 워크플로우 (employees 조인): ${workOrderNo}`);
+            console.log(`외포장 작업 완료 워크플로우: ${workOrderNo}`);
             
             // 3-2) 외포장공정 종료 시
             const result = await this.executeRawQuery(`
@@ -639,7 +858,7 @@ class PackageService {
                 AND wrd.process_code = 'p5'
             `, [passQty, defectiveQty || '0', workOrderNo]);
             
-            console.log(`외포장 완료 업데이트 완료 (검사중) (employees 조인): ${workOrderNo} (${result.affectedRows}건)`);
+            console.log(`외포장 완료 업데이트 완료 (검사중): ${workOrderNo} (${result.affectedRows}건)`);
             
             return {
                 success: true,
@@ -656,7 +875,7 @@ class PackageService {
             };
             
         } catch (error) {
-            console.error(`외포장 작업 완료 워크플로우 실패 (employees 조인) (${workOrderNo}):`, error);
+            console.error(`외포장 작업 완료 워크플로우 실패 (${workOrderNo}):`, error);
             return {
                 success: false,
                 error: error.message,
@@ -685,10 +904,10 @@ class PackageService {
         return data;
     }
 
-    // 기존 package_work 테이블 관련 함수들 (employees 조인 추가, employment_status 조건 제거)
+    // 기존 package_work 테이블 관련 함수들 (실제 제품명 적용)
     async getWorkList(packageType = null, lineId = null, lineName = null) {
         try {
-            console.log('package_work 테이블에서 작업 목록 조회 (employees 조인 추가):', { packageType, lineId, lineName });
+            console.log('package_work 테이블에서 작업 목록 조회 (실제 제품명 적용):', { packageType, lineId, lineName });
             
             let query = `
                 SELECT 
@@ -765,17 +984,17 @@ class PackageService {
             query += ` ORDER BY pw.reg_date DESC LIMIT 50`;
             
             const result = await this.executeRawQuery(query, params);
-            console.log(`package_work 작업 목록 조회 완료 (employees 조인): ${result.length}건`);
+            console.log(`package_work 작업 목록 조회 완료 (실제 제품명 적용): ${result.length}건`);
             
             return this.convertBigIntToNumber(result);
             
         } catch (error) {
-            console.error('package_work 작업 목록 조회 실패 (employees 조인):', error);
+            console.error('package_work 작업 목록 조회 실패 (실제 제품명 적용):', error);
             throw new Error(`package_work DB 연결 실패: ${error.message}`);
         }
     }
 
-    // 기타 필요한 함수들 (employees 조인 추가, employment_status 조건 제거)
+    // 기타 필요한 함수들 (실제 제품명 적용)
     async getWorkDetail(workId) {
         try {
             const result = await this.executeRawQuery(`
@@ -798,7 +1017,7 @@ class PackageService {
             
             return result.length > 0 ? this.convertBigIntToNumber(result[0]) : null;
         } catch (error) {
-            console.error(`작업 상세 조회 실패 (employees 조인) (${workId}):`, error);
+            console.error(`작업 상세 조회 실패 (실제 제품명 적용) (${workId}):`, error);
             return null;
         }
     }
@@ -819,11 +1038,11 @@ class PackageService {
             `;
             
             const result = await this.executeRawQuery(query);
-            console.log(`제품코드 조회 완료 (employees 조인): ${result.length}개`);
+            console.log(`제품코드 조회 완료 (실제 제품명 적용): ${result.length}개`);
             return this.convertBigIntToNumber(result);
             
         } catch (error) {
-            console.error('제품코드 조회 실패 (employees 조인):', error);
+            console.error('제품코드 조회 실패 (실제 제품명 적용):', error);
             throw error;
         }
     }
@@ -866,7 +1085,7 @@ class PackageService {
             return this.convertBigIntToNumber(result);
             
         } catch (error) {
-            console.error('라인별 작업 조회 실패 (employees 조인):', error);
+            console.error('라인별 작업 조회 실패 (실제 제품명 적용):', error);
             throw error;
         }
     }
@@ -874,7 +1093,7 @@ class PackageService {
     // 테스트용 함수들
     async debugTableStructure() {
         try {
-            console.log('=== 테이블 구조 확인 (employees 조인 추가) ===');
+            console.log('=== 테이블 구조 확인 (실제 제품명 적용) ===');
             
             const tables = ['package_work', 'work_order_master', 'work_result', 'work_result_detail', 'process', 'process_group', 'employees'];
             const tableInfo = {};
@@ -896,7 +1115,7 @@ class PackageService {
                 }
             }
             
-            // employees 테이블 활성 사용자 수 확인 (employment_status 조건 제거)
+            // employees 테이블 활성 사용자 수 확인
             try {
                 const activeEmployees = await this.executeRawQuery(`
                     SELECT COUNT(*) as active_count 
@@ -922,7 +1141,7 @@ class PackageService {
             };
             
         } catch (error) {
-            console.error('테이블 구조 확인 실패 (employees 조인):', error);
+            console.error('테이블 구조 확인 실패 (실제 제품명 적용):', error);
             return {
                 success: false,
                 error: error.message,
@@ -946,7 +1165,7 @@ class PackageService {
                 }
             }
             
-            // employees 테이블 활성 사용자 수 (employment_status 조건 제거)
+            // employees 테이블 활성 사용자 수
             try {
                 const activeResult = await this.executeRawQuery(`
                     SELECT COUNT(*) as total FROM employees WHERE employment_status = 'Y'
@@ -982,23 +1201,27 @@ class PackageService {
 // 싱글톤 인스턴스 생성
 const packageService = new PackageService();
 
-// 모듈 익스포트
+// 모듈 익스포트 (실제 제품명 매핑 함수 추가)
 module.exports = {
-    // 라인별 단일 작업번호 조회 (employees 조인 추가)
+    // 라인별 단일 작업번호 조회 (실제 제품명 적용)
     getInnerWorkByLine: function(...args) { return packageService.getInnerWorkByLine(...args); },
     getOuterWorkByLine: function(...args) { return packageService.getOuterWorkByLine(...args); },
     
-    // 워크플로우 함수들 (employees 조인)
+    // 워크플로우 함수들
     startInnerPackagingWorkflow: function(...args) { return packageService.startInnerPackagingWorkflow(...args); },
     completeInnerPackagingWorkflow: function(...args) { return packageService.completeInnerPackagingWorkflow(...args); },
     startOuterPackagingWorkflow: function(...args) { return packageService.startOuterPackagingWorkflow(...args); },
     completeOuterPackagingWorkflow: function(...args) { return packageService.completeOuterPackagingWorkflow(...args); },
     
-    // 기존 package_work 테이블 함수들 (employees 조인 추가)
+    // 기존 package_work 테이블 함수들 (실제 제품명 적용)
     getWorkList: function(...args) { return packageService.getWorkList(...args); },
     getWorkDetail: function(...args) { return packageService.getWorkDetail(...args); },
     getProductCodes: function(...args) { return packageService.getProductCodes(...args); },
     getWorksByLine: function(...args) { return packageService.getWorksByLine(...args); },
+    
+    // 제품명 매핑 함수 추가
+    getProductNameFromCode: function(...args) { return packageService.getProductNameFromCode(...args); },
+    extractProductCodeFromLine: function(...args) { return packageService.extractProductCodeFromLine(...args); },
     
     // 유틸리티 함수들
     debugTableStructure: function(...args) { return packageService.debugTableStructure(...args); },

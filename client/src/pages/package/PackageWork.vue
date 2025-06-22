@@ -80,14 +80,14 @@
                   >
                     <option value="">{{ workInfo.lineName }}의 작업을 선택하세요</option>
                     
-                    <!-- 실제 DB에서 조회된 작업번호 표시 -->
+                    <!-- 실제 DB에서 조회된 작업번호 표시 (실제 제품명 적용) -->
                     <option 
                       v-if="availableWork" 
                       :value="availableWork.work_order_no || availableWork.work_id"
                       class="available-option"
                     >
                       {{ availableWork.work_order_no || availableWork.work_id || '작업번호없음' }} - 
-                      {{ availableWork.product_name || availableWork.final_product_name || `${extractedProductCode}` }} 
+                      {{ getDisplayProductName(availableWork) }}
                     </option>
                   </select>
                   
@@ -354,7 +354,7 @@
               </div>
               <div class="info-row">
                 <span class="info-label">제품명</span>
-                <span class="info-value">{{ currentWork.product_name || currentWork.final_product_name || `${extractedProductCode} 최종제품` }}</span>
+                <span class="info-value">{{ currentWork.product_name || currentWork.final_product_name || getProductNameFromCode(extractedProductCode) }}</span>
               </div>
               <div class="info-row">
                 <span class="info-label">포장형태</span>
@@ -589,83 +589,229 @@ const workInfo = ref({
   lineType: route.query.line_type || 'INNER'
 })
 
-// 제품코드 추출 (라인명과 라인ID 기반으로 정확하게 매핑)
+// 제품코드를 실제 제품명으로 변환하는 함수
+function getProductNameFromCode(productCode) {
+  if (!productCode) return '제품명 없음'
+  
+  const productNameMap = {
+    // BJA 계열 - 베아제정
+    'BJA-STD-10': '베아제정',
+    'BJA-STD-30': '베아제정',
+    'BJA-STD-60': '베아제정',
+    
+    // BJA 계열 - 닥터베아제정
+    'BJA-DR-10': '닥터베아제정',
+    'BJA-DR-30': '닥터베아제정', 
+    'BJA-DR-60': '닥터베아제정',
+    
+    // FST 계열 - 헬스컵골드정
+    'FST-GOLD-10': '헬스컵골드정',
+    'FST-GOLD-30': '헬스컵골드정',
+    'FST-GOLD-60': '헬스컵골드정',
+    
+    // FST 계열 - 헬스컵플러스정
+    'FST-PLUS-10': '헬스컵플러스정',
+    'FST-PLUS-30': '헬스컵플러스정',
+    'FST-PLUS-60': '헬스컵플러스정',
+    
+    // GB 계열 - 게보린정
+    'GB-STD-10': '게보린정',
+    'GB-STD-30': '게보린정',
+    'GB-STD-60': '게보린정',
+    
+    // GB 계열 - 게보린브이정
+    'GB-V-10': '게보린브이정',
+    'GB-V-30': '게보린브이정',
+    'GB-V-60': '게보린브이정',
+    
+    // GN 계열 - 그날엔큐정
+    'GN-Q-10': '그날엔큐정',
+    'GN-Q-30': '그날엔큐정',
+    'GN-Q-60': '그날엔큐정',
+    
+    // GN 계열 - 그날엔정
+    'GN-STD-10': '그날엔정',
+    'GN-STD-30': '그날엔정',
+    'GN-STD-60': '그날엔정',
+    
+    // PCT 계열 - 판코레아정
+    'PCT-STD-10': '판코레아정',
+    'PCT-STD-30': '판코레아정',
+    'PCT-STD-60': '판코레아정',
+    
+    // TN 계열 - 타이레놀정500mg
+    'TN-500-10': '타이레놀정500mg',
+    'TN-500-30': '타이레놀정500mg',
+    'TN-500-60': '타이레놀정500mg',
+    
+    // TN 계열 - 타이레놀정8시간 ER
+    'TN-8HR-10': '타이레놀정8시간 ER',
+    'TN-8HR-30': '타이레놀정8시간 ER',
+    'TN-8HR-60': '타이레놀정8시간 ER',
+    
+    // TN 계열 - 타이레놀우먼스정
+    'TN-WMN-10': '타이레놀우먼스정',
+    'TN-WMN-30': '타이레놀우먼스정',
+    'TN-WMN-60': '타이레놀우먼스정'
+  }
+  
+  // 정확한 매칭
+  if (productNameMap[productCode]) {
+    console.log(`제품명 매핑: ${productCode} -> ${productNameMap[productCode]}`)
+    return productNameMap[productCode]
+  }
+  
+  // 부분 매칭 (용량 정보 제거하고 매칭)
+  const baseCode = productCode.replace(/-\d+$/, '')
+  for (const [code, name] of Object.entries(productNameMap)) {
+    if (code.startsWith(baseCode)) {
+      console.log(`부분 매핑: ${productCode} -> ${name}`)
+      return name
+    }
+  }
+  
+  // 매핑되지 않는 경우 코드 그대로 반환
+  console.log(`매핑되지 않은 제품코드: ${productCode}`)
+  return productCode
+}
+
+// 작업번호 드롭다운 표시용 제품명 가져오기
+function getDisplayProductName(workData) {
+  if (!workData) return '제품명 없음'
+  
+  // 1. DB에서 가져온 실제 제품명 우선 사용 (하드코딩 방지)
+  if (workData.product_name && !workData.product_name.includes('제품') && !workData.product_name.includes('-')) {
+    return workData.product_name
+  }
+  
+  if (workData.final_product_name && !workData.final_product_name.includes('제품') && !workData.final_product_name.includes('-')) {
+    return workData.final_product_name
+  }
+  
+  // 2. 제품코드에서 실제 제품명 변환
+  const productCode = workData.product_code || extractedProductCode.value
+  return getProductNameFromCode(productCode)
+}
+
+// 제품코드 추출 (완전한 매핑 로직 적용)
 const extractedProductCode = computed(() => {
   const lineName = workInfo.value.lineName
   const lineId = workInfo.value.lineId
   
   console.log('제품코드 추출:', { lineName, lineId })
   
-  // 1. 라인명에서 직접 제품코드 추출 시도
-  const directMatch = lineName.match(/([A-Z]{2,3}-[A-Z]{2}-\d{2,3})/i)
-  if (directMatch) {
-    console.log('라인명에서 제품코드 추출 성공:', directMatch[1])
-    return directMatch[1].toUpperCase()
+  // 1. URL 파라미터에서 제품코드 직접 전달받은 경우 최우선
+  if (route.query.product_code) {
+    console.log('URL에서 제품코드 전달받음:', route.query.product_code)
+    return route.query.product_code.toUpperCase()
   }
   
-  // 2. 라인 ID와 라인명 조합으로 매핑
-  const lineMapping = {
-    'A_INNER': 'BJA-DR-10',
-    'A라인': 'BJA-DR-10', 
-    'A라인 내포장': 'BJA-DR-10',
-    'BJA-DR-10 A라인 내포장': 'BJA-DR-10',
-    
-    'B_INNER': 'BJA-DR-30',
-    'B라인': 'BJA-DR-30',
-    'B라인 내포장': 'BJA-DR-30', 
-    'BJA-DR-30 B라인 내포장': 'BJA-DR-30',
-    
-    'C_INNER': 'BJA-DR-60',
-    'C라인': 'BJA-DR-60',
-    'C라인 내포장': 'BJA-DR-60',
-    'BJA-DR-60 C라인 내포장': 'BJA-DR-60',
-    
-    'D_INNER': 'BJA-DR-10',
-    'D라인': 'BJA-DR-10',
-    'D라인 내포장': 'BJA-DR-10',
-    'BJA-DR-10 D라인 내포장': 'BJA-DR-10'
+  // 2. 라인명에서 직접 제품코드 추출 시도 (완전한 패턴)
+  const codePatterns = [
+    /([A-Z]{2,3}-[A-Z]{2,4}-\d+)/i,  // BJA-DR-10, FST-GOLD-10 등
+    /([A-Z]{2,3}-[A-Z]{2}-\d+)/i,    // BJA-DR-10, GB-V-30 등
+    /(TN-\d+HR-\d+)/i,               // TN-8HR-10 등
+    /(TN-WMN-\d+)/i,                 // TN-WMN-10 등
+    /(TN-\d+-\d+)/i                  // TN-500-10 등
+  ]
+  
+  for (const pattern of codePatterns) {
+    const match = lineName.match(pattern)
+    if (match) {
+      console.log('라인명에서 제품코드 추출 성공:', match[1])
+      return match[1].toUpperCase()
+    }
   }
   
-  // 라인명으로 매핑 확인
-  if (lineMapping[lineName]) {
-    console.log('라인명 매핑으로 제품코드 추출:', lineMapping[lineName])
-    return lineMapping[lineName]
+  // 3. 제품명 기반 완전 매핑
+  const productMapping = {
+    // BJA 계열
+    '닥터베아제정': 'BJA-DR-10',
+    '베아제정': 'BJA-STD-10',
+    
+    // FST 계열  
+    '헬스컵골드정': 'FST-GOLD-10',
+    '헬스컵플러스정': 'FST-PLUS-10',
+    
+    // GB 계열
+    '게보린정': 'GB-STD-10', 
+    '게보린브이정': 'GB-V-10',
+    
+    // GN 계열
+    '그날엔큐정': 'GN-Q-10',
+    '그날엔정': 'GN-STD-10',
+    
+    // PCT 계열
+    '판코레아정': 'PCT-STD-10',
+    
+    // TN 계열
+    '타이레놀정500mg': 'TN-500-10',
+    '타이레놀정8시간': 'TN-8HR-10', 
+    '타이레놀우먼스정': 'TN-WMN-10'
   }
   
-  // 3. 라인 ID 패턴 분석
+  // 제품명 키워드 매칭
+  for (const [keyword, baseCode] of Object.entries(productMapping)) {
+    if (lineName.includes(keyword)) {
+      // 용량별 구분 (10정, 30정, 60정)
+      if (lineName.includes('30') || lineName.includes('30정')) {
+        const code30 = baseCode.replace('-10', '-30')
+        console.log(`제품명+용량 매핑: ${keyword} 30정 -> ${code30}`)
+        return code30
+      }
+      if (lineName.includes('60') || lineName.includes('60정')) {
+        const code60 = baseCode.replace('-10', '-60')
+        console.log(`제품명+용량 매핑: ${keyword} 60정 -> ${code60}`)
+        return code60
+      }
+      
+      console.log(`제품명 매핑: ${keyword} -> ${baseCode}`)
+      return baseCode
+    }
+  }
+  
+  // 4. 제품코드 prefix 매칭
+  const prefixMapping = {
+    'BJA-DR': 'BJA-DR-10',    // 닥터베아제정
+    'BJA-STD': 'BJA-STD-10',  // 베아제정
+    'FST-GOLD': 'FST-GOLD-10', // 헬스컵골드정
+    'FST-PLUS': 'FST-PLUS-10', // 헬스컵플러스정
+    'GB-STD': 'GB-STD-10',    // 게보린정
+    'GB-V': 'GB-V-10',        // 게보린브이정
+    'GN-Q': 'GN-Q-10',        // 그날엔큐정
+    'GN-STD': 'GN-STD-10',    // 그날엔정
+    'PCT-STD': 'PCT-STD-10',  // 판코레아정
+    'TN-500': 'TN-500-10',    // 타이레놀정500mg
+    'TN-8HR': 'TN-8HR-10',    // 타이레놀정8시간
+    'TN-WMN': 'TN-WMN-10'     // 타이레놀우먼스정
+  }
+  
+  for (const [prefix, code] of Object.entries(prefixMapping)) {
+    if (lineName.includes(prefix)) {
+      console.log(`Prefix 매핑: ${prefix} -> ${code}`)
+      return code
+    }
+  }
+  
+  // 5. 라인 패턴 기반 기본값 (베아제정을 기본으로)
   if (lineId.includes('A') || lineName.includes('A라인')) {
-    console.log('A라인 패턴으로 BJA-DR-10 반환')
-    return 'BJA-DR-10'
+    console.log('A라인 감지, 베아제정 기본값')
+    return 'BJA-STD-10'
   }
   
   if (lineId.includes('B') || lineName.includes('B라인')) {
-    console.log('B라인 패턴으로 BJA-DR-30 반환')
-    return 'BJA-DR-30'
+    console.log('B라인 감지, 베아제정 30정')
+    return 'BJA-STD-30'
   }
   
   if (lineId.includes('C') || lineName.includes('C라인')) {
-    console.log('C라인 패턴으로 BJA-DR-60 반환')
-    return 'BJA-DR-60'
+    console.log('C라인 감지, 베아제정 60정')
+    return 'BJA-STD-60'
   }
   
-  if (lineId.includes('D') || lineName.includes('D라인')) {
-    console.log('D라인 패턴으로 BJA-DR-10 반환')
-    return 'BJA-DR-10'
-  }
-  
-  // 4. 외포장 라인명 패턴 확인
-  if (lineName.includes('외포장')) {
-    if (lineName.includes('30개') || lineName.includes('BJA-DR-30')) {
-      return 'BJA-DR-30'
-    }
-    if (lineName.includes('60개') || lineName.includes('BJA-DR-60')) {
-      return 'BJA-DR-60'
-    }
-  }
-  
-  // 5. 기본값 (A라인 제품코드)
-  console.log('제품코드 추출 실패, 기본값 BJA-DR-10 사용')
-  return 'BJA-DR-10'
+  // 6. 최종 기본값
+  console.log('제품코드 추출 실패, 기본값 BJA-STD-10 사용')
+  return 'BJA-STD-10'
 })
 
 // 워크플로우 정보
@@ -806,14 +952,15 @@ const canStartWork = computed(() => {
 
 // 컴포넌트 마운트 시 초기화
 onMounted(async () => {
-  console.log('PackageWork 컴포넌트 마운트 시작 - 제품코드 추출 로직 수정')
+  console.log('PackageWork 컴포넌트 마운트 시작 - 실제 제품명 매핑 적용')
   console.log('라인 정보:', workInfo.value)
   console.log('추출된 제품코드:', extractedProductCode.value)
+  console.log('실제 제품명:', getProductNameFromCode(extractedProductCode.value))
   console.log('워크플로우 정보:', workflowInfo.value)
   
   try {
     loading.value = true
-    loadingMessage.value = `${workInfo.value.lineName}의 워크플로우를 실행하는 중... (제품코드: ${extractedProductCode.value})`
+    loadingMessage.value = `${workInfo.value.lineName}의 워크플로우를 실행하는 중... (제품: ${getProductNameFromCode(extractedProductCode.value)})`
     
     // 워크플로우 단계별 실행
     await executeWorkflowStep1() // 라인ID, 제품코드 전달
@@ -847,10 +994,12 @@ onMounted(async () => {
     }
     
     if (availableWork.value) {
-      addLog(`${workInfo.value.lineName}에서 작업번호 ${availableWork.value.work_order_no}를 로딩했습니다. (제품코드: ${extractedProductCode.value})`, 'success')
+      const productName = getDisplayProductName(availableWork.value)
+      addLog(`${workInfo.value.lineName}에서 작업번호 ${availableWork.value.work_order_no}를 로딩했습니다. (제품: ${productName})`, 'success')
       addLog(`테이블: work_order_master + work_result_detail`, 'info')
     } else {
-      addLog(`${workInfo.value.lineName}에 사용 가능한 작업번호가 없습니다. (제품코드: ${extractedProductCode.value})`, 'warning')
+      const productName = getProductNameFromCode(extractedProductCode.value)
+      addLog(`${workInfo.value.lineName}에 사용 가능한 작업번호가 없습니다. (제품: ${productName})`, 'warning')
       addLog(`work_order_master 테이블에서 조회됨`, 'info')
     }
     
@@ -965,7 +1114,7 @@ async function executeWorkflowStep3() {
 
 // 워크플로우 4단계: 작업번호 조회 (실제 DB 연동)
 async function executeWorkflowStep4() {
-  console.log('워크플로우 4단계: 작업번호 조회 (제품코드 매핑 수정)')
+  console.log('워크플로우 4단계: 작업번호 조회 (실제 제품명 매핑 적용)')
   
   try {
     const productCode = extractedProductCode.value
@@ -987,8 +1136,8 @@ async function executeWorkflowStep4() {
     
     if (response.data.success && response.data.data) {
       availableWork.value = response.data.data
-      addLog(`DB에서 작업번호 조회 성공: ${availableWork.value.work_order_no} (제품코드: ${productCode})`, 'success')
-      addLog(`제품명: ${availableWork.value.product_name || availableWork.value.final_product_name}`, 'info')
+      const productName = getDisplayProductName(availableWork.value)
+      addLog(`DB에서 작업번호 조회 성공: ${availableWork.value.work_order_no} (제품: ${productName})`, 'success')
       addLog(`실적연동ID: ${availableWork.value.result_detail_id}`, 'info')
       addLog(`데이터 소스: ${response.data.table_structure || 'work_order_master + work_result_detail'}`, 'success')
       return availableWork.value
@@ -1002,7 +1151,8 @@ async function executeWorkflowStep4() {
     
     // 에러가 404인 경우 (작업번호 없음)
     if (error.response && error.response.status === 404) {
-      addLog(`${workInfo.value.lineName}에 대기중인 작업번호가 없습니다. (제품코드: ${extractedProductCode.value})`, 'warning')
+      const productName = getProductNameFromCode(extractedProductCode.value)
+      addLog(`${workInfo.value.lineName}에 대기중인 작업번호가 없습니다. (제품: ${productName})`, 'warning')
       availableWork.value = null
       return null
     }
@@ -1106,7 +1256,7 @@ async function loadWorkflowData() {
   }
 }
 
-// 작업번호 변경 시
+// 작업번호 변경 시 (실제 제품명 적용)
 async function onWorkOrderChange() {
   if (!selectedWorkOrder.value || !availableWork.value) {
     resetCurrentWork()
@@ -1120,14 +1270,18 @@ async function onWorkOrderChange() {
     console.log(`선택된 작업번호: ${selectedWorkOrder.value}`)
     console.log('availableWork 원본 데이터:', availableWork.value)
     
-    // availableWork에서 직접 매핑
+    // 제품코드에서 실제 제품명 변환
+    const productCode = availableWork.value.product_code || extractedProductCode.value
+    const realProductName = getProductNameFromCode(productCode)
+    
+    // availableWork에서 직접 매핑 (실제 제품명 사용)
     currentWork.value = {
       work_order_no: availableWork.value.work_order_no || availableWork.value.work_id,
       work_id: availableWork.value.work_id,
       result_detail_id: availableWork.value.result_detail_id,
-      product_name: availableWork.value.product_name || availableWork.value.final_product_name || `${extractedProductCode.value} 최종제품`,
-      final_product_name: availableWork.value.final_product_name || availableWork.value.product_name || `${extractedProductCode.value} 최종제품`,
-      product_code: availableWork.value.product_code || extractedProductCode.value,
+      product_name: availableWork.value.product_name && !availableWork.value.product_name.includes('제품') ? availableWork.value.product_name : realProductName,
+      final_product_name: availableWork.value.final_product_name && !availableWork.value.final_product_name.includes('제품') ? availableWork.value.final_product_name : realProductName,
+      product_code: productCode,
       target_quantity: availableWork.value.input_qty || availableWork.value.target_qty || 1000,
       current_quantity: availableWork.value.output_qty || 0,
       remaining_quantity: (availableWork.value.input_qty || availableWork.value.target_qty || 1000) - (availableWork.value.output_qty || 0),
@@ -1153,6 +1307,7 @@ async function onWorkOrderChange() {
     }
     
     console.log('currentWork 객체로 변환 완료:', currentWork.value)
+    console.log(`실제 제품명 적용: ${realProductName}`)
     
     // 외포장 워크플로우 연계
     if (workInfo.value.lineType === 'OUTER' && workflowInfo.value.innerCompleted && workflowInfo.value.innerOutputQty > 0) {
@@ -1163,8 +1318,8 @@ async function onWorkOrderChange() {
     }
     
     updateCurrentWorkInfo()
-    addLog(`작업번호 ${selectedWorkOrder.value} 정보를 불러왔습니다. (제품코드: ${extractedProductCode.value})`, 'success')
-    addLog(`제품명: ${currentWork.value.product_name}`, 'info')
+    addLog(`작업번호 ${selectedWorkOrder.value} 정보를 불러왔습니다.`, 'success')
+    addLog(`제품명: ${realProductName} (코드: ${productCode})`, 'info')
     addLog(`데이터 소스: work_order_master + work_result_detail`, 'success')
     
     if (currentWork.value.result_detail_id) {
@@ -1231,7 +1386,8 @@ async function startWork() {
       startWorkTimer()
       startProductionSimulation()
       
-      addLog(`${workInfo.value.lineType === 'INNER' ? '내포장' : '외포장'} 작업 시작: ${formatNumber(inputQuantity.value)}개`, 'success')
+      const productName = getDisplayProductName(availableWork.value)
+      addLog(`${workInfo.value.lineType === 'INNER' ? '내포장' : '외포장'} 작업 시작: ${formatNumber(inputQuantity.value)}개 (${productName})`, 'success')
       
     } catch (error) {
       console.error('작업 시작 실패:', error)
@@ -3112,11 +3268,6 @@ onUnmounted(() => {
   background: #dcfce7;
   padding: 2px 8px;
   border-radius: 12px;
-}
-
-.chain-arrow {
-  color: #64748b;
-  font-size: 14px;
 }
 
 .confirmation-text {
