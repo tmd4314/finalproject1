@@ -26,6 +26,7 @@ app.use((req, res, next) => {
 // 미들웨어 등록 영역
 // 1. body parser
 // 라우팅 등록 영역
+//s
 
 // 기본 라우팅
 app.get("/", (req, res) => {
