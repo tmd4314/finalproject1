@@ -34,7 +34,7 @@ jobs:
     - name: Build Vue app
       working-directory: client
       run: |
-        npm i
+        npm install --force
         npm run build:ci
         
     # github actions 에 저장된 private key를 ubuntu에 복사
