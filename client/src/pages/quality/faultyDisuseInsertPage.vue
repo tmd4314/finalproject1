@@ -8,20 +8,31 @@
     <div class="form-section">
       <h3 class="form-title">불량이력 조회</h3>
       <div class="input-row">
-        <va-input v-model="form.faultyCode" label="불량이력코드" />
-        <va-input v-model="form.occurDate" label="발생일자" type="date" />
-      </div>
-      <div class="input-row">
-        <va-input v-model="form.name" label="제품명" />
-        <va-input v-model="form.code" label="작업지시서번호" />
+        <va-select
+          v-model="form.name"
+          :options="productOptions"
+          label="제품명"
+          placeholder="제품을 선택하세요"
+          value-by="value"
+          text-by="label"
+        />
+        <va-select
+          v-model="form.code"
+          :options="workOrderOptions"
+          label="작업지시서번호"
+          placeholder="작업지시서를 선택하세요"
+          value-by="value"
+          text-by="label"
+          :disabled="workOrderOptions.length === 0"
+        />
       </div>
       <div class="input-row">
         <va-input v-model="form.processStage" label="공정단계" />
-        <va-input v-model="form.faultyType" label="불량유형" />
+        <va-input v-model="form.occurDate" label="발생일자" type="date" />
       </div>
-      <div class="input-row">
-        <va-input v-model="form.faultyResult" label="판정결과" />
+      <div class="input-row">        
         <va-input v-model="form.faultyQuantity" label="불량수량" />
+        <va-input v-model="form.faultyType" label="불량유형" />
       </div>
     </div>
 
@@ -29,11 +40,7 @@
     <div class="form-section">
       <h3 class="form-title">폐기정보 등록</h3>
       <div class="input-row">
-        <va-input v-model="form.disuseDate" label="폐기일자" />
-        <va-input v-model="form.disuseCompany" label="수거업체" />
-      </div>
-      <div class="input-row">
-        <va-input v-model="form.disuseQuantity" label="폐기수량" />
+        <va-input v-model="form.faultyQuantity" label="폐기수량" />
         <va-input v-model="form.Representative" label="담당자" />
       </div>
       <div class="input-row">
@@ -51,38 +58,119 @@
 </template>
 
 <script lang="ts" setup>
-import { ref } from 'vue'
+import { ref, onMounted, watch } from 'vue';
+import axios from 'axios';
+
+const productOptions = ref<{ label: string; value: string }[]>([]);
+const workOrderOptions = ref<{ label: string; value: string }[]>([]);
 
 const form = ref({
   faultyCode: '',
   occurDate: '',
-  name: '',
-  code: '',
+  name: '',  // 제품코드 저장 (제품명 아닌 코드)
+  code: '',  // 작업지시서 번호 저장
   processStage: '',
   faultyType: '',
   faultyResult: '',
   faultyQuantity: '',
-  disuseDate: '',
   disuseCompany: '',
-  disuseQuantity: '',
   Representative: '',
   disuseReson: '',
   disuseState: ''
-})
+});
+
+// 제품 리스트 로드
+onMounted(async () => {
+  try {
+    const res = await axios.get('/faultyDisuses/productList');
+    productOptions.value = res.data.map((item: any) => ({
+      label: item.product_name,
+      value: item.product_code,
+    }));
+  } catch (err) {
+    console.error('제품명 목록 조회 실패:', err);
+  }
+});
+
+// 제품 선택 시 작업지시서 목록 불러오기
+watch(() => form.value.name, async (newProductCode) => {
+  if (!newProductCode) {
+    workOrderOptions.value = [];
+    form.value.code = '';
+    return;
+  }
+  try {
+    const res = await axios.get('faultyDisuses/workOrderList', { params: { productCode: newProductCode } });
+    workOrderOptions.value = res.data.map((item: any) => ({
+      label: item.work_order_no,
+      value: item.work_order_no,
+    }));
+  } catch (err) {
+    console.error('작업지시서 목록 조회 실패:', err);
+    workOrderOptions.value = [];
+    form.value.code = '';
+  }
+});
+
+watch(() => form.value.code, async (newWorkOrderNo) => {
+  if (!form.value.name || !newWorkOrderNo) return;
+
+  try {
+    const res = await axios.get('/faultyDisuses/faultyInfo', {
+      params: {
+        productCode: form.value.name,
+        workOrderNo: newWorkOrderNo,
+      },
+    });
+
+    const data = res.data;
+    form.value.processStage = data.process_name || '';
+    form.value.occurDate = data.created_at || '';
+    form.value.faultyQuantity = data.quantity || '';
+    form.value.faultyType = data.defect_type || '';
+  } catch (err) {
+    console.error('불량 정보 조회 실패:', err);
+    form.value.processStage = '';
+    form.value.occurDate = '';
+    form.value.faultyQuantity = '';
+    form.value.faultyType = '';
+  }
+});
 
 function resetForm() {
   form.value = {
     faultyCode: '', occurDate: '', name: '', code: '', processStage: '',
-    faultyType: '', faultyResult: '', faultyQuantity: '', disuseDate: '', 
-    disuseCompany: '', disuseQuantity: '', Representative: '', disuseReson: '',
+    faultyType: '', faultyResult: '', faultyQuantity: '',
+    disuseCompany: '', Representative: '', disuseReson: '',
     disuseState: ''
   }
 }
 
-function registerProduct() {
-  if (!form.value.code || !form.value.name) return alert('필수값 누락')
-  alert(`등록된 제품: ${form.value.name} (${form.value.code})`)
-  resetForm()
+async function registerProduct() {
+  if (!form.value.name || !form.value.code) {
+    return alert('제품명과 작업지시서는 필수입니다.');
+  }
+
+  try {
+    const payload = {
+      product_code: form.value.name,
+      work_order_no: form.value.code,
+      process_name: form.value.processStage,
+      occur_date: form.value.occurDate,
+      defect_type: form.value.faultyType,
+      faulty_quantity: Number(form.value.faultyQuantity),
+      representative: form.value.Representative,
+      disuse_reason: form.value.disuseReson,
+      disuse_state: form.value.disuseState,
+    };
+
+    await axios.post('/faultyDisuses/register', payload);
+    alert('폐기정보 등록이 완료되었습니다.');
+    resetForm();
+  } catch (err) {
+    console.error('등록 실패:', err);
+    alert('등록 중 오류가 발생했습니다.');
+  }
 }
 
 function updateProduct() {

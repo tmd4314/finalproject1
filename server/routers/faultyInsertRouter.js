@@ -44,4 +44,49 @@ router.get('/faultyDetail', async (req, res) => {
   }
 });
 
+router.get('/defectTypeList', async (req, res) => {
+  try {
+    const result = await faultyService.selectDefectTypeList();
+    res.send(result);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send({ error: '불량유형 목록 조회 실패' });
+  }
+});
+
+router.post('/register', async (req, res) => {
+  const {
+    product_code,
+    work_order_no,
+    process_name,
+    defect_type,
+    defect_detail,
+    quantity,
+    occur_date,
+    qual_remark,
+  } = req.body;
+
+  // 필수값 검증 (간단히)
+  if (!product_code || !work_order_no) {
+    return res.status(400).send({ error: 'product_code와 work_order_no가 필요합니다.' });
+  }
+
+  try {
+    const result = await faultyService.insertFaultyProduct({
+      product_code,
+      work_order_no,
+      process_name,
+      defect_type,
+      defect_detail,
+      quantity,
+      occur_date,
+      qual_remark,
+    });
+    res.status(200).send({ message: '등록 성공', id: result.insertId });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send({ error: '등록 실패' });
+  }
+});
+
 module.exports = router;

@@ -96,6 +96,8 @@ const equipmentHistoryRouter = require('./routers/equipmentHistoryRouter.js');
 
 const faultyRouter = require('./routers/faultyInsertRouter.js');
 
+const faultyDisuseRouter = require('./routers/faultyDisuseRouter.js');
+
  // 기본 라우팅
 app.get('/', (req, res)=>{
   res.send('Welcome!!...');
@@ -150,3 +152,4 @@ app.use('/materialInspections', materialInspectionRouter);
 app.use('/defects', defectRouter);
 app.use('/qualitys', qualityRouter);
 app.use('/faultys', faultyRouter);
+app.use('/faultyDisuses', faultyDisuseRouter);

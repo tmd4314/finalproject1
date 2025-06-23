@@ -12,9 +12,28 @@ const selectFaultyTestDetail = async (workOrderNo) => {
   return await mariadb.query('selectFaultyTestDetail', [workOrderNo]);
 };
 
+const selectDefectTypeList = async () => {
+  return await mariadb.query('selectDefectTypeList');
+};
+
+const insertFaultyProduct = async (data) => {
+  const params = [
+    data.product_code,
+    data.work_order_no,
+    data.process_name,
+    data.defect_type,
+    data.defect_detail,
+    data.quantity,
+    data.occur_date,
+    data.qual_remark,
+  ];
+  return await mariadb.query('insertFaultyProduct', params);
+};
 
 module.exports = {
   selectProductFaultyList,
   selectWorkOrderDetailNo,
-  selectFaultyTestDetail
+  selectFaultyTestDetail,
+  selectDefectTypeList,
+  insertFaultyProduct
 }

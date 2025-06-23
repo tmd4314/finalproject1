@@ -26,7 +26,8 @@ const dashboard = require('./sqls/dashboard.js');
 const productOutbound = require('./sqls/productOutbound.js');
 const employee = require('./sqls/employee.js');
 const equipmentHistory = require('./sqls/equipmentHistory.js');
-const faulty = require('./sqls/faultyInsert.js')
+const faulty = require('./sqls/faultyInsert.js');
+const faultyDisuse = require('./sqls/faultyDisuse.js');
 
 
 
@@ -60,6 +61,7 @@ const faulty = require('./sqls/faultyInsert.js')
      ...productOutbound,
      ...employee,
      ...equipmentHistory,
-     ...faulty
+     ...faulty,
+     ...faultyDisuse
  }
 
