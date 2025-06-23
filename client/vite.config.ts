@@ -70,11 +70,11 @@ const createProxy = (paths: string[]) =>
 
 export default defineConfig({
   build: {
-   // sourcemap: true,
+    sourcemap: true,
     //outDir: "../server/public",
   },
   server: {
-    proxy: createProxy(proxyPaths)
+   // proxy: createProxy(proxyPaths)
   },
   resolve: {
     alias: {
