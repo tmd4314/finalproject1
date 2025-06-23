@@ -30,7 +30,6 @@ jobs:
     - name: Install frontapp dependencies
       working-directory: client
       run: |
-        npm clean
         rm  package-lock.json
         npm install --force
 
