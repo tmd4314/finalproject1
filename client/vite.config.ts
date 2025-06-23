@@ -74,7 +74,7 @@ export default defineConfig({
     //outDir: "../server/public",
   },
   server: {
-   // proxy: createProxy(proxyPaths)
+    proxy: createProxy(proxyPaths)
   },
   resolve: {
     alias: {
