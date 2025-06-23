@@ -38,9 +38,28 @@ WHERE
 LIMIT 1;
 `;
 
+const selectDefectTypeList = `
+SELECT 
+  defect_type_name, 
+  defect_type_remark 
+FROM 
+  defect_type
+ORDER BY 
+  defect_type_name;
+`;
+
+const insertFaultyProduct = `
+INSERT INTO faulty_product (
+  product_code, work_order_no, process_name, defect_type, defect_detail,
+  quantity, occur_date, qual_remark
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+`;
+
 module.exports = {
   selectFaultyProductName,
   selectFaultyWorkOrderNo,
-  selectFaultyTestDetail
+  selectFaultyTestDetail,
+  selectDefectTypeList,
+  insertFaultyProduct
 }
 
