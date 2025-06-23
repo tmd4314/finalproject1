@@ -467,7 +467,7 @@ onMounted(async () => {
 async function fetchEmployees() {
   try {
     loading.value = true
-    const response = await axios.get('http://localhost:3000/employee')
+    const response = await axios.get('/employee')
     console.log('사원 데이터:', response.data)
     employees.value = response.data
   } catch (error) {
@@ -627,11 +627,11 @@ async function saveEmployee() {
     
     if (selectedEmployee.value) {
       // 수정
-      await axios.put(`http://localhost:3000/employee/${selectedEmployee.value.employee_id}`, employeeData)
+      await axios.put(`/employee/${selectedEmployee.value.employee_id}`, employeeData)
       alert('사원 정보가 수정되었습니다.')
     } else {
       // 신규 등록
-      await axios.post('http://localhost:3000/employee', employeeData)
+      await axios.post('/employee', employeeData)
       alert('사원이 등록되었습니다.')
     }
     
@@ -663,7 +663,7 @@ async function deleteSelected() {
     console.log('다중 삭제 요청 시작');
     
     // 서버의 다중 삭제 API 호출
-    const response = await axios.post('http://localhost:3000/employee/delete-multiple', {
+    const response = await axios.post('/employee/delete-multiple', {
       ids: selectedIds.value
     });
     
