@@ -126,7 +126,7 @@
               <td class="border border-gray-200 px-3 py-2">{{ plan.plan_id }}</td>
               <td class="border border-gray-200 px-3 py-2">{{ plan.plan_name }}</td>
               <td class="border border-gray-200 px-3 py-2">
-                <span class="text-blue-700 font-medium">{{ plan.product_summary }}</span>
+                <span class="text font-medium">{{ plan.product_summary }}</span>
               </td>
               <td class="border border-gray-200 px-3 py-2 text-center">
                 <span class="font-semibold">{{ formatNumber(plan.total_qty) }}</span>
