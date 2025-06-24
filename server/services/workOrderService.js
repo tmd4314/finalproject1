@@ -225,6 +225,7 @@ const saveWorkResultDetails = async (resultId, processCodes) => {
       const insertData = [
         resultId,
         process.process_code,
+        process.process_seq,
         process.code_value
       ];
       await mariadb.query('insertResultDetail', insertData);
