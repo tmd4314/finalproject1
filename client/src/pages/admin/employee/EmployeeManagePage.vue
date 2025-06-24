@@ -427,9 +427,8 @@ const filteredEmployees = computed(() => {
   return employees.value.filter(employee => {
     // 검색어 필터
     const matchesSearch = !searchText.value || 
-      employee.employee_id.toLowerCase().includes(searchText.value.toLowerCase()) ||
+      String(employee.employee_id).toLowerCase().includes(searchText.value.toLowerCase()) ||
       employee.employee_name.toLowerCase().includes(searchText.value.toLowerCase())
-    
     // 드롭다운 필터
     const matchesFilters = 
       (!filters.value.employeeId || employee.employee_id === filters.value.employeeId) &&
