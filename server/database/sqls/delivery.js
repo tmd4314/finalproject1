@@ -46,7 +46,7 @@ const delList =
     JOIN bom_detail bd ON bm.bom_code = bd.bom_code
     JOIN material m ON bd.material_code = m.material_code
     LEFT JOIN oldest_lot ol ON m.material_code = ol.material_code AND ol.rn = 1
-    WHERE wd.work_order_no = "WO20250624002";
+    WHERE wd.work_order_no = ?;
 `
 ;
 
