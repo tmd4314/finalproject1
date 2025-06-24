@@ -97,12 +97,12 @@
             <tr>
               <th class="border border-gray-200 px-3 py-2 text-left font-medium text-gray-700 min-w-[120px]">계획번호</th>
               <th class="border border-gray-200 px-3 py-2 text-left font-medium text-gray-700 min-w-[150px]">계획명</th>
-              <th class="border border-gray-200 px-3 py-2 text-left font-medium text-gray-700 min-w-[300px]">제품정보</th>
+              <th class="border border-gray-200 px-3 py-2 text-left font-medium text-gray-700 min-w-[280px]">제품정보</th>
               <th class="border border-gray-200 px-3 py-2 text-center font-medium text-gray-700 min-w-[80px]">총수량</th>
               <th class="border border-gray-200 px-3 py-2 text-center font-medium text-gray-700 min-w-[100px]">작성일</th>
               <th class="border border-gray-200 px-3 py-2 text-center font-medium text-gray-700 min-w-[100px]">시작예정일</th>
               <th class="border border-gray-200 px-3 py-2 text-center font-medium text-gray-700 min-w-[100px]">종료예정일</th>
-              <th class="border border-gray-200 px-3 py-2 text-left font-medium text-gray-700 min-w-[80px]">작성자</th>
+              <th class="border border-gray-200 px-3 py-2 text-left font-medium text-gray-700 min-w-[60px]">작성자</th>
             </tr>
           </thead>
           <tbody>
