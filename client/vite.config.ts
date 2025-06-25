@@ -54,7 +54,8 @@ const proxyPaths = [
   'materialOutbound',
   'endEq',
   'employee',
-  'auth'
+  'auth',
+  'faultyDisuses'
 ]
 
 // ✅ 공통 proxy 설정 생성 함수
