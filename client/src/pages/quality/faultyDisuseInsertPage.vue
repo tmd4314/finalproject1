@@ -102,7 +102,7 @@ watch(
       return;
     }
     try {
-      const res = await axios.get("faultyDisuses/workOrderList", {
+      const res = await axios.get("/faultyDisuses/workOrderList", {
         params: { productCode: newProductCode },
       });
       workOrderOptions.value = res.data.map((item: any) => ({
