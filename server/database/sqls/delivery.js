@@ -16,6 +16,7 @@ const workList =
         JOIN common_code co ON wr.code_value = co.code_value
         WHERE wr.work_order_no = wm.work_order_no
           AND co.code_label = '대기 중'
+
     )
 `
 ;
@@ -31,6 +32,7 @@ const delList =
       FROM material_lot
     )
     SELECT 
+    
         wm.work_order_no,
         m.material_code,
         m.material_name,
